@@ -220,7 +220,7 @@
     }
 
     function fill(bit) {
-      if (!bit || room.revealing || signal.aborted) return;
+      if (!bit || room.revealing || room.hatching || signal.aborted) return; // a hatch heard early waits for its reveal
       root.classList.toggle('is-egg', !bit.hatched);
       paintStage(bit);
       standBit(bit);

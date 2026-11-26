@@ -119,35 +119,19 @@
     for (const spot of Object.values(spots)) if (spot) spot.btn.setAttribute('aria-label', label());
   }
 
-  // Those who had Xenon before Bit came get one card saying the egg is theirs to hatch (Bit's
-  // messages: one a day, covering nothing); a hatch from anywhere takes it back unread.
-  // Once it hatched, a closed month (or year) is told once, with its card in the sheet
-  // (recap.js), and an unread one goes when its month gives way to the next.
+  // Once it hatched, a closed month (or year) is told once, with its card in the sheet (recap.js), and an
+  // unread one goes when its month gives way to the next.
   const WEEK = 7 * 24 * 3600 * 1000;
-  const SETUP_TOLD = 'bit:setup'; // the guided setup's card (room-setup.js): it goes once the setup is seen
-  let told = false;
+  let met = false; // this page opened the room by itself
   let filed = null; // the ids last filed from this page
-  let setupLoaded = false;
+  let setupReady = null; // settles once room-setup.js has run (or failed to load)
   const say = (key, vars = {}) => String(t(key)).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
   const num = (n) => Number(n).toLocaleString(typeof lang === 'string' ? lang : 'en');
-
-  // A Bit from before the guided setup (room-setup.js) gets one card that opens its room, where the setup
-  // waits; seen there, the card goes. Not while the room is open: the setup is on screen already.
-  const setupDue = () => bit?.hatched === true && bit.prefs?.setup !== true;
-  function setupCard(M) {
-    if (!setupDue() || bit.prefs?.place === 'off' || window.BitSheet?.isOpen()) return [];
-    const body = say('mybit_guide_msg_text');
-    return [{
-      id: SETUP_TOLD, kind: 'bit', surface: 'dashboard', title: say('mybit_guide_msg_title'),
-      line: M.firstLine(body), body, action: { type: 'bit', label: say('mybit_guide_msg_open') },
-    }];
-  }
 
   function tellRecaps(M) {
     const R = window.BitRecap;
     const recaps = R && bit.prefs?.place !== 'off' ? R.recapsOf(bit) : [];
-    const setup = setupCard(M);
-    const ids = [...recaps.map(({ rec }) => `bit:recap:${rec.key}`), ...setup.map((m) => m.id)];
+    const ids = recaps.map(({ rec }) => `bit:recap:${rec.key}`);
     const fresh = Date.now() - Date.parse(bit.born) < WEEK;
     if ((!ids.length && !fresh && filed === null) || filed === ids.join()) return;
     filed = ids.join();
@@ -155,41 +139,28 @@
     M.file([...recaps.map(({ kind, rec }, i) => ({
       id: ids[i], kind: 'bit', surface: 'dashboard', title: R.words(rec, kind, bit, say, num, typeof lang === 'string' ? lang : 'en').title,
       line: M.firstLine(body), body, action: { type: 'bit', label: say('mybit_recap_open') },
-    })), ...setup], { bit: ids });
+    }))], { bit: ids });
   }
 
-  // Every egg is met once, on its first day (a new install's, or a founder's right after the
-  // update), when the first-run choice and anything else on screen are gone: the corner alone
-  // is too small to be found.
-  const MET = 'xenon.bit.metEgg';
-  function meetEgg() {
-    if (told || bit.prefs?.place === 'off' || !(Date.now() - Date.parse(bit.eggAt) < 24 * 3600 * 1000)) return;
-    told = true;
-    // Kept per egg: a new egg on the same browser (a reinstall) is met again, and the mark is
-    // written only once the sheet is really open.
-    const show = () => {
-      try { if (localStorage.getItem(MET) === bit.eggAt) return; } catch { return; }
-      if (bit.hatched || !window.BitSheet?.open()) return;
-      try { localStorage.setItem(MET, bit.eggAt); } catch { /* shown; at worst shown again */ }
-    };
+  // Until the egg hatched and its setup is done (room-setup.js), the room opens by itself once each time
+  // the page opens, after the first-run choice and anything else on screen: the corner alone is too small
+  // to be found. Closed before that, it opens again the next time; never where no Bit is wanted.
+  function meetRoom() {
+    const waiting = () => bit.hatched !== true || bit.prefs?.setup !== true;
+    if (met || bit.prefs?.place === 'off' || !waiting()) return;
+    met = true;
+    const show = () => { if (waiting() && window.BitSheet && !window.BitSheet.isOpen()) window.BitSheet.open(); };
     const I = window.XenonInterrupts;
-    if (I) I.whenIdle(show, { priority: I.PRIORITY.message }); else show();
+    const go = () => (I ? I.whenIdle(show, { priority: I.PRIORITY.message }) : show());
+    // A Bit not set up opens on its setup: not before the file that draws it is in (loadSetup).
+    if (bit.hatched && !window.BitSetup && setupReady) setupReady.then(go); else go();
   }
 
   function tellEgg() {
-    const M = window.BitMessages;
     if (bit?.ok !== true) return;
-    if (!bit.hatched) meetEgg();
-    if (!bit.hatched && !bit.founder) return;
-    if (!M) return;
-    if (bit.hatched) { tellRecaps(M); return; }
-    if (told || bit.prefs?.place === 'off') return;
-    told = true;
-    const body = t('mybit_card_text');
-    M.file([{
-      id: 'bit:hatch', kind: 'bit', surface: 'dashboard', title: t('mybit_card_title'),
-      line: M.firstLine(body), body, action: { type: 'bit', label: t('mybit_hatch') },
-    }]);
+    meetRoom();
+    const M = window.BitMessages;
+    if (bit.hatched && M) tellRecaps(M);
   }
 
   function heard(next) {
@@ -208,21 +179,23 @@
   if (typeof addEventListener === 'function') {
     addEventListener('xenon-bit', (e) => { if (e.detail) heard(e.detail); });
   }
-  // Scripts only some pages need, added once in this order.
+  // Scripts only some pages need, added once in this order; the last one's tag comes back.
   function load(srcs) {
+    let tag = null;
     for (const src of srcs) {
-      const tag = document.createElement('script');
+      tag = document.createElement('script');
       tag.src = src;
       tag.async = false; // in this order
       document.head.append(tag);
     }
+    return tag;
   }
 
   // The guided setup (room-setup.js) is fetched only while it is still due: an egg, or a Bit not set up.
   function loadSetup() {
-    if (setupLoaded) return;
-    setupLoaded = true;
-    load(['js/bit-companion/room-setup.js']);
+    if (setupReady) return;
+    const tag = load(['js/bit-companion/room-setup.js']);
+    setupReady = new Promise((done) => { tag.onload = done; tag.onerror = done; });
   }
 
   const known = app()?.state();

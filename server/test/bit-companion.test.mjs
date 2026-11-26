@@ -63,6 +63,8 @@ function rig({ vitalsPet = false, answers = {}, setup = false } = {}) {
     t: (key) => key,
     lang: 'en',
     SERVER: '',
+    // The dashboard's interrupts: the room that opens by itself (companion.js) waits on them, here for good.
+    XenonInterrupts: { PRIORITY: { message: 10 }, whenIdle() {}, registerOverlay() {} },
     hubSettings: { vitals: { enabled: true, pet: { enabled: vitalsPet } } },
     makeEl: (tag, cls, text) => {
       const n = document.createElement(tag);
@@ -598,66 +600,50 @@ test('on a layer page the tile takes the stream through its own handlers', () =>
   assert.deepEqual(r.reactions, ['hello', 'gameStart', 'trackChange']);
 });
 
-test('a founder\'s egg files one card to hatch it; a fresh hatch takes it back, an old one asks nothing', () => {
-  const r = rig();
-  const filed = [];
-  r.ctx.BitMessages = { file: (messages, live) => { filed.push({ messages, live }); return Promise.resolve(true); }, firstLine: (s) => s };
-  r.tell(egg());
-  r.tell(egg({ place: 'off' }));
-  assert.equal(filed.length, 0, 'not a founder: the egg in the corner is enough');
-  const founder = { ...egg(), founder: true };
-  r.tell(founder);
-  r.tell(founder);
-  assert.equal(filed.length, 1, 'once a page');
-  const [card] = filed[0].messages;
-  assert.deepEqual([card.id, card.kind, card.surface, card.action.type, card.title], ['bit:hatch', 'bit', 'dashboard', 'bit', 'mybit_card_title']);
-  r.tell(born({}, { founder: true, born: new Date().toISOString() }));
-  assert.equal(JSON.stringify(filed[1].live), '{"bit":["bit:setup"]}', 'the egg card goes, the setup card comes');
-  const later = rig();
-  const none = [];
-  later.ctx.BitMessages = { file: (_m, live) => { none.push(live); return Promise.resolve(true); }, firstLine: (s) => s };
-  later.tell(born({ setup: true }, { founder: true, born: '2026-01-01T00:00:00.000Z' }));
-  later.tell({ ...egg({ place: 'off' }), founder: true });
-  assert.deepEqual(none, [], 'hatched long ago, or no Bit wanted anywhere');
-});
-
-test('an egg is met once, on its first day, after whatever is on screen', () => {
-  const store = new Map();
-  const shelf = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+test('until the egg hatched and its setup is done, the room opens by itself once each time the page opens', async () => {
   const waiting = [];
-  const AT = new Date().toISOString();
-  const fresh = () => ({ ...egg(), eggAt: AT });
+  const cards = [];
   const page = () => {
     const r = rig();
-    r.ctx.localStorage = shelf;
     r.ctx.XenonInterrupts = { PRIORITY: { message: 10 }, whenIdle: (fn) => waiting.push(fn), registerOverlay() {} };
+    r.ctx.BitMessages = { file: (messages) => { cards.push(...messages); return Promise.resolve(true); }, firstLine: (x) => x };
     return r;
   };
+  const setupIn = async (r) => { r.document.head.children.find((n) => /room-setup.js$/.test(n.src)).onload(); await settle(); };
   const r = page();
-  r.tell(fresh());
-  r.tell(fresh());
+  r.tell(egg());
+  r.tell(egg());
   assert.equal(r.sheet(), null, 'not over the first-run choice');
   assert.equal(waiting.length, 1, 'asked once a page');
   waiting.shift()();
   assert.ok(r.sheet(), 'the egg is shown when the screen is free');
+  r.ctx.BitSheet.close();
+  r.tell(egg());
+  assert.equal(waiting.length, 0, 'closed: not again on this page');
   const next = page();
-  next.tell(fresh());
-  waiting.splice(0).forEach((fn) => fn());
-  assert.equal(next.sheet(), null, 'once on this device');
-  const again = page();
-  again.tell({ ...egg(), eggAt: new Date(Date.parse(AT) + 1000).toISOString() });
-  waiting.splice(0).forEach((fn) => fn());
-  assert.ok(again.sheet(), 'a new egg (a reinstall) is met again');
-  store.clear();
-  const old = page();
-  old.tell({ ...egg(), eggAt: '2026-01-01T00:00:00.000Z' });
-  old.tell({ ...fresh(), prefs: { ...PREFS, place: 'off' } });
-  assert.equal(waiting.length, 0, 'an old egg or no Bit wanted: nothing opens');
-  const founder = page();
-  founder.tell({ ...fresh(), founder: true });
+  next.tell({ ...egg(), eggAt: '2026-01-01T00:00:00.000Z' });
   waiting.shift()();
-  assert.ok(founder.sheet(), 'a founder meets the egg right after the update too');
-  assert.match(founder.sheet().textContent, /mybit_card_text/, 'and reads why it carries the mark');
+  assert.ok(next.sheet(), 'the next time the page opens it is there again, however old the egg');
+  const founder = page();
+  founder.tell({ ...egg(), founder: true });
+  waiting.shift()();
+  assert.match(founder.sheet().textContent, /mybit_card_text/, 'a founder meets it right after the update, and reads why it carries the mark');
+  const notSet = page();
+  notSet.tell(born({}, { born: '2026-01-01T00:00:00.000Z' }));
+  assert.equal(waiting.length, 0, 'hatched but not set up: first the file that draws the setup');
+  await setupIn(notSet);
+  waiting.shift()();
+  assert.ok(notSet.sheet(), 'then its room opens, where the setup waits');
+  const late = page();
+  late.tell(born());
+  late.tell(born({ setup: true }));
+  await setupIn(late);
+  waiting.shift()();
+  assert.equal(late.sheet(), null, 'done on another screen meanwhile: nothing opens');
+  page().tell(born({ setup: true }));
+  page().tell(egg({ place: 'off' }));
+  assert.equal(waiting.length, 0, 'set up already, or no Bit wanted anywhere: nothing opens');
+  assert.deepEqual(cards, [], 'no card for the egg or the setup: the room itself opens');
 });
 
 test('a closed month is told once, as a message of Bit with its card; a new month takes an unread one back', () => {
@@ -671,9 +657,9 @@ test('a closed month is told once, as a message of Bit with its card; a new mont
   assert.equal(filed.length, 1, 'once a page for the same month');
   const [msg] = filed[0].messages;
   assert.deepEqual([msg.id, msg.kind, msg.surface, msg.action.type, msg.action.label, msg.body], ['bit:recap:2026-11', 'bit', 'dashboard', 'bit', 'mybit_recap_open', 'mybit_recap_msg']);
-  assert.deepEqual(filed[0].live, { bit: ['bit:recap:2026-11', 'bit:setup'] });
+  assert.deepEqual(filed[0].live, { bit: ['bit:recap:2026-11'] });
   r.tell(born({}, { ...old, recap: { month: { ...nov, key: '2026-12' }, year: { ...nov, key: '2026' } } }));
-  assert.deepEqual(filed[1].live, { bit: ['bit:recap:2026', 'bit:recap:2026-12', 'bit:setup'] }, 'an unread November goes');
+  assert.deepEqual(filed[1].live, { bit: ['bit:recap:2026', 'bit:recap:2026-12'] }, 'an unread November goes');
   const off = rig();
   const none = [];
   off.ctx.BitMessages = { file: (m) => { none.push(m); return Promise.resolve(true); }, firstLine: (s) => s };
@@ -682,36 +668,7 @@ test('a closed month is told once, as a message of Bit with its card; a new mont
   assert.deepEqual(none, [], 'no Bit wanted anywhere, or no month closed yet');
 });
 
-// ── room-setup.js: where to see it, how it moves, what it can do; once ──
-test('a Bit from before the guided setup gets one card that opens its room; once seen, the card goes', () => {
-  const old = { born: '2026-01-01T00:00:00.000Z' };
-  const r = rig();
-  const filed = [];
-  r.ctx.BitMessages = { file: (messages, live) => { filed.push(JSON.parse(JSON.stringify({ messages, live }))); return Promise.resolve(true); }, firstLine: (x) => x };
-  r.tell(born({}, old));
-  r.tell(born({}, { ...old, name: 'Pixel' }));
-  assert.equal(filed.length, 1, 'once a page');
-  const [card] = filed[0].messages;
-  assert.deepEqual([card.id, card.kind, card.surface, card.title, card.body, card.action.type, card.action.label],
-    ['bit:setup', 'bit', 'dashboard', 'mybit_guide_msg_title', 'mybit_guide_msg_text', 'bit', 'mybit_guide_msg_open']);
-  assert.deepEqual(filed[0].live, { bit: ['bit:setup'] });
-  r.tell(born({ setup: true }, old));
-  assert.deepEqual(filed[1], { messages: [], live: { bit: [] } }, 'seen on any screen: an unread card goes');
-  r.tell(born({ setup: true }, old));
-  assert.equal(filed.length, 2, 'nothing more to say');
-  const hidden = rig();
-  const none = [];
-  hidden.ctx.BitMessages = { file: (m) => { none.push(m); return Promise.resolve(true); }, firstLine: (x) => x };
-  hidden.tell(born({ place: 'off' }, old));
-  assert.deepEqual(none, [], 'no Bit wanted on the dashboard: no card');
-  const hatching = rig();
-  hatching.ctx.BitMessages = { file: (m) => { none.push(m); return Promise.resolve(true); }, firstLine: (x) => x };
-  hatching.tell(egg());
-  hatching.ctx.BitSheet.open();
-  hatching.tell(born());
-  assert.equal(none.flat().length, 0, 'hatched in its room: the setup is on screen already');
-});
-
+// ── room-setup.js: where to see it, how it moves, what it can do; until it is done ──
 test('the guided setup is fetched only while it is due', () => {
   const tags = (r) => r.document.head.children.map((s) => s.src);
   const done = rig();
@@ -726,7 +683,7 @@ test('the guided setup is fetched only while it is due', () => {
 const drawerOf = (r) => r.sheet().querySelector('.broom-drawer');
 const buttonIn = (el, text) => el.querySelectorAll('button').find((b) => b.textContent === text);
 
-test('the guided setup opens once by itself in the room: where, how it moves, what it can do', async () => {
+test('the guided setup opens by itself in the room until it is done: where, how it moves, what it can do', async () => {
   const r = rig({ setup: true, answers: { '/api/bit/prefs': (body) => ({ ok: true, bit: born({ ...body, setup: true }) }) } });
   const played = [];
   let finish = () => {};
@@ -738,8 +695,7 @@ test('the guided setup opens once by itself in the room: where, how it moves, wh
   assert.equal(drawer.querySelector('.broom-drawer-title').textContent, 'mybit_guide_title');
   assert.equal(drawer.querySelector('[data-guide-step]').textContent, 'mybit_guide_where');
   await settle();
-  assert.deepEqual(r.posts.filter((x) => x.body.setup), [{ url: '/api/bit/prefs', body: { setup: true } }], 'seen once it shows');
-  assert.equal(drawerOf(r).hidden, false, 'the answer keeps it on its step');
+  assert.deepEqual(r.posts.filter((x) => x.body.setup), [], 'being shown is not being done');
   assert.ok(buttonIn(drawerOf(r), 'mybit_place_both'), 'the places on the dashboard');
   assert.equal(buttonIn(drawerOf(r), 'mybit_desk_main'), undefined, 'no desktop where the shell cannot draw it');
   assert.equal(buttonIn(drawerOf(r), 'mybit_guide_back'), undefined, 'nothing before the first step');
@@ -764,12 +720,14 @@ test('the guided setup opens once by itself in the room: where, how it moves, wh
   buttonIn(drawerOf(r), 'mybit_guide_next').click();
   buttonIn(drawerOf(r), 'mybit_guide_done').click();
   assert.equal(drawerOf(r).hidden, true, 'done closes it');
+  await settle();
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { setup: true } }, 'and keeps it done, for every screen');
   r.ctx.BitSheet.close();
   r.ctx.BitSheet.open();
   assert.equal(drawerOf(r).hidden, true, 'never again');
 });
 
-test('the guided setup offers the desktop where the shell draws it, and stays due when the answer fails', async () => {
+test('the guided setup offers the desktop where the shell draws it, and stays due when closed early or the answer fails', async () => {
   const r = rig({ setup: true, answers: { '/api/bit/prefs': { ok: false, error: 'offline' } } });
   r.ctx.__XENON_NATIVE__ = true;
   r.ctx.__XENON_NATIVE_CAPS__ = { bitDesk: true };
@@ -780,10 +738,31 @@ test('the guided setup offers the desktop where the shell draws it, and stays du
   assert.ok(drawerOf(r).querySelectorAll('.bitc-line').some((l) => l.textContent === 'mybit_guide_desk_line'), 'and how to move it there');
   buttonIn(drawerOf(r), 'mybit_guide_next').click();
   assert.equal(buttonIn(drawerOf(r), 'mybit_roam_walk'), undefined, 'by the clock only: no stroll to choose');
+  r.ctx.BitSheet.close();
+  r.ctx.BitSheet.open();
+  assert.equal(drawerOf(r).hidden, false, 'closed before its last step: the next room offers it again');
+  buttonIn(drawerOf(r), 'mybit_guide_next').click();
+  buttonIn(drawerOf(r), 'mybit_guide_next').click();
+  buttonIn(drawerOf(r), 'mybit_guide_done').click();
+  await settle();
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { setup: true } });
   assert.notEqual(r.ctx.BitApp.state().prefs.setup, true, 'not saved: still due');
   r.ctx.BitSheet.close();
   r.ctx.BitSheet.open();
   assert.equal(drawerOf(r).hidden, false, 'not saved: the next room offers it again');
+});
+
+test('a hatch the live stream tells before its answer still opens the setup once the egg has broken', async () => {
+  let early = () => {};
+  const r = rig({ setup: true, answers: { '/api/bit/hatch': () => { early(); return { ok: true, bit: born() }; } } });
+  early = () => r.tell(born()); // the server's stream can be faster than the answer
+  r.tell(egg());
+  r.ctx.BitSheet.open();
+  dock(r).querySelector('[data-hatch]').click();
+  await settle();
+  r.runTimers();
+  assert.equal(drawerOf(r).hidden, false, 'the setup opens after the reveal');
+  assert.ok(drawerOf(r).querySelector('[data-guide-step]'));
 });
 
 // ── stroll.js: the corner walks now and then, and stays where it is dragged ──

@@ -1,18 +1,17 @@
 'use strict';
-// The guided setup of the person's Bit, in its room's drawer (room.js, room-panels.js). It opens by itself
-// once: right after the egg hatches or, for a Bit from before, the first time its room opens after the
-// update (one of Bit's messages takes the person there: companion.js, which loads this file only while
-// it is due). Three steps: where to see it (the dashboard, and the desktop where the shell draws it), how
-// it gets around (a tap on an effect plays it on the big Bit), what it can do. Seen once (prefs.setup,
-// kept by the server, so no other screen offers it again); every choice stays in its settings afterwards.
+// The guided setup of the person's Bit, in its room's drawer (room.js, room-panels.js). It opens by itself in
+// every room that opens until it is done: right after the egg hatches and, while it is due, each time Xenon
+// opens (companion.js opens the room then, and loads this file only while it is due). Three steps: where to
+// see it (the dashboard, and the desktop where the shell draws it), how it gets around (a tap on an effect
+// plays it on the big Bit), what it can do. Done on the last step (prefs.setup, kept by the server, so no
+// other screen offers it again); every choice stays in its settings afterwards.
 (() => {
   const QUESTIONS = ['mybit_guide_where', 'mybit_guide_moves', 'mybit_guide_can'];
   const CAN = ['mybit_guide_can_react', 'mybit_guide_can_news', 'mybit_guide_can_room', 'mybit_guide_can_chat'];
   const offered = new WeakSet(); // the rooms it opened in by itself
   let step = 0;
-  let marking = false;
 
-  /** True while the person has not been through it: a hatched Bit without prefs.setup. */
+  /** True until the person has been through it: a hatched Bit without prefs.setup. */
   const due = (bit) => bit?.ok === true && bit.hatched === true && bit.prefs?.setup !== true;
 
   /** 'setup' the first time a room fills while it is due (that room only), else null. */
@@ -76,15 +75,14 @@
     const row = makeEl('div', 'bitc-acts');
     if (at > 0) row.append(button(h.say('mybit_guide_back'), false, (e) => go(at - 1, e, h), h));
     const last = at === STEPS.length - 1;
-    row.append(button(h.say(last ? 'mybit_guide_done' : 'mybit_guide_next'), true, (e) => (last ? h.close() : go(at + 1, e, h)), h));
+    row.append(button(h.say(last ? 'mybit_guide_done' : 'mybit_guide_next'), true, (e) => (last ? done(h) : go(at + 1, e, h)), h));
     return row;
   }
 
-  // Seen once it shows: an answer that fails leaves it due, and it is offered again next time.
-  async function mark(h) {
-    marking = true;
+  // Done only on its last step: closed before, or with an answer that fails, it is offered again next time.
+  async function done(h) {
+    h.close();
     const out = await h.post('/api/bit/prefs', { setup: true });
-    marking = false;
     if (out.ok) h.told(out);
   }
 
@@ -98,7 +96,6 @@
   function build(bit, h) {
     const P = window.BitPanels?.parts;
     if (!P || !bit?.hatched) return null;
-    if (bit.prefs?.setup !== true && !marking) mark(h);
     const at = Math.min(step, STEPS.length - 1);
     const part = makeEl('section', 'bitc-part');
     const question = makeEl('h3', 'bitc-part-title', h.say(QUESTIONS[at]));
