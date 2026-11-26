@@ -171,9 +171,9 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: calc(52p
 .broom-price .xspark, .broom-btn svg { width: 16px; height: 16px; flex: none; }
 .broom-btn .broom-price { color: inherit; }
 
-/* Wide and low (the Xeneon Edge, a monitor across): the rail stands at the side, as a grid. */
-@container broom (min-aspect-ratio: 2 / 1) {
+@container broom (min-aspect-ratio: 2 / 1) { /* wide and low (the Edge, a monitor across): the rail at the side, as a grid; an egg has none, so the stage takes it all */
   .broom-in { grid-template-columns: minmax(0, 1fr) clamp(300px, 30%, 420px); grid-template-rows: minmax(0, 1fr); }
+  .broom-in:has(> .broom-side:empty) { grid-template-columns: minmax(0, 1fr); }
   .broom-side { overflow: hidden auto; border-top: 0; border-inline-start: 1px solid var(--line); }
   .broom-rail-head { flex-direction: column-reverse; align-items: stretch; }
   .broom-balance { align-self: flex-end; }

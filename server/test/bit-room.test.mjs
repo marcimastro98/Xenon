@@ -194,6 +194,9 @@ test('an egg hatches right in the Store; with no Bit known yet the view says it 
   r.tell({ ...born(), hatched: false, stage: 'egg' });
   r.open();
   assert.equal(r.view.querySelector('.broom-card'), null, 'no items before it hatches');
+  // An egg has no rail, so on a wide screen the stage takes the whole room (no empty column beside it).
+  assert.equal(r.view.querySelector('.broom-side').children.length, 0);
+  assert.match(src('components/BitCompanion/BitCompanion.css'), /\.broom-in:has\(> \.broom-side:empty\) \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   assert.equal(r.view.querySelector('.broom-dock .broom-line').textContent, 'mybit_egg_line');
   r.view.querySelector('[data-hatch]').click();
   await settle();
