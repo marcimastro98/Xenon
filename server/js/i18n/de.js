@@ -8045,6 +8045,7 @@ module.exports = {
   mybit_desk_all: 'Alle Bildschirme',
   mybit_desk_off: 'Aus',
   mybit_desk_reset: 'Zurück an seinen Platz',
+  mybit_desk_needs_app: 'Bit kann auch auf der Taskleiste stehen, außerhalb von Xenon. Dafür braucht es die neueste Version der Xenon-App.',
   mybit_warp: 'Wie er sich teleportiert',
   mybit_warp_any: 'Jedes Mal anders',
   mybit_warp_crumble: 'Zerfällt in Bits',

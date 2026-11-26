@@ -8181,6 +8181,7 @@ module.exports = {
   mybit_desk_all: '所有屏幕',
   mybit_desk_off: '关闭',
   mybit_desk_reset: '放回原位',
+  mybit_desk_needs_app: 'Bit 也可以站在任务栏上，在 Xenon 之外。需要最新版本的 Xenon 应用。',
   mybit_warp: '瞬移方式',
   mybit_warp_any: '每次不同',
   mybit_warp_crumble: '碎成比特',

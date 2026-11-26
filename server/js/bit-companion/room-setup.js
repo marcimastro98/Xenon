@@ -35,8 +35,7 @@
   function where(bit, h, P) {
     const p = bit.prefs || {};
     const parts = [P.choice(h.say('mybit_guide_dashboard'), 'place', P.PLACES, p.place, (v) => h.say(`mybit_place_${v}`), h)];
-    if (P.deskShown()) parts.push(P.desk(p, h), line(h.say('mybit_guide_desk_line')));
-    return parts;
+    return parts.concat(P.deskParts(p, h));
   }
 
   // A tap on an effect plays it on the big Bit. On a phone the drawer covers it, so it steps aside meanwhile

@@ -8181,6 +8181,7 @@ module.exports = {
   mybit_desk_all: 'すべての画面',
   mybit_desk_off: 'オフ',
   mybit_desk_reset: 'いつもの場所に戻す',
+  mybit_desk_needs_app: 'Bit は Xenon の外、タスクバーの上にもいられます。最新版の Xenon アプリが必要です。',
   mybit_warp: 'テレポートのしかた',
   mybit_warp_any: '毎回ちがう',
   mybit_warp_crumble: 'ビットに崩れる',

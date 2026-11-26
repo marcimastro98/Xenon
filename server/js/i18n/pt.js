@@ -8074,6 +8074,7 @@ module.exports = {
   mybit_desk_all: 'Todos os ecrãs',
   mybit_desk_off: 'Desligado',
   mybit_desk_reset: 'Voltar ao seu lugar',
+  mybit_desk_needs_app: 'O Bit também pode ficar na barra de tarefas, fora do Xenon. É preciso a versão mais recente da app Xenon.',
   mybit_warp: 'Como se teletransporta',
   mybit_warp_any: 'Cada vez diferente',
   mybit_warp_crumble: 'Se desfaz em bits',

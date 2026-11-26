@@ -8134,6 +8134,7 @@ module.exports = {
   mybit_desk_all: 'Все экраны',
   mybit_desk_off: 'Выкл.',
   mybit_desk_reset: 'Вернуть на место',
+  mybit_desk_needs_app: 'Bit может стоять и на панели задач, вне Xenon. Для этого нужна последняя версия приложения Xenon.',
   mybit_warp: 'Как телепортируется',
   mybit_warp_any: 'Каждый раз по-разному',
   mybit_warp_crumble: 'Рассыпается на биты',

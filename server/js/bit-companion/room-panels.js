@@ -121,6 +121,16 @@
   }
   const deskShown = () => window.__XENON_NATIVE__ === true && window.__XENON_NATIVE_CAPS__?.bitDesk === true;
 
+  // The desktop as a choice with what it is, where the shell draws it. A Windows app from before Bit on the
+  // desktop (its caps never name bitDesk) says what it takes; a browser, a phone or a PC that cannot draw it, nothing.
+  function deskParts(p, h) {
+    const line = (key) => makeEl('p', 'bitc-line', h.say(key));
+    if (deskShown()) return [desk(p, h), line('mybit_guide_desk_line')];
+    const caps = window.__XENON_NATIVE__ === true ? window.__XENON_NATIVE_CAPS__ || {} : null;
+    const windows = /Windows/.test(String(window.navigator?.userAgent));
+    return caps && windows && !('bitDesk' in caps) ? [line('mybit_desk_needs_app')] : [];
+  }
+
   function prefs(bit, h) {
     const p = bit.prefs || {};
     const box = makeEl('section', 'bitc-part bitc-prefs');
@@ -128,7 +138,7 @@
     if (!bit.hatched) return box;
     box.append(choice(h.say('mybit_reactions'), 'reactions', REACTIONS, p.reactions, (v) => h.say(`mybit_react_${v}`), h));
     if (p.place === 'corner' || p.place === 'both') box.append(roam(p, h), warpChoice(p, h));
-    if (deskShown()) box.append(desk(p, h));
+    box.append(...deskParts(p, h));
     const label = makeEl('label', 'bitc-switch');
     const tick = makeEl('input');
     tick.type = 'checkbox';
@@ -271,6 +281,6 @@
     /** The share drawer opens on this part next: 'card', 'clip', 'setup' or 'recap'. */
     choose: (id) => { shareTab = id; },
     /** The rows the guided setup asks with (room-setup.js), the same ones this drawer shows. */
-    parts: Object.freeze({ choice, roam, warp: warpChoice, desk, deskShown, PLACES }),
+    parts: Object.freeze({ choice, roam, warp: warpChoice, deskParts, PLACES }),
   };
 })();

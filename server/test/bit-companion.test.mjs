@@ -934,20 +934,30 @@ test('a moment reaches Bit on the desktop too, even while the page keeps its own
   assert.deepEqual(desk, ['wave', 'hop'], 'a move asked from the chat as well');
 });
 
-test('on the desktop: chosen in its room only where the shell draws it, with a way back after a drag', async () => {
+test('on the desktop: chosen in its room only where the shell draws it, said what it is, with a way back after a drag', async () => {
   const r = rig({ answers: { '/api/bit/prefs': (body) => ({ ok: true, bit: born({ desk: 'main', deskX: 0.3, ...body }) }) } });
   const btn = (text) => r.sheet().querySelectorAll('.broom-drawer .bitc-seg-btn').find((b) => b.textContent === text);
-  r.tell(born());
-  r.ctx.BitSheet.open();
-  openAbout(r);
-  assert.equal(btn('mybit_desk_main'), undefined, 'not in a browser');
-  r.ctx.BitSheet.close?.();
-  r.ctx.__XENON_NATIVE__ = true;
-  r.ctx.__XENON_NATIVE_CAPS__ = { bitDesk: true };
-  r.tell(born({ desk: 'main', deskX: 0.3 }));
-  r.ctx.BitSheet.open();
-  openAbout(r);
-  assert.equal(btn('mybit_desk_main').getAttribute('aria-pressed'), 'true');
+  const said = (key) => r.sheet().querySelectorAll('.broom-drawer .bitc-line').some((l) => l.textContent === key);
+  const look = (native, caps, ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Edg/142') => {
+    r.ctx.BitSheet.close?.();
+    r.ctx.__XENON_NATIVE__ = native;
+    r.ctx.__XENON_NATIVE_CAPS__ = caps;
+    r.ctx.navigator = { userAgent: ua };
+    r.tell(born({ desk: 'main', deskX: 0.3 }));
+    r.ctx.BitSheet.open();
+    openAbout(r);
+  };
+  look(false, {});
+  assert.ok(!btn('mybit_desk_main') && !said('mybit_desk_needs_app'), 'not in a browser, not even a word');
+  look(true, { layers: true });
+  assert.ok(!btn('mybit_desk_main') && said('mybit_desk_needs_app'), 'an app from before it: what it takes');
+  look(true, { layers: true }, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15');
+  assert.ok(!said('mybit_desk_needs_app'), 'off Windows the new app has no taskbar Bit yet: not promised');
+  look(true, { bitDesk: false });
+  assert.ok(!btn('mybit_desk_main') && !said('mybit_desk_needs_app'), 'a new app that cannot draw it here: nothing');
+  look(true, { bitDesk: true });
+  assert.equal(btn('mybit_desk_main').getAttribute('aria-pressed'), 'true', 'on by default, on the main screen');
+  assert.ok(said('mybit_guide_desk_line'), 'with what it is');
   btn('mybit_desk_reset').click();
   await settle();
   assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { deskX: null } });

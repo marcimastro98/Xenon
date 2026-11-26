@@ -8181,6 +8181,7 @@ module.exports = {
   mybit_desk_all: '모든 화면',
   mybit_desk_off: '끄기',
   mybit_desk_reset: '원래 자리로',
+  mybit_desk_needs_app: 'Bit는 Xenon 밖, 작업 표시줄 위에도 있을 수 있어요. 최신 버전의 Xenon 앱이 필요해요.',
   mybit_warp: '순간이동 방식',
   mybit_warp_any: '매번 달라요',
   mybit_warp_crumble: '비트로 부서져요',

@@ -8185,6 +8185,7 @@ module.exports = {
   mybit_desk_all: 'Alle schermen',
   mybit_desk_off: 'Uit',
   mybit_desk_reset: 'Terug naar zijn plek',
+  mybit_desk_needs_app: 'Bit kan ook op de taakbalk staan, buiten Xenon. Daarvoor is de nieuwste versie van de Xenon-app nodig.',
   mybit_warp: 'Hoe hij teleporteert',
   mybit_warp_any: 'Elke keer anders',
   mybit_warp_crumble: 'Valt uiteen in bits',
