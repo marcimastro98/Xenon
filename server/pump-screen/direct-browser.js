@@ -28,6 +28,7 @@ function createDirectBrowser(o) {
   let proc = null;
   let ws = null;
   let session = '';
+  let own = ''; // the face page's tab: every other page is closed
   let probe = null;
   let lastFrame = 0;
   let ackTimer = null;
@@ -74,6 +75,7 @@ function createDirectBrowser(o) {
       else w.resolve(msg.result || {});
       return;
     }
+    if (msg.method === 'Target.targetCreated') { closeSpare(msg.params?.targetInfo); return; }
     if (msg.sessionId !== session) return;
     if (msg.method === 'Page.screencastFrame') frame(msg);
     else if (msg.method === 'Page.loadEventFired' && loaded) loaded();
@@ -110,6 +112,15 @@ function createDirectBrowser(o) {
     } catch { /* refused: the page still films */ }
   }
 
+  // A tab that opens later is closed too. The profile is kept, and a browser ended with Xenon
+  // (killed, as Windows sees it) reopens its last face page as a second tab a moment after
+  // start: two face pages hold the six connections a browser opens to one host, and the
+  // pump's own hello then never reaches Xenon (the menu loses the pump, the face stops).
+  function closeSpare(info) {
+    if (info?.type !== 'page' || !info.targetId || info.targetId === own) return;
+    cdp('Target.closeTarget', { targetId: info.targetId }).catch(() => {});
+  }
+
   async function start() {
     const launched = await o.launch();
     proc = launched.proc;
@@ -118,8 +129,10 @@ function createDirectBrowser(o) {
     // A window of its own: a page opened as a background tab is never drawn, so it has no
     // frames to film (embedded-browser.js createTargetWindow, the same for the Browser tile).
     const { targetId } = await cdp('Target.createTarget', { url: 'about:blank', newWindow: true, width: o.width, height: o.height });
+    own = targetId;
     ({ sessionId: session } = await cdp('Target.attachToTarget', { targetId, flatten: true }));
     await closeOthers(targetId);
+    await cdp('Target.setDiscoverTargets', { discover: true }).catch(() => {});
     await cdp('Emulation.setDeviceMetricsOverride', { width: o.width, height: o.height, deviceScaleFactor: 1, mobile: false }, session);
     await cdp('Page.enable', {}, session);
     const ready = pageLoaded();

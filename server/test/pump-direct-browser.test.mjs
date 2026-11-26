@@ -71,15 +71,30 @@ test('it opens the face page at the panel size and films it as JPEG', async () =
   const r = rig();
   await r.browser.start();
   assert.deepEqual(r.sent.map((m) => m.method), [
-    'Target.createTarget', 'Target.attachToTarget', 'Target.getTargets', 'Target.closeTarget',
+    'Target.createTarget', 'Target.attachToTarget', 'Target.getTargets', 'Target.closeTarget', 'Target.setDiscoverTargets',
     'Emulation.setDeviceMetricsOverride', 'Page.enable', 'Page.navigate', 'Page.startScreencast',
   ]);
   assert.deepEqual(r.sent[0].params, { url: 'about:blank', newWindow: true, width: 480, height: 480 }, 'a background tab is never drawn');
   assert.deepEqual(r.sent[3].params, { targetId: 'blank' }, 'the empty first tab closed, the face page and a worker kept');
-  assert.deepEqual(r.sent[4].params, { width: 480, height: 480, deviceScaleFactor: 1, mobile: false });
-  assert.equal(r.sent[6].params.url, 'http://127.0.0.1:3030/pump-face?via=direct');
-  assert.equal(r.sent[6].sessionId, 's1', 'page commands go to the page, not the browser');
-  assert.deepEqual(r.sent[7].params, { format: 'jpeg', quality: 80, maxWidth: 480, maxHeight: 480, everyNthFrame: 1 });
+  assert.deepEqual(r.sent[4].params, { discover: true }, 'and told of every tab that opens later');
+  assert.deepEqual(r.sent[5].params, { width: 480, height: 480, deviceScaleFactor: 1, mobile: false });
+  assert.equal(r.sent[7].params.url, 'http://127.0.0.1:3030/pump-face?via=direct');
+  assert.equal(r.sent[7].sessionId, 's1', 'page commands go to the page, not the browser');
+  assert.deepEqual(r.sent[8].params, { format: 'jpeg', quality: 80, maxWidth: 480, maxHeight: 480, everyNthFrame: 1 });
+  r.browser.stop();
+});
+
+test('a face page the browser reopens from its last run is closed, so only one page talks to Xenon', async () => {
+  const r = rig();
+  await r.browser.start();
+  const told = (targetInfo) => r.socket.emit('message', { data: JSON.stringify({ method: 'Target.targetCreated', params: { targetInfo } }) });
+  const before = r.sent.length;
+  told({ targetId: 'restored', type: 'page', url: 'http://127.0.0.1:3030/pump-face?via=direct' });
+  told({ targetId: 't1', type: 'page' });
+  told({ targetId: 'w2', type: 'service_worker' });
+  assert.deepEqual(r.sent.slice(before).map((m) => [m.method, m.params]), [['Target.closeTarget', { targetId: 'restored' }]], 'its own tab and a worker are kept');
+  await new Promise((done) => setImmediate(done));
+  assert.deepEqual(r.errors, []);
   r.browser.stop();
 });
 
