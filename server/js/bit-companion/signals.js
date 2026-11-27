@@ -76,11 +76,11 @@
 
   // Claude Code and Codex, read as moments.js reads them: any session waiting asks; a session that went
   // from running to idle finished, unless it was closed or its sub-agents still work (the turn paused for
-  // them). The flag stays only while a session that finished still waits: back at work, it comes down.
+  // them). The sign stays only while a session that finished still waits: back at work, it comes down.
   const agentState = (s) => (s.waitFor || s.state === 'waiting' ? 'asks' : s.state === 'running' ? 'running' : 'idle');
   const helping = (s) => Array.isArray(s.subagents) && s.subagents.some((a) => a && a.status === 'running');
   const resting = (s) => agentState(s) === 'idle' && !s.ended && !helping(s);
-  // Whether the source that raised the flag has been heard by this page (Codex may never be linked).
+  // Whether the source that raised the sign has been heard by this page (Codex may never be linked).
   const heardWho = () => {
     const who = list.find((s) => s.kind === 'done')?.vars.who;
     const source = Object.keys(WHO).find((k) => WHO[k] === who);
@@ -95,7 +95,7 @@
     if (asking[source] && !list.some((s) => s.kind === 'ask')) put('ask', { who: WHO[source] });
     else if (!asking.claude && !asking.codex) drop(['ask']);
     const finished = before ? sessions.filter((s) => before.get(String(s.id)) === 'running' && resting(s)) : [];
-    // A page opened after the flag went up does not know which session raised it: the ones resting now.
+    // A page opened after the sign went up does not know which session raised it: the ones resting now.
     const known = before ? waiting[source] : new Set(list.some((s) => s.kind === 'done') ? sessions.filter(resting).map((s) => String(s.id)) : []);
     const still = new Set(sessions.filter((s) => resting(s) && known.has(String(s.id))).map((s) => String(s.id)));
     for (const s of finished) still.add(String(s.id));

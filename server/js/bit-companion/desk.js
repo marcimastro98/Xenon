@@ -65,7 +65,7 @@
   const here = () => (prefs().desk === 'all' ? travelling() : spots().own());
   const spot = () => spots().place(here(), frames().COLS, spots().cell());
   const still = () => spot().y !== null; // left away from the bar: it stays put
-  const wanted = () => supported() && !!state()?.hatched && prefs().desk !== 'off' && !!app()?.personal();
+  const wanted = () => supported() && !!state()?.hatched && prefs().desk !== 'off' && !!app()?.personal() && !window.BitBirth?.showing(); // born on its stage first (birth.js)
 
   const playing = () => (once && Date.now() < once.until ? once : null);
   const lookNow = () => window.BitDeskTry?.look() || app()?.personal(); // desk-try.js: ten minutes in something tried on
@@ -268,9 +268,10 @@
 
   function start() {
     addEventListener('xenon-bit', schedule);
-    addEventListener('xenon-bit-signals', schedule); // a sign in its hand comes or goes (signs.js)
+    addEventListener('xenon-bit-signals', schedule); // a sign on its antenna and screen comes or goes (signs.js)
     addEventListener('xenon-bit-desk-try', schedule); // something from the room put on, or its ten minutes over
     addEventListener('xenon-bit-work', schedule); // Claude Code or Codex start or stop working (moments.js)
+    addEventListener('xenon-bit-birth', schedule); // the stage of its birth opened or closed (birth.js)
     schedule();
     armFidget();
     armStroll();

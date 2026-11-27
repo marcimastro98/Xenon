@@ -132,6 +132,19 @@ test('not out of the shell, without the caps, for an egg or with the desktop tur
   }
 });
 
+test('not while a Bit is being born on its stage: it goes out once the stage lets it (birth.js)', () => {
+  const r = rig();
+  let showing = true;
+  r.ctx.BitBirth = { showing: () => showing };
+  r.ctx.dispatchEvent(new r.ctx.CustomEvent('xenon-bit-birth'));
+  r.advance(100);
+  assert.equal(r.signals.length, 0, 'one Bit on the screen: the one being born');
+  showing = false;
+  r.ctx.dispatchEvent(new r.ctx.CustomEvent('xenon-bit-birth'));
+  r.advance(100);
+  assert.equal(r.desk.on(), true);
+});
+
 test('a hatched Bit goes on the main screen in a message the shell takes, and is sent again while out', () => {
   const r = rig({ pace: 'game' }); // no fidget or stroll in between
   r.advance(100);
@@ -400,44 +413,35 @@ test('tapped with no window to show it: the dashboard opens what was chosen', as
   assert.deepEqual(r.taps, [null]);
 });
 
-test('a sign in its hand on every frame of Bit, in colours the shell takes; none while it is gone', () => {
+test('a sign lights its antenna on every frame of Bit, in colours the shell takes; nothing in its hand', () => {
   const r = rig({ pace: 'game', sign: 'done' });
   r.advance(100);
   const msg = r.last();
   assertShellTakes(msg, JSON.stringify(msg));
-  const ink = (hex) => String.fromCharCode(65 + msg.pal.indexOf(hex));
-  assert.ok(msg.pal.includes('3fd16b') && msg.pal.includes('d9dde3'));
-  const flag = ink('d9dde3') + ink('3fd16b').repeat(3);
-  for (const f of msg.loop) {
-    const top = f.rows.findIndex((row) => row.includes(flag));
-    assert.ok(top > 0, 'the flag is on the frame');
-    const col = f.rows[top].indexOf(flag);
-    assert.ok(col < f.rows[top].length - 5, 'beside Bit, not in the far corner');
-    // Its stick runs down to the arm, a cell in the body's colour: Bit holds it.
-    for (let y = top; y <= top + 5; y++) assert.equal(f.rows[y][col], ink('d9dde3'), 'the stick, row ' + y);
-    assert.notEqual(f.rows[top + 6][col], '.', 'the arm under the stick');
-  }
+  assert.ok(msg.pal.includes('3fd16b'));
+  assert.ok(!msg.pal.includes('d9dde3'), 'no flag stick');
+  const ink = String.fromCharCode(65 + msg.pal.indexOf('3fd16b'));
+  for (const f of msg.loop) assert.ok(f.rows.some((row) => row.includes(ink)), 'the antenna is lit on the frame');
   const plain = rig({ pace: 'game' });
   plain.advance(100);
-  assert.ok(!plain.last().pal.includes('3fd16b'), 'no sign, no flag');
+  assert.ok(!plain.last().pal.includes('3fd16b'), 'no sign, no light');
 });
 
-test('every sign is five by five, fits the palette beside any Bit and is held in its hand', () => {
+test('every sign fits the screen of its computer, with few colours, and lights its antenna', () => {
   const r = rig();
   const S = r.ctx.BitSigns;
+  const table = r.ctx.Xenon.bitSigns;
   assert.deepEqual([...S.KINDS].sort(), ['ask', 'bell', 'disk', 'done', 'soon']);
   for (const kind of S.KINDS) {
     const cells = S.cells(kind);
-    assert.ok(cells.length > 0 && cells.every((c) => c.x >= 0 && c.x < 5 && c.y >= 0 && c.y < 5 && /^[0-9a-f]{6}$/.test(c.hex)), kind);
-    assert.ok(new Set(cells.map((c) => c.hex)).size <= 4, kind + ': few colours, so the Bit keeps its own');
+    assert.ok(cells.length > 0 && cells.every((c) => c.x >= 0 && c.x < table.SCREEN.w && c.y >= 0 && c.y < table.SCREEN.h && /^[0-9a-f]{6}$/.test(c.hex)), kind);
+    assert.ok(new Set(cells.map((c) => c.hex)).size <= 3, kind + ': few colours, so the Bit keeps its own');
+    const sig = S.signal(kind);
+    assert.match(sig.tip, /^[0-9a-f]{6}$/, kind + ': an antenna colour');
+    assert.ok(sig.screen.every((c) => c.x >= 11 && c.x <= 13 && c.y >= 2 && c.y <= 5), kind + ': on the screen');
   }
-  for (const kind of S.KINDS) {
-    const held = S.held(kind);
-    assert.ok(held.every((c) => c.x >= 10 && c.x <= 14 && c.y >= 0 && c.y <= 5), kind + ': in its hand, on the stage');
-    assert.ok(held.some((c) => c.x === 10 && c.y === 5), kind + ': with its stick down to the arm');
-  }
-  assert.equal(S.held('nope'), null);
-  assert.equal(S.held(''), null);
+  assert.equal(S.signal('nope'), null);
+  assert.equal(S.signal(''), null);
   assert.equal(S.cells('nope').length, 0);
 });
 

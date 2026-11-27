@@ -103,7 +103,8 @@
   function heard(next) {
     const was = last;
     last = next;
-    const moment = was?.ok && !was.hatched && next.hatched ? () => play('hatch')
+    const born = was?.ok && !was.hatched && next.hatched && !window.BitBirth?.showing(); // its stage shows that (birth.js)
+    const moment = born ? () => play('hatch')
       : was?.hatched && was.stage && next.stage && next.stage !== was.stage ? () => react('stage')
         : null;
     if (moment) queueMicrotask(moment);
@@ -170,11 +171,25 @@
   }
 
   // While Claude Code or Codex work, Bit works with them at its own computer (the 'code' loop); while the
-  // person plays it games beside them ('gamer'). Every own Bit at rest takes it, a new one from its first
-  // frame (bit-app.js mount), and the desktop Bit too (desk.js asks rest()); it gets up when it ends.
+  // person plays it games beside them ('gamer'); while it has something to tell it waits there ('tell',
+  // bit-signs.js). While the person talks with Bit in the chat or by voice (ai-bit-chat.js, 'bit_talk')
+  // every Bit listens, thinks and talks with it, first of all. Every own Bit at rest takes it, a new one
+  // from its first frame (bit-app.js mount), and the desktop Bit too (desk.js asks rest()); it gets up
+  // when it ends.
   let working = false;
   let resting = 'idle';
-  const RESTS = ['idle', 'code', 'gamer'];
+  const RESTS = ['idle', 'code', 'gamer', 'tell', 'listen', 'think', 'talk'];
+  const TALKS = ['listen', 'think', 'talk'];
+  // A talk whose end never came (the chat's page closed on a turn) lets go by itself.
+  const TALK_MS = 120000;
+  let talking = '';
+  let talkEnd = 0;
+  function onTalk(d) {
+    talking = TALKS.includes(d.state) ? d.state : '';
+    clearTimeout(talkEnd);
+    if (talking) talkEnd = setTimeout(() => { talking = ''; atWork(); }, TALK_MS);
+    atWork();
+  }
   const AGENT_NAMES = Object.freeze({ claude: 'Claude Code', codex: 'Codex' }); // product names, never translated
   // Who Bit codes with now (pocket.js says it), '' when none works.
   const workingWith = () => Object.keys(agents).filter((k) => !!agents[k] && [...agents[k].values()].includes('running')).map((k) => AGENT_NAMES[k]).join(' + ');
@@ -182,8 +197,11 @@
   function rest() {
     const X = window.Xenon?.bit;
     if (!hatched()) return 'idle';
+    if (talking && X?.clip(talking)) return talking;
     if (seen.gaming && X?.clip('gamer')) return 'gamer';
-    return working && X?.clip('code') ? 'code' : 'idle';
+    if (working && X?.clip('code')) return 'code';
+    // Something to tell (signals.js): it waits at its computer, whose screen says what.
+    return window.BitSignals?.top() && X?.clip('tell') ? 'tell' : 'idle';
   }
   function atWork() {
     working = coding();
@@ -223,6 +241,7 @@
     on('system', api.onSystem);
     on('media', api.onMedia);
     on('bit_play', api.onPlay);
+    on('bit_talk', api.onTalk);
     on('home_ring', () => react('doorbell'));   // someone at the door (server/smart-home/doorbell.js)
     // To its desk first, then the moment: a start it already sits at needs no laptop on top (react).
     const agent = (source) => guarded((d) => { const name = agentMoment(source, d); atWork(); if (name) react(name); });
@@ -240,6 +259,7 @@
   if (typeof addEventListener === 'function') {
     addEventListener('xenon-bit', (e) => { if (e.detail) heard(e.detail); });
     addEventListener('xenon-content-installed', () => react('storeDrop')); // something new from the Store is in
+    addEventListener('xenon-bit-signals', () => atWork()); // a sign comes or goes: to its computer, or up again
   }
   last = app()?.state() || null;
 
@@ -255,7 +275,7 @@
   const onPlay = (d) => { if (typeof d.clip === 'string') play(d.clip); };
   const api = {
     listen, react, play, pace, woke, rest, working: () => working, workingWith, gaming: () => seen.gaming === true, lastPlayed: () => played,
-    onStatus: guarded(onStatus), onSystem: guarded(onSystem), onMedia: guarded(onMedia), onPlay: guarded(onPlay),
+    onStatus: guarded(onStatus), onSystem: guarded(onSystem), onMedia: guarded(onMedia), onPlay: guarded(onPlay), onTalk: guarded(onTalk),
   };
   window.BitMoments = api;
 })();

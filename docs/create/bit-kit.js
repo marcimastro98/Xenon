@@ -1557,10 +1557,14 @@
     return out;
   }
 
-  // The look's markings, antenna tip (its light shows the mood) and worn items.
-  function personal(look, mood, over) {
+  // The look's markings, antenna tip (its light shows the mood) and worn items. The colour of what Bit has
+  // to tell lights the tip over anything worn there, so a hat never hides it.
+  function personal(look, mood, over, lit) {
+    if (lit) return [...look.marks, ...look.tip.stem, ...over, ...rects(look.tip.light, lit.fill, 0, 0, lit.o)];
     return [...look.marks, ...look.tip.stem, ...rects(look.tip.light, mood), ...over];
   }
+  // The classic Bit has no light of its own: a sign lights a bulb on top of its antenna.
+  const BULB = [[6, -1]];
 
   // A half-cell ring of the body shape, so a pale Bit stays visible on a pale background.
   function outline(fill) {
@@ -1599,24 +1603,18 @@
     }
     return cache.get(key);
   }
-  // A sign held up (bit-signs.js held()) takes the hand: what it held waits behind it.
-  function wornFor(look, c, holding) {
+  function wornFor(look, c) {
     const out = { behind: [], over: [], face: [], home: [], ride: [], prop: [], lift: 0 };
     const ride = look.worn.find((w) => w.slot === 'ride');
     if (ride && fits(c, ride, 0)) out.lift = ride.lift;
-    for (const w of look.worn) if (!(holding && w.slot === 'hand') && fits(c, w, out.lift)) for (const k of LAYERS) out[k].push(...w[k]);
+    for (const w of look.worn) if (fits(c, w, out.lift)) for (const k of LAYERS) out[k].push(...w[k]);
     return out;
   }
 
-  // The sign in its hand, with the arm in the body's colour. Never set down like a worn item: it is what
-  // Bit has to tell, and the liveliest clips carry its edge at most about a cell past the stage.
-  const ARM = [[10, 6]];
-  // At its desk (a clip's `signAt`) the sign stands planted on the monitor instead, its hands on the keys.
-  function heldRects(held, fill, at) {
-    if (!Array.isArray(held) || !held.length) return [];
-    const dy = at ? at.dy : 0;
-    return [...(at ? [] : rects(ARM, fill)), ...held.map((h) => ({ x: h.x, y: h.y + dy, w: 1, h: 1, fill: '#' + h.hex, o: 1 }))];
-  }
+  // A sign (bit-signs.js signal()) on its computer's screen, in a clip with one (`screen`, the screen's
+  // cells): what the clip shows there (code, its game) gives way to it.
+  const onScreen = (s, e) => Array.isArray(e) && e[1] >= s.x && e[1] < s.x + s.w && e[2] >= s.y && e[2] < s.y + s.h;
+  const screenRects = (sign) => sign.screen.map((h) => ({ x: h.x, y: h.y, w: 1, h: 1, fill: '#' + h.hex, o: 1 }));
   // On a ride, a step is a glide: no bob, no squash, no dust.
   const glide = (frame) => ({ ...frame, dy: 0, sx: 1, sy: 1, ex: (frame.ex || []).filter((e) => e[0] !== 'dust') });
 
@@ -1624,17 +1622,18 @@
    * Render one frame of a clip to layers of rectangles.
    * @param {object|string} clipOrId  a clip from bit-clips.js or its id
    * @param {number} index            frame index (wraps)
-   * @param {{tint?: string, home?: boolean, held?: Array<{x: number, y: number, hex: string}>|null, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
+   * @param {{tint?: string, home?: boolean, signal?: {tip: string, screen: Array<{x: number, y: number, hex: string}>}|null, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
    *   look (bit-look.js) draws a personal Bit, whose mood then lights the antenna tip; its home shows
    *   behind it with `home` or in a clip that rests there (`home: true`, sleep), its prop beside it
-   *   unless it is on its way somewhere (`travel: true`); held is a sign in its hand (bit-signs.js held())
+   *   unless it is on its way somewhere (`travel: true`); signal is what it has to tell (bit-signs.js
+   *   signal()): its antenna's light (a frame's `tip` dims it) and, in a clip at its computer, the screen
    * @returns {{ layers: Array<{ transform: object|null, clipFloor: boolean, rects: Array }> }}
    */
   function renderFrame(clipOrId, index = 0, opts = {}) {
     const c = typeof clipOrId === 'string' ? clip(clipOrId) : clipOrId;
     if (!c?.frames.length) throw new Error(`Unknown Bit clip: ${clipOrId}`);
     const look = opts.look || null;
-    const worn = look ? wornFor(look, c, !!opts.held?.length) : null;
+    const worn = look ? wornFor(look, c) : null;
     const at = c.frames[((index % c.frames.length) + c.frames.length) % c.frames.length];
     const frame = worn?.ride.length && c.travel ? glide(at) : at;
     const mood = `rgb(${rgb(frame.tint || opts.tint || c.tint)})`;
@@ -1644,9 +1643,11 @@
     const back = [];
     const front = [];
     const attached = [];
-    const signAt = opts.held?.length && c.signAt ? c.signAt : null;
+    const sign = opts.signal?.tip ? opts.signal : null;
+    const screen = sign && c.screen ? c.screen : null;
+    const lit = sign ? { fill: '#' + sign.tip, o: frame.tip == null ? 1 : frame.tip } : null;
     for (const entry of frame.ex || []) {
-      if (signAt && Array.isArray(entry) && entry[2] < signAt.clear) continue; // what floats there waits for it
+      if (screen && onScreen(screen, entry)) continue;
       const e = extra(entry, fill, look ? look.accent : fill);
       if (!e) continue;
       if (e.part.back) back.push(...e.rects);
@@ -1673,11 +1674,10 @@
     if (look?.outline) layers.push({ transform: t, clipFloor: true, rects: outline(look.outline) });
     if (worn?.behind.length) layers.push({ transform: t, clipFloor: true, rects: worn.behind });
     if (worn?.ride.length) layers.push({ transform: transform({ dx: frame.dx, dy: frame.dy }), clipFloor: true, rects: worn.ride });
-    const own = look ? personal(look, mood, worn.over) : [];
+    const own = look ? personal(look, mood, worn.over, lit) : lit ? rects(BULB, lit.fill, 0, 0, lit.o) : [];
     layers.push({ transform: t, clipFloor: true, rects: [...rects(BODY, fill), ...own, ...attached, ...(worn ? worn.face : []), ...face(frame, look)] });
-    const held = heldRects(opts.held, fill, signAt);
-    if (held.length) layers.push({ transform: signAt ? null : t, clipFloor: false, rects: held });
     if (front.length) layers.push({ transform: null, clipFloor: false, rects: front });
+    if (screen && sign.screen.length) layers.push({ transform: null, clipFloor: false, rects: screenRects(sign) });
     return { layers };
   }
 
@@ -2383,14 +2383,14 @@
       resolveReact: null,
       shown: null,
       drawn: 0,
-      sign: null, // the sign in its hand (bit-signs.js held()), or null
+      sign: null, // what it has to tell (bit-signs.js signal()), or null
     };
 
     const reduced = () => (opts.reducedMotion != null ? !!opts.reducedMotion : !!(motionQuery && motionQuery.matches));
     const rhythm = () => (typeof opts.director === 'function' ? opts.director() : opts.director) || director()?.CLASSIC || null;
 
     function draw(c, i) {
-      const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook, home: opts.home === true, held: state.sign });
+      const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook, home: opts.home === true, signal: state.sign });
       state.shown = c;
       state.drawn = i;
       const groups = layers.map((l) => {
@@ -2569,9 +2569,10 @@
       get running() { return state.running; },
       get mood() { return state.mood; },
       get clip() { return state.current ? state.current.id : null; },
-      /** A sign in its hand (bit-signs.js held(kind)), or null for none; shown at once, kept on every frame. */
-      sign(cells) {
-        state.sign = Array.isArray(cells) && cells.length ? cells : null;
+      /** What it has to tell (bit-signs.js signal(kind)), or null for none: its antenna and its computer's
+       *  screen show it at once, on every frame. */
+      sign(next) {
+        state.sign = next && typeof next.tip === 'string' && Array.isArray(next.screen) ? next : null;
         if (state.shown) draw(state.shown, state.drawn || 0);
       },
       /** Draws the frame on screen again: after the look changed. */
@@ -2616,7 +2617,8 @@
    * is the same clip mirrored by its place. Every loop faces right. A clip on its way somewhere is
    * `travel`: its prop stays behind, and on a ride a step is a glide (bit.js).
    * And the loops it rests in at its own desk (bit-companion/moments.js): coding while Claude Code or Codex
-   * work, gaming while the person plays. */
+   * work, gaming while the person plays, and waiting there while it has something to tell (bit-signs.js:
+   * its screen shows what, its antenna pulses in that colour). */
 
   const P = (fill, cells, opts) => Object.freeze({ fill, cells, attach: false, back: true, ...opts });
   const PARTS = Object.freeze({
@@ -2624,9 +2626,9 @@
     dust: P('#a6b1ad', [[0, 0], [1, -1], [2, 0]], { opacity: 0.55 }),
     // Its own computer, on a little desk beside it: the monitor and the desk stay put while it bobs; one cell
     // of code at a time, and a hand that types.
-    pcFrame: P('#6b7686', [[10, 1, 5], [10, 6, 5], [10, 2, 1, 4], [14, 2, 1, 4]], { attach: false }),
-    pcScreen: P('#14202c', [[11, 2, 3, 4]], { attach: false }),
-    pcStand: P('#6b7686', [[12, 7]], { attach: false }),
+    deskMonitor: P('#6b7686', [[10, 1, 5], [10, 6, 5], [10, 2, 1, 4], [14, 2, 1, 4]], { attach: false }),
+    deskScreen: P('#14202c', [[11, 2, 3, 4]], { attach: false }),
+    deskStand: P('#6b7686', [[12, 7]], { attach: false }),
     desk: P('#9a7650', [[10, 8, 5], [10, 9, 1, 2], [14, 9, 1, 2]], { attach: false }),
     handIn: P('body', [[10, 7]]),
     handOut: P('body', [[10, 7, 2, 1]]),
@@ -2653,12 +2655,12 @@
   const F = (ms, props) => Object.freeze({ ms, ...props });
   const SIGN = ['signPost', 'signBoard', 'signLines', 'armR'];
   // At its computer: the screen fills with code one cell at a time, a cursor blinking where the next goes.
-  const PC = ['pcFrame', 'pcScreen', 'pcStand', 'desk'];
+  const PC = ['deskMonitor', 'deskScreen', 'deskStand', 'desk'];
   const CODE = [['codeA', 11, 2], ['codeA', 12, 2], ['codeB', 12, 3], ['codeB', 13, 3], ['codeC', 12, 4], ['codeB', 13, 4], ['codeC', 11, 5], ['codeC', 12, 5]];
   const typed = (n, blink, hand = 'handIn') => [...PC, hand, ...CODE.slice(0, n), ...(blink && n < CODE.length ? [['cursor', ...CODE[n].slice(1)]] : [])];
   // One bit of code out of the screen every third frame: it rises above the monitor and fades in four frames.
   const BITS = ['bitOpen', 'bitOne', 'bitClose', 'bitZero'];
-  const FADE = [0.9, 0.7, 0.45, 0.2];
+  const FADE = [1, 0.8, 0.55, 0.3];
   const popped = (i) => [1, 4, 7, 10].flatMap((at, k) => {
     const age = i - at;
     return age >= 0 && age < FADE.length ? [[BITS[k], k % 2 ? 12 : 10, -2 - age, FADE[age]]] : [];
@@ -2671,8 +2673,8 @@
   const game = (i) => [...PC, ...PAD, ['gameShip', SHIP[i], 5],
     ...(FOE[i] ? [['gameFoe', FOE[i], 2]] : []), ...(i % 3 === 1 ? [['gameShot', SHIP[i], 4]] : i % 3 === 2 ? [['gameShot', SHIP[i - 1], 3]] : []),
     ...(i === 6 ? [['star', 10, -3, 1]] : i === 7 ? [['star', 10, -4, 0.5]] : [])];
-  // A sign held up while it sits here stands on top of the monitor (bit.js), and nothing floats under it.
-  const ON_PC = Object.freeze({ dy: -5, clear: 1 });
+  // The screen's cells, where a sign shows while it sits here (bit-signs.js SCREEN, bit.js).
+  const SCREEN = Object.freeze({ x: 11, y: 2, w: 3, h: 4 });
   const step = (ms, lift, extra = {}) => [
     F(ms, { eyes: 'right', sx: 1.03, sy: 0.97, ...extra }),
     F(ms, { eyes: 'right', dy: -lift, ...extra, ex: [...(extra.ex || []), ['dust', -3, 10, 0.5]] }),
@@ -2697,7 +2699,7 @@
     {
       id: 'code',
       calm: true,
-      signAt: ON_PC,
+      screen: SCREEN,
       frames: [
         ...CODE.map((_, i) => F(260, { eyes: 'right', ex: [...typed(i, i % 2 === 0, i % 2 ? 'handOut' : 'handIn'), ...popped(i)] })),
         F(900, { eyes: 'right', mouth: 'smile', ex: [...typed(CODE.length), ...popped(8)] }),
@@ -2710,11 +2712,27 @@
     {
       id: 'gamer',
       calm: true,
-      signAt: ON_PC,
+      screen: SCREEN,
       frames: [
         ...SHIP.map((_, i) => F(i >= 6 ? 420 : 260, { eyes: 'right', mouth: i >= 6 ? 'smile' : 'flat', dy: i % 2 ? 0.3 : 0, ex: game(i) })),
         F(110, { eyes: 'blink', ex: game(0) }),
         F(600, { eyes: 'wide', ex: game(0) }),
+      ],
+    },
+    // At its computer with something to tell: hands still on the desk, it looks at you, then at the screen
+    // that says what, while its antenna pulses slowly in the sign's colour (a frame's `tip`, bit.js).
+    {
+      id: 'tell',
+      calm: true,
+      screen: SCREEN,
+      frames: [
+        F(800, { mouth: 'smile', tip: 1, ex: [...PC, 'handIn'] }),
+        F(800, { mouth: 'smile', tip: 0.4, ex: [...PC, 'handIn'] }),
+        F(800, { eyes: 'right', tip: 1, ex: [...PC, 'handIn'] }),
+        F(700, { eyes: 'right', tip: 0.4, ex: [...PC, 'handIn'] }),
+        F(110, { eyes: 'blink', tip: 0.4, ex: [...PC, 'handIn'] }),
+        F(800, { mouth: 'smile', tip: 1, ex: [...PC, 'handIn'] }),
+        F(800, { mouth: 'smile', tip: 0.4, ex: [...PC, 'handIn'] }),
       ],
     },
   ].map((c) => ({ kind: 'mood', loop: true, tint: 'idle', ...c }));
@@ -2736,29 +2754,29 @@
   root.Xenon.bitSigns = mod;
 })(typeof globalThis !== 'undefined' ? globalThis : this, () => {
   'use strict';
-  // The small pixel signs the person's own Bit holds up while it has something to tell: a green flag when
-  // Claude Code or Codex finished, a yellow "!" board while one asks, a clock before an event, a bell
-  // when a timer ended, a full box for a disk. Five by five cells on a stick in its hand (held()), drawn
-  // by the engine with the body (bit.js renderFrame `held`), so it moves with Bit: the same on the
-  // dashboard (js/bit-companion/signs.js), the desktop Bit (desk-frames.js) and a widget's Bit (the Bit
-  // kit, from the SDK `bit` stream's `signal`). Each reads the same mirrored: the desktop Bit turns.
+  // What the person's own Bit has to tell, never held up in its hand: the light on its antenna takes the
+  // sign's colour, and on the screen of its little computer a picture says what it is (a check when
+  // Claude Code or Codex finished, a "!" while one asks, a clock before an event, an hourglass when a
+  // timer ended, a full box for a disk). Bit sits at that computer while it has something to tell
+  // (moments.js rest() 'tell'); away from it only the antenna says it. Drawn by the engine with the body
+  // (bit.js renderFrame `signal`): the same on the dashboard (js/bit-companion/signs.js), the desktop Bit
+  // (desk-frames.js) and a widget's Bit (the Bit kit, from the SDK `bit` stream's `signal`).
 
-  const SIZE = 5;
-  const INK = Object.freeze({
-    G: '3fd16b', P: 'd9dde3', Y: 'ffd23f', K: '1d1f24', W: 'f2f4f7', B: '4a90e2', O: 'f5b83d', R: 'ff5a4d',
-  });
+  // The computer's screen on the stage (bit-clips-move.js deskScreen): three cells wide, four tall.
+  const SCREEN = Object.freeze({ x: 11, y: 2, w: 3, h: 4 });
+  const INK = Object.freeze({ G: '3fd16b', Y: 'ffd23f', W: 'f2f4f7', B: '4a90e2', O: 'f5b83d', R: 'ff5a4d' });
   const SIGNS = Object.freeze({
-    done: ['PGGG.', 'PGGGG', 'PGGG.', 'P....', 'P....'],
-    ask: ['YYYYY', 'YYKYY', 'YYKYY', 'YYYYY', 'YYKYY'],
-    soon: ['.WWW.', 'WKBKW', 'WKBBW', 'WKKKW', '.WWW.'],
-    bell: ['..O..', '.OOO.', '.OOO.', 'OOOOO', '..O..'],
-    disk: ['.R.R.', 'WRRRW', 'WRRRW', 'WRRRW', 'WWWWW'],
+    done: { tip: INK.G, screen: ['...', '..G', 'G.G', '.G.'] },
+    ask: { tip: INK.Y, screen: ['.Y.', '.Y.', '...', '.Y.'] },
+    soon: { tip: INK.B, screen: ['WWW', 'WBW', 'WBB', 'WWW'] },
+    bell: { tip: INK.O, screen: ['OOO', '.O.', '.O.', 'OOO'] },
+    disk: { tip: INK.R, screen: ['WWW', 'RRR', 'RRR', 'RRR'] },
   });
   const KINDS = Object.freeze(Object.keys(SIGNS));
 
-  /** The cells of a sign, { x, y, hex } from its top-left; [] for none or an unknown kind. */
+  /** The screen's picture, { x, y, hex } from its top-left; [] for none or an unknown kind. */
   function cells(kind) {
-    const rows = Object.hasOwn(SIGNS, kind) ? SIGNS[kind] : null;
+    const rows = Object.hasOwn(SIGNS, kind) ? SIGNS[kind].screen : null;
     if (!rows) return [];
     const out = [];
     rows.forEach((row, y) => {
@@ -2767,20 +2785,17 @@
     return out;
   }
 
-  // In its hand: the sign's top-left on the stage (bit.js: the body ends at x 9, the arm is at 10,6), and
-  // a stick from the sign's bottom-left down to the arm.
-  const HAND = Object.freeze({ x: 10, y: 0 });
+  /** The antenna's colour for a sign ('rrggbb'), '' for none. */
+  const tip = (kind) => (Object.hasOwn(SIGNS, kind) ? SIGNS[kind].tip : '');
 
-  /** The sign held up, in stage cells { x, y, hex } with its stick; null for none or an unknown kind. */
-  function held(kind) {
-    const list = cells(kind);
-    if (!list.length) return null;
-    const out = list.map((c) => ({ x: HAND.x + c.x, y: HAND.y + c.y, hex: c.hex }));
-    out.push({ x: HAND.x, y: HAND.y + SIZE, hex: INK.P });
-    return out;
+  /** What bit.js renderFrame draws for a sign: { kind, tip, screen } in stage cells; null for none. */
+  function signal(kind) {
+    if (!Object.hasOwn(SIGNS, kind)) return null;
+    const screen = cells(kind).map((c) => ({ x: SCREEN.x + c.x, y: SCREEN.y + c.y, hex: c.hex }));
+    return Object.freeze({ kind, tip: tip(kind), screen });
   }
 
-  return Object.freeze({ SIZE, KINDS, HAND, cells, held });
+  return Object.freeze({ SCREEN, KINDS, cells, tip, signal });
 });
 
 // ---- kit-api.js
@@ -2794,10 +2809,11 @@
 //   bit.set(m.data, { light: theme.appearance === 'light' });
 //
 // Not hatched yet: the egg. A move played on the dashboard (data.played) plays here too, and the
-// sign of the moment (data.signal) is in its hand; `signs: false` leaves it to you. What it does at rest
-// on the dashboard (data.doing: 'code' at its computer while Claude Code or Codex work, 'gamer' while
-// the person plays) it does here too.
-// `XenonBit.signs(player)` puts the same sign in the hand of a Bit drawn without mount, from its own
+// sign of the moment (data.signal) lights its antenna and, at its computer, fills its screen; `signs: false`
+// leaves it to you. What it does at rest on the dashboard (data.doing: 'code' at its computer while
+// Claude Code or Codex work, 'gamer' while the person plays, 'tell' at its computer with a sign, 'listen',
+// 'think' and 'talk' while the person talks with Bit) it does here too.
+// `XenonBit.signs(player)` puts the same sign on a Bit drawn without mount, from its own
 // player (the Maker's Bit layer).
 // Its home (a worn item of place 'home') shows while it sleeps; `home: true` keeps it behind Bit always.
 // `classic: true` draws the classic Bit with its own rhythm, as the app does where the person
@@ -2805,15 +2821,15 @@
 (() => {
   const X = globalThis.Xenon;
   const BACKGROUND = { dark: '#15191c', light: '#f4f6f5' };
-  const RESTS = ['idle', 'code', 'gamer']; // bit-companion/moments.js
+  const RESTS = ['idle', 'code', 'gamer', 'tell', 'listen', 'think', 'talk']; // bit-companion/moments.js
 
-  /** The sign of the moment (shared/src/bit-signs.js) in the hand of `player`'s Bit (a bitPlayer). */
+  /** The sign of the moment (shared/src/bit-signs.js) on the antenna and screen of `player`'s Bit (a bitPlayer). */
   function signer(player) {
     const S = X.bitSigns;
     let kept = '';
     return (kind) => {
       const next = S?.KINDS.includes(kind) ? kind : '';
-      if (next !== kept) player.sign(next ? S.held(next) : null);
+      if (next !== kept) player.sign(next ? S.signal(next) : null);
       kept = next;
     };
   }
@@ -2848,7 +2864,9 @@
         player.refresh();
       }
       sign(data.signal);
-      const rest = RESTS.includes(data.doing) && X.bit.clip(data.doing) ? data.doing : null;
+      // Waiting at its computer to tell something: with the signs left to the widget, it just rests.
+      const doing = data.doing === 'tell' && opts.signs === false ? 'idle' : data.doing;
+      const rest = RESTS.includes(doing) && X.bit.clip(doing) ? doing : null;
       if (rest && rest !== player.mood && RESTS.includes(player.mood)) player.setMood(rest);
       const p = data.played;
       if (p && p.at > seen) {

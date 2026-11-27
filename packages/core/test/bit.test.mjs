@@ -159,25 +159,37 @@ test('greetingFor covers the whole day', () => {
   assert.equal(phrases.greetingFor(2), 'night');
 });
 
-test('at its desk the sign stands on the monitor, still, and nothing floats under it', () => {
+test('no two clip packs name a part the same: the first would draw in the place of the other', () => {
+  const packs = { clips: require('../src/bit-clips.js'), life: require('../src/bit-clips-life.js'), move: require('../src/bit-clips-move.js') };
+  const owner = new Map();
+  for (const [name, pack] of Object.entries(packs)) {
+    for (const part of Object.keys(pack.PARTS || {})) {
+      assert.ok(!owner.has(part), `${part}: in ${owner.get(part)} and ${name}`);
+      owner.set(part, name);
+    }
+  }
+});
+
+test('at its computer a sign shows on the screen, in place of what the clip shows there', () => {
   const signs = require('../src/bit-signs.js');
   bit.addPack(require('../src/bit-clips-move.js'));
-  const held = signs.held('done');
-  for (const id of ['code', 'gamer']) {
+  const signal = signs.signal('done');
+  const S = signs.SCREEN;
+  const inside = (r) => r.x >= S.x && r.x < S.x + S.w && r.y >= S.y && r.y < S.y + S.h && r.w === 1 && r.h === 1;
+  for (const id of ['code', 'gamer', 'tell']) {
     const c = bit.clip(id);
-    assert.ok(c.signAt, id);
+    assert.deepEqual({ ...c.screen }, { ...S }, `${id}: its screen is the table's`);
     c.frames.forEach((_, i) => {
-      const f = bit.renderFrame(c, i, { held });
-      const sign = f.layers.find((l) => l.rects.some((r) => r.fill === '#3fd16b'));
-      assert.equal(sign.transform, null, `${id}[${i}]: planted, it does not bob`);
-      assert.ok(sign.rects.every((r) => r.y <= 0), `${id}[${i}]: above the monitor (top at 1)`);
-      assert.ok(!sign.rects.some((r) => r.x === 10 && r.y === 6), 'its hands stay on the keys');
-      const above = f.layers.filter((l) => l !== sign && !l.clipFloor).flatMap((l) => l.rects).filter((r) => r.y < 0 && r.h < 1.5);
-      assert.deepEqual(above, [], `${id}[${i}]: no code bit or star under the sign`);
+      const f = bit.renderFrame(c, i, { signal });
+      const top = f.layers.at(-1);
+      assert.equal(top.transform, null, `${id}[${i}]: the screen does not bob`);
+      assert.deepEqual(top.rects.map((r) => [r.x, r.y, r.fill]), signal.screen.map((h) => [h.x, h.y, '#' + h.hex]), `${id}[${i}]: the sign on top`);
+      const under = f.layers.slice(0, -1).filter((l) => !l.clipFloor).flatMap((l) => l.rects).filter(inside).filter((r) => r.fill !== '#14202c');
+      assert.deepEqual(under, [], `${id}[${i}]: no code or game left on the screen under it`);
     });
-    const free = bit.renderFrame(c, 1, {});
-    assert.ok(!free.layers.some((l) => l.rects.some((r) => r.fill === '#3fd16b')), 'no sign: nothing planted');
   }
+  const free = bit.renderFrame('code', 1, {});
+  assert.ok(!free.layers.some((l) => l.rects.some((r) => r.fill === '#3fd16b' && inside(r))), 'no sign: the code shows');
 });
 
 test('a still frame takes a safe clip id, never arbitrary markup', () => {
@@ -187,28 +199,26 @@ test('a still frame takes a safe clip id, never arbitrary markup', () => {
   assert.match(bad, /clipPath id="bitfloor"/);
 });
 
-test('a sign held up moves with the body, on every clip, and takes the hand from what Bit held', () => {
+test('a sign lights the antenna on every clip, nothing in its hand, and a frame may dim it', () => {
   const signs = require('../src/bit-signs.js');
   const look = require('../src/bit-look.js');
   const genome = require('../src/bit-genome.js');
   const wardrobe = require('../src/bit-wardrobe.js');
-  const held = signs.held('done');
-  const signLayer = (f) => f.layers.find((l) => l.rects.some((r) => r.fill === '#3fd16b'));
-  for (const c of bit.clips.filter((x) => !x.signAt)) {
+  const signal = signs.signal('ask');
+  const lit = (f) => f.layers.flatMap((l) => l.rects).filter((r) => r.fill === '#' + signal.tip && r.y < 0);
+  const g = genome.decode('0123456789abcdef');
+  const mine = look.lookOf(g, { worn: [] });
+  for (const c of bit.clips) {
     c.frames.forEach((_, i) => {
-      const f = bit.renderFrame(c, i, { held });
-      const body = f.layers.filter((l) => l.clipFloor).at(-1); // the body's own layer is the last one cut at the floor
-      const sign = signLayer(f);
-      assert.ok(sign, `${c.id}[${i}]: the sign is drawn`);
-      assert.deepEqual(sign.transform, body.transform, `${c.id}[${i}]: with the body's own move`);
-      assert.ok(sign.rects.some((r) => r.x === 10 && r.y === 6 && r.fill === body.rects[0].fill), 'the arm in the body\'s colour');
+      assert.ok(lit(bit.renderFrame(c, i, { signal, look: mine })).length > 0, `${c.id}[${i}]: its own antenna lit`);
+      assert.ok(lit(bit.renderFrame(c, i, { signal })).length > 0, `${c.id}[${i}]: the classic Bit's bulb lit`);
     });
   }
-  assert.equal(signLayer(bit.renderFrame('idle', 0, {})), undefined, 'no sign, nothing held');
-  const g = genome.decode('0123456789abcdef');
-  const mug = look.lookOf(g, { worn: wardrobe.outfit(['mug']) });
+  assert.deepEqual(lit(bit.renderFrame('idle', 0, { look: mine })), [], 'no sign, the antenna keeps its mood');
   const cells = (f) => JSON.stringify(f.layers.flatMap((l) => l.rects));
-  const plain = bit.renderFrame('idle', 0, { look: look.lookOf(g, { worn: [] }), held });
-  assert.equal(cells(bit.renderFrame('idle', 0, { look: mug, held })), cells(plain), 'the mug waits while the sign is up');
-  assert.notEqual(cells(bit.renderFrame('idle', 0, { look: mug })), cells(bit.renderFrame('idle', 0, { look: look.lookOf(g, { worn: [] }) })), 'and comes back after');
+  const mug = look.lookOf(g, { worn: wardrobe.outfit(['mug']) });
+  assert.notEqual(cells(bit.renderFrame('idle', 0, { look: mug, signal })), cells(bit.renderFrame('idle', 0, { look: mine, signal })), 'what it holds stays in its hand');
+  const tell = bit.clip('tell');
+  const dims = new Set(tell.frames.map((_, i) => lit(bit.renderFrame(tell, i, { signal, look: mine }))[0].o));
+  assert.ok(dims.size > 1, 'waiting to tell, the antenna pulses');
 });

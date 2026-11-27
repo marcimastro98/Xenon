@@ -1198,8 +1198,9 @@ it made on the dashboard, so a widget's Bit moves with the others.
   items: [],           // the items it wears that Xenon's hub made (a month's supporters' item, a newer
                        // shop item): their drawing, which the Bit kit takes in by itself
   played: { clip: 'wave', at: 1764000000000 },  // the last move on the dashboard, or null
-  signal: 'done',      // the sign in its hand, or null: 'done' | 'ask' | 'soon' | 'bell' | 'disk'
-  doing: 'code',       // what it does between moves, or null: 'idle' | 'code' | 'gamer'
+  signal: 'done',      // what it has to tell, or null: 'done' | 'ask' | 'soon' | 'bell' | 'disk'
+  doing: 'code',       // what it does between moves, or null: 'idle' | 'code' | 'gamer' | 'tell'
+                       //   | 'listen' | 'think' | 'talk'
 }
 ```
 
@@ -1235,18 +1236,23 @@ bit.set(m.data, { light: theme.appearance === 'light' });
 - **`played`** makes the kit play a move the dashboard played (a Deck key, Bit
   in the chat, another widget). The first update only says where things stand:
   a move from before the widget opened is not replayed.
-- **`signal`** is the sign Bit holds up in its hand on the dashboard while it
-  has something to tell: `done` (a job finished, like Claude Code or Codex),
-  `ask` (a question waits for an answer), `soon` (an event is near), `bell`
-  (a timer rang), `disk` (a disk is almost full). Only the kind, never what it
-  is about. The kit puts it in Bit's hand, moving with it; mount with
-  `{ signs: false }` to draw your own from `signal`. It is `null` with nothing
-  to tell, and on a desktop layer.
+- **`signal`** is what Bit has to tell on the dashboard: `done` (a job
+  finished, like Claude Code or Codex), `ask` (a question waits for an answer),
+  `soon` (an event is near), `bell` (a timer rang), `disk` (a disk is almost
+  full). Only the kind, never what it is about. Bit never holds anything up:
+  the light on its antenna takes the sign's colour, and at its computer the
+  screen shows a small picture of it (a check, a "!", a clock, an hourglass, a
+  full box). The kit draws both with the body; mount with `{ signs: false }` to
+  draw your own from `signal`. It is `null` with nothing to tell, and on a
+  desktop layer.
 - **`doing`** is what Bit does on the dashboard between moves: `code` at its own
   computer while Claude Code or Codex work, `gamer` with a pad while the person
-  plays a game, else `idle`. The kit plays the same loop (a sign held up meanwhile
-  stands on its monitor); a widget that draws Bit its own way can read it to put
-  Bit at work in its scene. `null` where the page does not know it (a desktop
+  plays a game, `tell` at its computer while it has a sign to tell, `listen`,
+  `think` and `talk` while the person talks with Bit in the chat or by voice
+  (it follows the talk: listening while they type or speak, thinking on the
+  answer, talking while the voice answers), else `idle`. The kit plays the same
+  loop (with `{ signs: false }`, `tell` rests as `idle`); a widget that draws
+  Bit its own way can read it to put Bit at work in its scene. `null` where the page does not know it (a desktop
   layer). On the pump's screen `signal`, `doing` and `played` (moves asked from
   the chat, a Deck key or a phone) come too, read from the same live data.
 - **`everywhere: false`**: the person keeps their own Bit in its corner and chose

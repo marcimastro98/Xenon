@@ -6,29 +6,29 @@
   root.Xenon.bitSigns = mod;
 })(typeof globalThis !== 'undefined' ? globalThis : this, () => {
   'use strict';
-  // The small pixel signs the person's own Bit holds up while it has something to tell: a green flag when
-  // Claude Code or Codex finished, a yellow "!" board while one asks, a clock before an event, a bell
-  // when a timer ended, a full box for a disk. Five by five cells on a stick in its hand (held()), drawn
-  // by the engine with the body (bit.js renderFrame `held`), so it moves with Bit: the same on the
-  // dashboard (js/bit-companion/signs.js), the desktop Bit (desk-frames.js) and a widget's Bit (the Bit
-  // kit, from the SDK `bit` stream's `signal`). Each reads the same mirrored: the desktop Bit turns.
+  // What the person's own Bit has to tell, never held up in its hand: the light on its antenna takes the
+  // sign's colour, and on the screen of its little computer a picture says what it is (a check when
+  // Claude Code or Codex finished, a "!" while one asks, a clock before an event, an hourglass when a
+  // timer ended, a full box for a disk). Bit sits at that computer while it has something to tell
+  // (moments.js rest() 'tell'); away from it only the antenna says it. Drawn by the engine with the body
+  // (bit.js renderFrame `signal`): the same on the dashboard (js/bit-companion/signs.js), the desktop Bit
+  // (desk-frames.js) and a widget's Bit (the Bit kit, from the SDK `bit` stream's `signal`).
 
-  const SIZE = 5;
-  const INK = Object.freeze({
-    G: '3fd16b', P: 'd9dde3', Y: 'ffd23f', K: '1d1f24', W: 'f2f4f7', B: '4a90e2', O: 'f5b83d', R: 'ff5a4d',
-  });
+  // The computer's screen on the stage (bit-clips-move.js deskScreen): three cells wide, four tall.
+  const SCREEN = Object.freeze({ x: 11, y: 2, w: 3, h: 4 });
+  const INK = Object.freeze({ G: '3fd16b', Y: 'ffd23f', W: 'f2f4f7', B: '4a90e2', O: 'f5b83d', R: 'ff5a4d' });
   const SIGNS = Object.freeze({
-    done: ['PGGG.', 'PGGGG', 'PGGG.', 'P....', 'P....'],
-    ask: ['YYYYY', 'YYKYY', 'YYKYY', 'YYYYY', 'YYKYY'],
-    soon: ['.WWW.', 'WKBKW', 'WKBBW', 'WKKKW', '.WWW.'],
-    bell: ['..O..', '.OOO.', '.OOO.', 'OOOOO', '..O..'],
-    disk: ['.R.R.', 'WRRRW', 'WRRRW', 'WRRRW', 'WWWWW'],
+    done: { tip: INK.G, screen: ['...', '..G', 'G.G', '.G.'] },
+    ask: { tip: INK.Y, screen: ['.Y.', '.Y.', '...', '.Y.'] },
+    soon: { tip: INK.B, screen: ['WWW', 'WBW', 'WBB', 'WWW'] },
+    bell: { tip: INK.O, screen: ['OOO', '.O.', '.O.', 'OOO'] },
+    disk: { tip: INK.R, screen: ['WWW', 'RRR', 'RRR', 'RRR'] },
   });
   const KINDS = Object.freeze(Object.keys(SIGNS));
 
-  /** The cells of a sign, { x, y, hex } from its top-left; [] for none or an unknown kind. */
+  /** The screen's picture, { x, y, hex } from its top-left; [] for none or an unknown kind. */
   function cells(kind) {
-    const rows = Object.hasOwn(SIGNS, kind) ? SIGNS[kind] : null;
+    const rows = Object.hasOwn(SIGNS, kind) ? SIGNS[kind].screen : null;
     if (!rows) return [];
     const out = [];
     rows.forEach((row, y) => {
@@ -37,18 +37,15 @@
     return out;
   }
 
-  // In its hand: the sign's top-left on the stage (bit.js: the body ends at x 9, the arm is at 10,6), and
-  // a stick from the sign's bottom-left down to the arm.
-  const HAND = Object.freeze({ x: 10, y: 0 });
+  /** The antenna's colour for a sign ('rrggbb'), '' for none. */
+  const tip = (kind) => (Object.hasOwn(SIGNS, kind) ? SIGNS[kind].tip : '');
 
-  /** The sign held up, in stage cells { x, y, hex } with its stick; null for none or an unknown kind. */
-  function held(kind) {
-    const list = cells(kind);
-    if (!list.length) return null;
-    const out = list.map((c) => ({ x: HAND.x + c.x, y: HAND.y + c.y, hex: c.hex }));
-    out.push({ x: HAND.x, y: HAND.y + SIZE, hex: INK.P });
-    return out;
+  /** What bit.js renderFrame draws for a sign: { kind, tip, screen } in stage cells; null for none. */
+  function signal(kind) {
+    if (!Object.hasOwn(SIGNS, kind)) return null;
+    const screen = cells(kind).map((c) => ({ x: SCREEN.x + c.x, y: SCREEN.y + c.y, hex: c.hex }));
+    return Object.freeze({ kind, tip: tip(kind), screen });
   }
 
-  return Object.freeze({ SIZE, KINDS, HAND, cells, held });
+  return Object.freeze({ SCREEN, KINDS, cells, tip, signal });
 });

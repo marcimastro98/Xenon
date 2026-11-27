@@ -4311,7 +4311,7 @@ const CSRF_MUTATION_PATHS = new Set([
   '/update/auto/postpone',
   // Marks What's New and the fixes of a release as read. A page on another site
   // could otherwise make sure the user never hears about an update. The hints, screens-off, pump screens and Bit the same.
-  '/update/notice-seen', '/hints/seen', '/hints/reset', '/screens-off', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import', '/api/bit/hatch', '/api/bit/wear', '/api/bit/name', '/api/bit/prefs', '/api/bit/seen', '/api/bit/publish', '/api/bit/claim', '/api/bit/buy', '/api/bit/perk', '/api/home/cameras/consent',
+  '/update/notice-seen', '/hints/seen', '/hints/reset', '/screens-off', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import', '/api/bit/hatch', '/api/bit/wear', '/api/bit/name', '/api/bit/prefs', '/api/bit/seen', '/api/bit/talk', '/api/bit/publish', '/api/bit/claim', '/api/bit/buy', '/api/bit/perk', '/api/home/cameras/consent', '/api/usage/mark', '/api/checkin/filed', '/api/checkin/answer',
   // Bit's messages: filing one, or spending the day's on a page nobody sees, is
   // not something another site may do for the user.
   '/bit/messages/file',

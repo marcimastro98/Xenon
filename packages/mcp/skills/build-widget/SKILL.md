@@ -54,9 +54,9 @@ person's own dashboard, so you can see it run and fix it.
   storageGroup, secrets or clipboard; `check_widget` says when it was dropped. Read sdk_reference section "pumpAlert".
 - To draw the person's own Bit (Xenon 5.3), ask for the `bit` stream (pulled: send `{ type: 'refresh', stream: 'bit' }`
   about once a second while on screen) and copy `bit-kit.js` into the package, loaded before your script: `XenonBit.mount(el).set(data, { light })` draws it from each `bit` update, egg included, plays
-  the moves it makes on the dashboard and shows the sign it holds up (`signal`: done, ask, soon, bell, disk; only the
+  the moves it makes on the dashboard and shows what it has to tell on its antenna and its computer's screen (`signal`: done, ask, soon, bell, disk; only the
   kind; `{ signs: false }` to draw your own) and what it is busy with (`doing`: code while Claude Code or Codex work,
-  gamer while a game runs, idle). The `bit` action category adds `{ type: 'bitReact', move }`. Never draw Bit by
+  gamer while a game runs, tell at its computer with a sign, listen/think/talk while the person talks with Bit, idle). The `bit` action category adds `{ type: 'bitReact', move }`. Never draw Bit by
   hand. Read sdk_reference section "bit". `new_widget` with `bit: true` writes a starter with the kit.
 - For what happened at home (Xenon 5.3), the `homeEvents` stream: rings, what the cameras picked out, doors and windows
   opened, newest first, never a picture. Read sdk_reference section "homeEvents".

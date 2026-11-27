@@ -31,7 +31,7 @@ function pumpPage() {
 }
 const sessions = (...states) => ({ live: { sessions: states.map((state, i) => ({ id: `s${i}`, state })) } });
 
-test('elsewhere: at its computer while a session works, gaming while a game runs, back to idle after', () => {
+test('elsewhere: at its computer while a session works, gaming while a game runs, waiting there with news after', () => {
   const { window: w, send } = pumpPage();
   const B = w.BitElsewhere;
   assert.equal(B.rest(), 'idle');
@@ -41,19 +41,22 @@ test('elsewhere: at its computer while a session works, gaming while a game runs
   assert.equal(B.rest(), 'gamer', 'a game wins over the desk, as on the dashboard');
   send('status', { gaming: false });
   send('claude', { live: { sessions: [{ id: 's0', state: 'running', waitFor: 'permission' }] } });
-  assert.equal(B.rest(), 'idle', 'a session waiting for the person is not working');
+  assert.equal(B.rest(), 'tell', 'a session waiting for the person is not working: Bit waits to tell it');
   send('codex', sessions('running'));
   assert.equal(B.rest(), 'code');
   send('codex', sessions('idle'));
   send('claude', { not: 'sessions' });
-  assert.equal(B.rest(), 'idle', 'an event without sessions changes nothing');
+  assert.equal(B.rest(), 'tell', 'an event without sessions changes nothing; a finished session is news');
+  send('claude', sessions('idle'));
+  w.BitSignals.seen();
+  assert.equal(B.rest(), 'idle', 'no longer asking, and seen: it gets up');
 });
 
 test('elsewhere: the signs come from the same events, and a move asked elsewhere reaches the widget', () => {
   const { window: w, send } = pumpPage();
   send('claude', sessions('running'));
   send('claude', sessions('idle'));
-  assert.equal(w.BitSignals.top()?.kind, 'done', 'the flag of a finished session');
+  assert.equal(w.BitSignals.top()?.kind, 'done', 'the sign of a finished session');
   send('bit_play', { clip: 'dance' });
   send('bit_play', { clip: '<b>' });
   const out = w.CustomWidgetStreamReaders.bit({ ok: true, bit: { ok: false } }, null, null, null);

@@ -81,10 +81,14 @@
     return out;
   }
 
-  // The look's markings, antenna tip (its light shows the mood) and worn items.
-  function personal(look, mood, over) {
+  // The look's markings, antenna tip (its light shows the mood) and worn items. The colour of what Bit has
+  // to tell lights the tip over anything worn there, so a hat never hides it.
+  function personal(look, mood, over, lit) {
+    if (lit) return [...look.marks, ...look.tip.stem, ...over, ...rects(look.tip.light, lit.fill, 0, 0, lit.o)];
     return [...look.marks, ...look.tip.stem, ...rects(look.tip.light, mood), ...over];
   }
+  // The classic Bit has no light of its own: a sign lights a bulb on top of its antenna.
+  const BULB = [[6, -1]];
 
   // A half-cell ring of the body shape, so a pale Bit stays visible on a pale background.
   function outline(fill) {
@@ -123,24 +127,18 @@
     }
     return cache.get(key);
   }
-  // A sign held up (bit-signs.js held()) takes the hand: what it held waits behind it.
-  function wornFor(look, c, holding) {
+  function wornFor(look, c) {
     const out = { behind: [], over: [], face: [], home: [], ride: [], prop: [], lift: 0 };
     const ride = look.worn.find((w) => w.slot === 'ride');
     if (ride && fits(c, ride, 0)) out.lift = ride.lift;
-    for (const w of look.worn) if (!(holding && w.slot === 'hand') && fits(c, w, out.lift)) for (const k of LAYERS) out[k].push(...w[k]);
+    for (const w of look.worn) if (fits(c, w, out.lift)) for (const k of LAYERS) out[k].push(...w[k]);
     return out;
   }
 
-  // The sign in its hand, with the arm in the body's colour. Never set down like a worn item: it is what
-  // Bit has to tell, and the liveliest clips carry its edge at most about a cell past the stage.
-  const ARM = [[10, 6]];
-  // At its desk (a clip's `signAt`) the sign stands planted on the monitor instead, its hands on the keys.
-  function heldRects(held, fill, at) {
-    if (!Array.isArray(held) || !held.length) return [];
-    const dy = at ? at.dy : 0;
-    return [...(at ? [] : rects(ARM, fill)), ...held.map((h) => ({ x: h.x, y: h.y + dy, w: 1, h: 1, fill: '#' + h.hex, o: 1 }))];
-  }
+  // A sign (bit-signs.js signal()) on its computer's screen, in a clip with one (`screen`, the screen's
+  // cells): what the clip shows there (code, its game) gives way to it.
+  const onScreen = (s, e) => Array.isArray(e) && e[1] >= s.x && e[1] < s.x + s.w && e[2] >= s.y && e[2] < s.y + s.h;
+  const screenRects = (sign) => sign.screen.map((h) => ({ x: h.x, y: h.y, w: 1, h: 1, fill: '#' + h.hex, o: 1 }));
   // On a ride, a step is a glide: no bob, no squash, no dust.
   const glide = (frame) => ({ ...frame, dy: 0, sx: 1, sy: 1, ex: (frame.ex || []).filter((e) => e[0] !== 'dust') });
 
@@ -148,17 +146,18 @@
    * Render one frame of a clip to layers of rectangles.
    * @param {object|string} clipOrId  a clip from bit-clips.js or its id
    * @param {number} index            frame index (wraps)
-   * @param {{tint?: string, home?: boolean, held?: Array<{x: number, y: number, hex: string}>|null, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
+   * @param {{tint?: string, home?: boolean, signal?: {tip: string, screen: Array<{x: number, y: number, hex: string}>}|null, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
    *   look (bit-look.js) draws a personal Bit, whose mood then lights the antenna tip; its home shows
    *   behind it with `home` or in a clip that rests there (`home: true`, sleep), its prop beside it
-   *   unless it is on its way somewhere (`travel: true`); held is a sign in its hand (bit-signs.js held())
+   *   unless it is on its way somewhere (`travel: true`); signal is what it has to tell (bit-signs.js
+   *   signal()): its antenna's light (a frame's `tip` dims it) and, in a clip at its computer, the screen
    * @returns {{ layers: Array<{ transform: object|null, clipFloor: boolean, rects: Array }> }}
    */
   function renderFrame(clipOrId, index = 0, opts = {}) {
     const c = typeof clipOrId === 'string' ? clip(clipOrId) : clipOrId;
     if (!c?.frames.length) throw new Error(`Unknown Bit clip: ${clipOrId}`);
     const look = opts.look || null;
-    const worn = look ? wornFor(look, c, !!opts.held?.length) : null;
+    const worn = look ? wornFor(look, c) : null;
     const at = c.frames[((index % c.frames.length) + c.frames.length) % c.frames.length];
     const frame = worn?.ride.length && c.travel ? glide(at) : at;
     const mood = `rgb(${rgb(frame.tint || opts.tint || c.tint)})`;
@@ -168,9 +167,11 @@
     const back = [];
     const front = [];
     const attached = [];
-    const signAt = opts.held?.length && c.signAt ? c.signAt : null;
+    const sign = opts.signal?.tip ? opts.signal : null;
+    const screen = sign && c.screen ? c.screen : null;
+    const lit = sign ? { fill: '#' + sign.tip, o: frame.tip == null ? 1 : frame.tip } : null;
     for (const entry of frame.ex || []) {
-      if (signAt && Array.isArray(entry) && entry[2] < signAt.clear) continue; // what floats there waits for it
+      if (screen && onScreen(screen, entry)) continue;
       const e = extra(entry, fill, look ? look.accent : fill);
       if (!e) continue;
       if (e.part.back) back.push(...e.rects);
@@ -197,11 +198,10 @@
     if (look?.outline) layers.push({ transform: t, clipFloor: true, rects: outline(look.outline) });
     if (worn?.behind.length) layers.push({ transform: t, clipFloor: true, rects: worn.behind });
     if (worn?.ride.length) layers.push({ transform: transform({ dx: frame.dx, dy: frame.dy }), clipFloor: true, rects: worn.ride });
-    const own = look ? personal(look, mood, worn.over) : [];
+    const own = look ? personal(look, mood, worn.over, lit) : lit ? rects(BULB, lit.fill, 0, 0, lit.o) : [];
     layers.push({ transform: t, clipFloor: true, rects: [...rects(BODY, fill), ...own, ...attached, ...(worn ? worn.face : []), ...face(frame, look)] });
-    const held = heldRects(opts.held, fill, signAt);
-    if (held.length) layers.push({ transform: signAt ? null : t, clipFloor: false, rects: held });
     if (front.length) layers.push({ transform: null, clipFloor: false, rects: front });
+    if (screen && sign.screen.length) layers.push({ transform: null, clipFloor: false, rects: screenRects(sign) });
     return { layers };
   }
 

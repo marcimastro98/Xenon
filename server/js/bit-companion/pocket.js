@@ -3,7 +3,7 @@
 // Xenon menu's window). At the top what Bit has to tell now (signals.js) with the one thing to do about it;
 // then the quick keys the person chooses from what this PC can run (GET /api/bit/pocket, server/bit/pocket.js),
 // four, or eight with the extra the hub may keep for supporters (perks.js: a closed one shows the gold heart);
-// then "Ask Bit" and its room. Opening it is seeing what it says: the sign in its hand goes.
+// then "Ask Bit" and its room. Opening it is seeing what it says: the sign on its antenna and screen goes.
 // On the dashboard it opens beside the Bit that was tapped; alone in the menu's window (`sheet`) it fills it,
 // and a key closes the window before it runs (POST /screen-menu `run`), as the menu's own tiles do.
 (() => {

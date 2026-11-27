@@ -150,8 +150,8 @@ test('kit: draws the egg, then the Bit, the classic one on request, and plays on
   b.destroy();
 });
 
-// The kit draws the sign the stream names in the stage's top-right corner, over the frame, from the shared table.
-test('kit: the sign in its hand comes, changes and goes with data.signal, and signs: false leaves it out', async () => {
+// The kit draws the sign the stream names from the shared table: its antenna's light, and its screen at its computer.
+test('kit: the sign on its antenna and screen comes, changes and goes with data.signal, and signs: false leaves it out', async () => {
   const { ctx } = fakePage();
   const made = [];
   const node = (tag) => {
@@ -169,13 +169,14 @@ test('kit: the sign in its hand comes, changes and goes with data.signal, and si
   // Drawn with the body by the player: what its stage shows now, as the fills of its paths.
   const svgOf = () => made.find((n) => n.tag === 'svg' && n.attrs.class === 'xbit');
   const fills = (n = svgOf()) => [...(n.attrs.fill ? [n.attrs.fill] : []), ...n.kids.flatMap((k) => fills(k))];
-  const holds = (kind) => bitSigns.cells(kind).every((c) => fills().includes('#' + c.hex));
+  const lit = (kind) => fills().includes('#' + bitSigns.tip(kind));
+  const holds = (kind) => lit(kind) && bitSigns.cells(kind).every((c) => fills().includes('#' + c.hex));
   const SIGN_INK = ['#3fd16b', '#ffd23f', '#f5b83d', '#ff5a4d', '#4a90e2'];
   const none = () => !fills().some((x) => SIGN_INK.includes(x));
   b.set(out);
-  assert.ok(holds('ask'), 'the board in its hand');
-  b.set({ ...out, signal: 'disk' });
-  assert.ok(holds('disk') && !fills().includes('#ffd23f'), 'changed');
+  assert.ok(lit('ask'), 'its antenna lit');
+  b.set({ ...out, signal: 'disk', doing: 'tell' });
+  assert.ok(holds('disk') && !fills().includes('#ffd23f'), 'changed, on its screen at its computer');
   b.set({ ...out, signal: 'not-a-sign' });
   assert.ok(none(), 'an unknown sign is none');
   b.set({ ...out, signal: 'done' });
@@ -184,15 +185,16 @@ test('kit: the sign in its hand comes, changes and goes with data.signal, and si
   b.destroy();
   made.length = 0;
   const quiet = ctx.XenonBit.mount(node('div'), { label: 'Bit', signs: false });
-  quiet.set(out);
+  quiet.set({ ...out, doing: 'tell' });
   assert.ok(none(), 'the widget draws it itself');
+  assert.ok(!fills().includes('#9a7650'), 'and Bit just rests, not at an empty computer');
   quiet.destroy();
-  // A Bit drawn without mount, from its own player (the Maker's Bit layer): the sign in its hand too.
+  // A Bit drawn without mount, from its own player (the Maker's Bit layer): the sign on its antenna too.
   made.length = 0;
   const player = ctx.Xenon.bitPlayer.mount(node('div'), { label: 'Bit' });
   const inHand = ctx.XenonBit.signs(player);
   inHand('done');
-  assert.ok(holds('done'));
+  assert.ok(lit('done'));
   inHand(null);
   assert.ok(none());
   player.destroy();

@@ -8,10 +8,11 @@
 //   bit.set(m.data, { light: theme.appearance === 'light' });
 //
 // Not hatched yet: the egg. A move played on the dashboard (data.played) plays here too, and the
-// sign of the moment (data.signal) is in its hand; `signs: false` leaves it to you. What it does at rest
-// on the dashboard (data.doing: 'code' at its computer while Claude Code or Codex work, 'gamer' while
-// the person plays) it does here too.
-// `XenonBit.signs(player)` puts the same sign in the hand of a Bit drawn without mount, from its own
+// sign of the moment (data.signal) lights its antenna and, at its computer, fills its screen; `signs: false`
+// leaves it to you. What it does at rest on the dashboard (data.doing: 'code' at its computer while
+// Claude Code or Codex work, 'gamer' while the person plays, 'tell' at its computer with a sign, 'listen',
+// 'think' and 'talk' while the person talks with Bit) it does here too.
+// `XenonBit.signs(player)` puts the same sign on a Bit drawn without mount, from its own
 // player (the Maker's Bit layer).
 // Its home (a worn item of place 'home') shows while it sleeps; `home: true` keeps it behind Bit always.
 // `classic: true` draws the classic Bit with its own rhythm, as the app does where the person
@@ -19,15 +20,15 @@
 (() => {
   const X = globalThis.Xenon;
   const BACKGROUND = { dark: '#15191c', light: '#f4f6f5' };
-  const RESTS = ['idle', 'code', 'gamer']; // bit-companion/moments.js
+  const RESTS = ['idle', 'code', 'gamer', 'tell', 'listen', 'think', 'talk']; // bit-companion/moments.js
 
-  /** The sign of the moment (shared/src/bit-signs.js) in the hand of `player`'s Bit (a bitPlayer). */
+  /** The sign of the moment (shared/src/bit-signs.js) on the antenna and screen of `player`'s Bit (a bitPlayer). */
   function signer(player) {
     const S = X.bitSigns;
     let kept = '';
     return (kind) => {
       const next = S?.KINDS.includes(kind) ? kind : '';
-      if (next !== kept) player.sign(next ? S.held(next) : null);
+      if (next !== kept) player.sign(next ? S.signal(next) : null);
       kept = next;
     };
   }
@@ -62,7 +63,9 @@
         player.refresh();
       }
       sign(data.signal);
-      const rest = RESTS.includes(data.doing) && X.bit.clip(data.doing) ? data.doing : null;
+      // Waiting at its computer to tell something: with the signs left to the widget, it just rests.
+      const doing = data.doing === 'tell' && opts.signs === false ? 'idle' : data.doing;
+      const rest = RESTS.includes(doing) && X.bit.clip(doing) ? doing : null;
       if (rest && rest !== player.mood && RESTS.includes(player.mood)) player.setMood(rest);
       const p = data.played;
       if (p && p.at > seen) {

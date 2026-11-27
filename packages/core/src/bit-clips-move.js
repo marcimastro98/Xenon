@@ -17,7 +17,8 @@
    * is the same clip mirrored by its place. Every loop faces right. A clip on its way somewhere is
    * `travel`: its prop stays behind, and on a ride a step is a glide (bit.js).
    * And the loops it rests in at its own desk (bit-companion/moments.js): coding while Claude Code or Codex
-   * work, gaming while the person plays. */
+   * work, gaming while the person plays, and waiting there while it has something to tell (bit-signs.js:
+   * its screen shows what, its antenna pulses in that colour). */
 
   const P = (fill, cells, opts) => Object.freeze({ fill, cells, attach: false, back: true, ...opts });
   const PARTS = Object.freeze({
@@ -25,9 +26,9 @@
     dust: P('#a6b1ad', [[0, 0], [1, -1], [2, 0]], { opacity: 0.55 }),
     // Its own computer, on a little desk beside it: the monitor and the desk stay put while it bobs; one cell
     // of code at a time, and a hand that types.
-    pcFrame: P('#6b7686', [[10, 1, 5], [10, 6, 5], [10, 2, 1, 4], [14, 2, 1, 4]], { attach: false }),
-    pcScreen: P('#14202c', [[11, 2, 3, 4]], { attach: false }),
-    pcStand: P('#6b7686', [[12, 7]], { attach: false }),
+    deskMonitor: P('#6b7686', [[10, 1, 5], [10, 6, 5], [10, 2, 1, 4], [14, 2, 1, 4]], { attach: false }),
+    deskScreen: P('#14202c', [[11, 2, 3, 4]], { attach: false }),
+    deskStand: P('#6b7686', [[12, 7]], { attach: false }),
     desk: P('#9a7650', [[10, 8, 5], [10, 9, 1, 2], [14, 9, 1, 2]], { attach: false }),
     handIn: P('body', [[10, 7]]),
     handOut: P('body', [[10, 7, 2, 1]]),
@@ -54,12 +55,12 @@
   const F = (ms, props) => Object.freeze({ ms, ...props });
   const SIGN = ['signPost', 'signBoard', 'signLines', 'armR'];
   // At its computer: the screen fills with code one cell at a time, a cursor blinking where the next goes.
-  const PC = ['pcFrame', 'pcScreen', 'pcStand', 'desk'];
+  const PC = ['deskMonitor', 'deskScreen', 'deskStand', 'desk'];
   const CODE = [['codeA', 11, 2], ['codeA', 12, 2], ['codeB', 12, 3], ['codeB', 13, 3], ['codeC', 12, 4], ['codeB', 13, 4], ['codeC', 11, 5], ['codeC', 12, 5]];
   const typed = (n, blink, hand = 'handIn') => [...PC, hand, ...CODE.slice(0, n), ...(blink && n < CODE.length ? [['cursor', ...CODE[n].slice(1)]] : [])];
   // One bit of code out of the screen every third frame: it rises above the monitor and fades in four frames.
   const BITS = ['bitOpen', 'bitOne', 'bitClose', 'bitZero'];
-  const FADE = [0.9, 0.7, 0.45, 0.2];
+  const FADE = [1, 0.8, 0.55, 0.3];
   const popped = (i) => [1, 4, 7, 10].flatMap((at, k) => {
     const age = i - at;
     return age >= 0 && age < FADE.length ? [[BITS[k], k % 2 ? 12 : 10, -2 - age, FADE[age]]] : [];
@@ -72,8 +73,8 @@
   const game = (i) => [...PC, ...PAD, ['gameShip', SHIP[i], 5],
     ...(FOE[i] ? [['gameFoe', FOE[i], 2]] : []), ...(i % 3 === 1 ? [['gameShot', SHIP[i], 4]] : i % 3 === 2 ? [['gameShot', SHIP[i - 1], 3]] : []),
     ...(i === 6 ? [['star', 10, -3, 1]] : i === 7 ? [['star', 10, -4, 0.5]] : [])];
-  // A sign held up while it sits here stands on top of the monitor (bit.js), and nothing floats under it.
-  const ON_PC = Object.freeze({ dy: -5, clear: 1 });
+  // The screen's cells, where a sign shows while it sits here (bit-signs.js SCREEN, bit.js).
+  const SCREEN = Object.freeze({ x: 11, y: 2, w: 3, h: 4 });
   const step = (ms, lift, extra = {}) => [
     F(ms, { eyes: 'right', sx: 1.03, sy: 0.97, ...extra }),
     F(ms, { eyes: 'right', dy: -lift, ...extra, ex: [...(extra.ex || []), ['dust', -3, 10, 0.5]] }),
@@ -98,7 +99,7 @@
     {
       id: 'code',
       calm: true,
-      signAt: ON_PC,
+      screen: SCREEN,
       frames: [
         ...CODE.map((_, i) => F(260, { eyes: 'right', ex: [...typed(i, i % 2 === 0, i % 2 ? 'handOut' : 'handIn'), ...popped(i)] })),
         F(900, { eyes: 'right', mouth: 'smile', ex: [...typed(CODE.length), ...popped(8)] }),
@@ -111,11 +112,27 @@
     {
       id: 'gamer',
       calm: true,
-      signAt: ON_PC,
+      screen: SCREEN,
       frames: [
         ...SHIP.map((_, i) => F(i >= 6 ? 420 : 260, { eyes: 'right', mouth: i >= 6 ? 'smile' : 'flat', dy: i % 2 ? 0.3 : 0, ex: game(i) })),
         F(110, { eyes: 'blink', ex: game(0) }),
         F(600, { eyes: 'wide', ex: game(0) }),
+      ],
+    },
+    // At its computer with something to tell: hands still on the desk, it looks at you, then at the screen
+    // that says what, while its antenna pulses slowly in the sign's colour (a frame's `tip`, bit.js).
+    {
+      id: 'tell',
+      calm: true,
+      screen: SCREEN,
+      frames: [
+        F(800, { mouth: 'smile', tip: 1, ex: [...PC, 'handIn'] }),
+        F(800, { mouth: 'smile', tip: 0.4, ex: [...PC, 'handIn'] }),
+        F(800, { eyes: 'right', tip: 1, ex: [...PC, 'handIn'] }),
+        F(700, { eyes: 'right', tip: 0.4, ex: [...PC, 'handIn'] }),
+        F(110, { eyes: 'blink', tip: 0.4, ex: [...PC, 'handIn'] }),
+        F(800, { mouth: 'smile', tip: 1, ex: [...PC, 'handIn'] }),
+        F(800, { mouth: 'smile', tip: 0.4, ex: [...PC, 'handIn'] }),
       ],
     },
   ].map((c) => ({ kind: 'mood', loop: true, tint: 'idle', ...c }));

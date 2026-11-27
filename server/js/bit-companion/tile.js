@@ -69,5 +69,6 @@
     onSystem: moments('onSystem'),
     onMedia: moments('onMedia'),
     onPlay: moments('onPlay'),
+    onTalk: moments('onTalk'),
   };
 })();

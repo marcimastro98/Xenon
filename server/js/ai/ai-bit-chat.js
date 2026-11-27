@@ -42,11 +42,24 @@
     });
   }
 
+  // Every other Bit of the person does what this one does (POST /api/bit/talk, heard as 'bit_talk' by
+  // moments.js and elsewhere.js): it listens while they type or speak, thinks on a turn, talks while the
+  // voice answers, and goes back to what it was doing after.
+  const TALK_OF = { think: 'think', work: 'think', listen: 'listen', talk: 'talk' };
+  let told = '';
+  function tellOthers(mood) {
+    const state = TALK_OF[mood] || '';
+    if (state === told || typeof SERVER !== 'string') return;
+    told = state;
+    fetch(SERVER + '/api/bit/talk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state }) }).catch(() => {});
+  }
+
   function setStatus(state) {
     statusNow = state || '';
     if (window.BitFloor) BitFloor.status(statusNow);
     const mood = moodNow();
     eachPlayer((p) => p.setMood(mood));
+    tellOthers(mood);
   }
 
   function typing(on) {
@@ -54,6 +67,7 @@
     typingNow = !!on;
     const mood = moodNow();
     eachPlayer((p) => p.setMood(mood));
+    tellOthers(mood);
   }
 
   // One clip on every head Bit, then back to its mood. Played after the
@@ -115,6 +129,7 @@
     const player = BitApp.mount(host, { mood: 'listen', fidgets: false, hold: VOICE_HOLD });
     const mood = VOICE_MOOD[state] || 'idle';
     if (player) player.setMood(mood);
+    tellOthers(mood);
     // The halo and the bars take the colour of the mood.
     const rgb = window.Xenon && Xenon.bit && Xenon.bit.rgb(mood);
     const view = host.closest('.ai-voice-view');

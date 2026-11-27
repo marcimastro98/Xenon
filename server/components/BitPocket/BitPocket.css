@@ -18,7 +18,7 @@ html.is-pocket-window, html.is-pocket-window body, html.is-pocket-window .bitp {
 html.is-pocket-window .bitp.is-sheet .bitp-card { position: static; width: auto; max-width: none; margin: 0; transform: none; border: 0; border-radius: 0; box-shadow: none; }
 
 .bitp-now { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: 44px; }
-.bitp-now .bit-sign { position: static; flex: none; width: 20px; height: 20px; filter: none; }
+.bitp-now .bit-sign { position: static; flex: none; width: 20px; height: 24px; filter: none; }
 .bitp-line { flex: 1 1 140px; min-width: 0; margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .bitp-now.is-quiet .bitp-line { color: var(--muted-text); font-weight: 500; }
 

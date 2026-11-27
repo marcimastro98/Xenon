@@ -14,8 +14,8 @@
 
   const engine = () => window.Xenon || {};
 
-  /** The cells of every frame of a clip in this look, the sign `sign` in its hand (signs.js), or null
-   *  for a clip the shell can't take. */
+  /** The cells of every frame of a clip in this look, with the sign `sign` on its antenna and screen
+   *  (signs.js), or null for a clip the shell can't take. */
   function cellsOf(id, look, sign = '') {
     const { bit, bitCells } = engine();
     const clip = bit?.clip(id);
@@ -23,8 +23,8 @@
     if (!cache.has(look)) cache.set(look, new Map());
     const byClip = cache.get(look);
     const key = id + ':' + sign;
-    const held = (sign && window.BitSigns?.held(sign)) || null;
-    if (!byClip.has(key)) byClip.set(key, clip.frames.map((_, i) => bitCells.cells(bit.renderFrame(clip, i, { look, held }).layers)));
+    const signal = (sign && window.BitSigns?.signal(sign)) || null;
+    if (!byClip.has(key)) byClip.set(key, clip.frames.map((_, i) => bitCells.cells(bit.renderFrame(clip, i, { look, signal }).layers)));
     return { clip, maps: byClip.get(key) };
   }
 
@@ -57,7 +57,7 @@
     return (!gone && sign && framesOf(look, loopId, once, gone, reduced, sign)) || framesOf(look, loopId, once, gone, reduced, '');
   }
 
-  // Its sign is in its hand on every frame of Bit itself (and of a way of going, made from the frame it stands in).
+  // Its sign lights its antenna on every frame of Bit itself (and of a way of going, made from the frame it stands in).
   function framesOf(look, loopId, once, gone, reduced, sign) {
     const stand = cellsOf(loopId, look, sign) || cellsOf('idle', look, sign);
     if (!stand) return null;

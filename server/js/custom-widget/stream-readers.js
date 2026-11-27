@@ -63,14 +63,15 @@
 
   // The person's own Bit (server/bit/, GET /api/bit): what a widget draws it from with the Bit
   // kit (docs/create/bit-kit.js), its genes without the seed, the last move it played on the
-  // dashboard, the sign in its hand (bit-companion/signals.js): only its kind, from the shared table
-  // (shared/src/bit-signs.js), never what it is about; and what it does at rest (moments.js rest(), or
-  // elsewhere.js on the pump's screen): idle, coding beside Claude Code or Codex, gaming beside the
-  // person. Never what it learned about the person (traits, days), or what it owns.
+  // dashboard, the sign on its antenna and screen (bit-companion/signals.js): only its kind, from the
+  // shared table (shared/src/bit-signs.js), never what it is about; and what it does at rest (moments.js
+  // rest(), or elsewhere.js on the pump's screen): idle, coding beside Claude Code or Codex, gaming beside
+  // the person, waiting at its computer while it has something to tell, listening, thinking and talking
+  // while the person talks with Bit in the chat or by voice. Never what it learned about the person (traits, days), or what it owns.
   const BIT_STAGES = ['egg', 'baby', 'young', 'adult', 'veteran', 'legend'];
   const GENES = ['palette', 'pattern', 'patternColor', 'tip', 'eyes', 'cheeks', 'temperament', 'quirk', 'voice'];
   const ID = /^[a-z][a-zA-Z0-9-]{0,31}$/;
-  const BIT_DOING = ['idle', 'code', 'gamer'];
+  const BIT_DOING = ['idle', 'code', 'gamer', 'tell', 'listen', 'think', 'talk'];
 
   // A hub item it wears (server/bit/items.js, already checked there), as the kit draws it: no names, no price.
   const drawn = (it) => ({ id: it.id, slot: it.slot, source: it.source, month: it.month, price: it.price, layers: it.layers });
