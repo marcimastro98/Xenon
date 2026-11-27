@@ -95,6 +95,7 @@ mod prefs;
 mod see_through;
 mod show_desktop;
 mod spotlight_window;
+mod pocket_window;
 mod startup;
 mod tray;
 mod tray_words;

@@ -50,7 +50,8 @@ test('every change counts in its month: the hatch, the days, the minutes and the
   await store.update((m) => Model.hatched(m, born, clock.now));
   let month = (await store.ready()).months['2026-11'];
   assert.equal(month.days, 1, 'the day it hatched');
-  assert.equal(month.items.length, 1, 'with the item it hatched wearing');
+  assert.deepEqual(month.items.length, 2, 'with the item it hatched wearing, and its home');
+  assert.ok(month.items.includes('hut'));
   for (let i = 0; i < 90; i++) await store.remember((m) => Model.learn(m, minute, clock.now));
   clock.now = new Date(2026, 10, 4, 2, 0);
   await store.remember((m) => Model.learn(m, { active: true }, clock.now));

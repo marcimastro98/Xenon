@@ -65,6 +65,12 @@ pub(super) fn app(nav_handle: &tauri::AppHandle, url: &tauri::Url) {
             let u = url.clone();
             std::thread::spawn(move || layers::bit_desk::signal(&h, &u));
         }
+        // That Bit tapped: its pocket in a little window over it
+        // (pocket_window.rs). A plain thread, like above.
+        "bit-pocket" => {
+            let h = nav_handle.clone();
+            std::thread::spawn(move || crate::pocket_window::open(&h));
+        }
         // Settings → Background, "See-through background":
         // remember it, and relaunch when the window has to be
         // rebuilt (see_through.rs). A plain thread: it writes

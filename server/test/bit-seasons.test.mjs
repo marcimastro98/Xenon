@@ -64,12 +64,12 @@ test('the view names only the seasons running: what comes next stays a surprise'
 });
 
 test("the Bit's birthday week starts a year after it hatched", () => {
-  assert.deepEqual(wardrobe.seasonsOn(day(4, 10), day(4, 10).toISOString()).filter((s) => s === 'birthday'), []);
+  assert.deepEqual(Seasons.seasonsOn(day(4, 10), day(4, 10).toISOString()).filter((s) => s === 'birthday'), []);
   const born = day(4, 10, 2026).toISOString();
-  assert.ok(wardrobe.seasonsOn(day(4, 10, 2027), born).includes('birthday'));
-  assert.ok(wardrobe.seasonsOn(day(4, 16, 2027), born).includes('birthday'));
-  assert.ok(!wardrobe.seasonsOn(day(4, 17, 2027), born).includes('birthday'));
-  assert.ok(!wardrobe.seasonsOn(day(4, 9, 2027), born).includes('birthday'));
+  assert.ok(Seasons.seasonsOn(day(4, 10, 2027), born).includes('birthday'));
+  assert.ok(Seasons.seasonsOn(day(4, 16, 2027), born).includes('birthday'));
+  assert.ok(!Seasons.seasonsOn(day(4, 17, 2027), born).includes('birthday'));
+  assert.ok(!Seasons.seasonsOn(day(4, 9, 2027), born).includes('birthday'));
 });
 
 test('it hatches wearing one of the shop\'s cheapest, the same for the same seed, as the hub reads it', () => {
@@ -120,4 +120,12 @@ test('the wardrobe says every item, season and way to get one in words (en.js, t
   for (const gone of ['mybit_gift_open', 'mybit_tier_c', 'mybit_get_daily', 'mybit_group_daily', 'mybit_rare_palette']) {
     assert.ok(!has(gone), `${gone} is gone`);
   }
+});
+
+test('a birthday week that starts at the end of December runs into January', () => {
+  const born = new Date(2024, 11, 29).toISOString();
+  assert.ok(Seasons.seasonsOn(new Date(2026, 0, 2), born).includes('birthday'), 'day five of the week, in the new year');
+  assert.ok(Seasons.seasonsOn(new Date(2025, 11, 30), born).includes('birthday'));
+  assert.ok(!Seasons.seasonsOn(new Date(2026, 0, 5), born).includes('birthday'), 'the week is over');
+  assert.ok(!Seasons.seasonsOn(new Date(2025, 0, 2), born).includes('birthday'), 'not the week it was born');
 });

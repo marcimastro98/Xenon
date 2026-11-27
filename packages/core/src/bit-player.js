@@ -38,7 +38,6 @@
     pageLook = look || null;
     for (const p of live) p.refresh();
   }
-
   const { stillIndex } = bit;
 
   /**
@@ -54,6 +53,7 @@
    * @param {() => void} [opts.onWake] told when it starts playing again after a stop
    * @param {() => object|null} [opts.look] a look of its own (bit-look.js), read on every
    *   frame: a try-on preview. Without it the player draws the page's look (useLook)
+   * @param {boolean} [opts.home] its home always behind it (its room), not only while it sleeps
    * @param {object|(() => object|null)} [opts.director] a personal Bit's rhythm
    *   (bitDirector.createDirector), or a getter for it; default the classic one
    */
@@ -99,7 +99,7 @@
     const rhythm = () => (typeof opts.director === 'function' ? opts.director() : opts.director) || director()?.CLASSIC || null;
 
     function draw(c, i) {
-      const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook });
+      const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook, home: opts.home === true });
       state.shown = c;
       state.drawn = i;
       const groups = layers.map((l) => {

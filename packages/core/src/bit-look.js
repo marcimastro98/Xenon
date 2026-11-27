@@ -17,6 +17,7 @@
 
   const { BODY, CHEEKS, INK } = clips;
   const OUTLINE_BELOW = 3; // contrast with the background under which Bit gets an outline
+  const FLOOR_ROW = 11; // the floor's row (bit.js FLOOR_Y): a ride whose top row is 9 lifts Bit by 2
   const SHINE = '#ffffff';
   const SPARKLE = '#fff6c8';
 
@@ -67,20 +68,26 @@
   }
 
   /* Worn items (bit-wardrobe.js), each split by layer: `back` goes behind
-   * the body, `face` over the face (glasses), the rest over the body. `box`
-   * (cell edges) lets bit.js set an item down in a clip it would not fit. */
+   * the body, `face` over the face (glasses), the rest over the body. Off the
+   * body, a home goes behind everything, a ride under the feet (`lift`: the rows
+   * Bit stands on it) and a prop on the floor beside it; a move draws nothing on
+   * Bit (its cells are the bits that fly, bit-companion/warp.js). `box` (cell
+   * edges) lets bit.js set an item down in a clip it would not fit. */
+  const OFF_BODY = { home: 'home', ride: 'ride', prop: 'prop' };
+  const MAX_LIFT = 2;
   function wornItems(items, pal) {
-    return (items || []).map((item) => {
-      const out = { id: item.id, behind: [], over: [], face: [] };
-      const slotLayer = item.slot === 'back' ? 'behind' : item.slot === 'face' ? 'face' : 'over';
+    return (items || []).filter((item) => item.slot !== 'move').map((item) => {
+      const out = { id: item.id, slot: item.slot, behind: [], over: [], face: [], home: [], ride: [], prop: [], lift: 0 };
+      const slotLayer = OFF_BODY[item.slot] || (item.slot === 'back' ? 'behind' : item.slot === 'face' ? 'face' : 'over');
       const cells = [];
       for (const part of item.layers) {
         const unit = unitCells(part.cells);
         cells.push(...unit);
-        out[part.layer || slotLayer].push(...cellRects(unit, resolveFill(part.fill, pal), part.o == null ? 1 : part.o));
+        out[(!OFF_BODY[item.slot] && part.layer) || slotLayer].push(...cellRects(unit, resolveFill(part.fill, pal), part.o == null ? 1 : part.o));
       }
       const xs = cells.map((c) => c[0]);
       out.box = { x0: Math.min(...xs), x1: Math.max(...xs) + 1, y0: Math.min(...cells.map((c) => c[1])) };
+      if (item.slot === 'ride') out.lift = Math.min(MAX_LIFT, Math.max(0, FLOOR_ROW - out.box.y0));
       return out;
     });
   }

@@ -80,6 +80,8 @@ pub(super) fn build(
         "desks": layers_why.is_none() && layers::desks::supported(),
         // The own Bit on the taskbar (layers/bit_desk.rs).
         "bitDesk": layers_why.is_none() && layers::bit_desk::supported(),
+        // Its pocket in a little window of its own over it (pocket_window.rs).
+        "bitPocket": layers_why.is_none() && layers::bit_desk::supported(),
         // Holding View + Menu on a controller opens the Xenon menu
         // (layers/pad.rs).
         "pad": layers_why.is_none() && layers::draws_menu() && layers::pad::supported(),

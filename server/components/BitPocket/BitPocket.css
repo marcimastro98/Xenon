@@ -17,6 +17,10 @@
 }
 .bitp-card.is-centred { left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .bitp.is-sheet .bitp-card { position: relative; width: min(440px, calc(100vw - 32px)); margin: 0 auto; top: 50%; transform: translateY(-50%); padding: var(--space-4); }
+/* Alone in its own little window over the desktop Bit (the shell's pocket_window.rs, marked by js/ai/sheet-page.js):
+   the card is the whole window, which the system rounds, and the window takes the card's height. */
+html.is-pocket-window, html.is-pocket-window body, html.is-pocket-window .bitp { background: var(--surface-raised); overflow: hidden; }
+html.is-pocket-window .bitp.is-sheet .bitp-card { position: static; width: auto; max-width: none; margin: 0; transform: none; border: 0; border-radius: 0; box-shadow: none; }
 
 .bitp-now { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: 44px; }
 .bitp-now .bit-sign { position: static; flex: none; width: 20px; height: 20px; filter: none; }

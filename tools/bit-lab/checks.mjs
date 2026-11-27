@@ -83,9 +83,20 @@ function leaves(cells, f) {
   });
 }
 
+// How a frame moves an item of each place: a home and a prop never move, a ride only follows the
+// body's moves, the rest go with the body, lifted by the highest ride (bit.js).
+const RIDE_LIFT = 2;
+const MOVED = {
+  home: () => null,
+  prop: () => null,
+  ride: (f) => ({ dx: f.dx, dy: f.dy }),
+};
+const onRide = (f) => ({ ...f, dy: (f.dy || 0) - RIDE_LIFT });
+const moverOf = (it) => MOVED[it.slot] || ((f) => f);
+
 /** Ids of the clips in which these cells would leave the stage. */
-export function clipsLeaving(cells, clipList = bit.clips) {
-  return clipList.filter((c) => c.frames.some((f) => leaves(cells, f))).map((c) => c.id);
+export function clipsLeaving(cells, clipList = bit.clips, move = (f) => f) {
+  return clipList.filter((c) => c.frames.some((f) => { const at = move(f); return !!at && leaves(cells, at); })).map((c) => c.id);
 }
 
 /** Tips (part of every Bit) stay on stage in every frame of every clip. */
@@ -108,8 +119,9 @@ export function checkItems() {
     ids.add(it.id);
     problems.push(...wardrobe.validate(it, tips).map((e) => `${it.id}: ${e}`));
     const cells = wardrobe.cellsOf(it);
-    for (const id of clipsLeaving(cells, moods)) problems.push(`${it.id}: leaves the stage in mood ${id}`);
-    const down = clipsLeaving(cells);
+    for (const id of clipsLeaving(cells, moods, moverOf(it))) problems.push(`${it.id}: leaves the stage in mood ${id}`);
+    if (wardrobe.SLOTS.includes(it.slot)) for (const id of clipsLeaving(cells, moods, onRide)) problems.push(`${it.id}: leaves the stage on a ride in mood ${id}`);
+    const down = clipsLeaving(cells, bit.clips, moverOf(it));
     if (down.length > MAX_SET_DOWN) problems.push(`${it.id}: set down in ${down.length} clips (${down.join(', ')})`);
   }
   return problems;
@@ -117,7 +129,7 @@ export function checkItems() {
 
 /** Items bit.js sets down, and in which clips: shown by the Lab, not an error. */
 export function setDowns() {
-  return wardrobe.ITEMS.map((it) => ({ id: it.id, clips: clipsLeaving(wardrobe.cellsOf(it)) })).filter((x) => x.clips.length);
+  return wardrobe.ITEMS.map((it) => ({ id: it.id, clips: clipsLeaving(wardrobe.cellsOf(it), bit.clips, moverOf(it)) })).filter((x) => x.clips.length);
 }
 
 export function checkAll() {

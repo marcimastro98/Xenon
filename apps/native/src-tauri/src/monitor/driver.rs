@@ -91,10 +91,16 @@ fn visit_screen<T>(candidates: Vec<T>, is_edge: impl Fn(&T) -> bool) -> Option<T
 
 /// The screen under the pointer: the one the user just pressed something on.
 pub(crate) fn pointer_monitor(window: &WebviewWindow) -> Option<Monitor> {
+    pointer(window).map(|(_, m)| m)
+}
+
+/// Where the pointer is, in physical pixels, and the screen under it (Bit's pocket opens there).
+pub(crate) fn pointer(window: &WebviewWindow) -> Option<(tauri::PhysicalPosition<f64>, Monitor)> {
     let w = window.clone();
     on_main(window.app_handle(), move || {
         let at = w.cursor_position().ok()?;
-        w.monitor_from_point(at.x, at.y).ok().flatten()
+        let m = w.monitor_from_point(at.x, at.y).ok().flatten()?;
+        Some((at, m))
     })
     .flatten()
 }

@@ -61,11 +61,15 @@ const iso = (v) => (typeof v === 'string' && ISO.test(v) && Number.isFinite(Date
 // (items.js) whose list is not loaded, or not reachable offline. Dropping it would undress the Bit for good.
 const ITEM_ID = /^[a-z][a-zA-Z0-9]{1,31}$/;
 const keptIds = (v, max) => [...new Set((Array.isArray(v) ? v : []).filter((id) => typeof id === 'string' && ITEM_ID.test(id)))].slice(0, max);
-/** One item per slot of those it knows, then the ids it does not know yet. */
+/** One item per place of those it knows, then the ids it does not know yet. */
 function wornOf(v) {
-  const ids = keptIds(v, wardrobe.SLOTS.length);
-  return [...wardrobe.outfit(ids).map((it) => it.id), ...ids.filter((id) => !wardrobe.item(id))].slice(0, wardrobe.SLOTS.length);
+  const ids = keptIds(v, wardrobe.PLACES.length);
+  return [...wardrobe.outfit(ids).map((it) => it.id), ...ids.filter((id) => !wardrobe.item(id))].slice(0, wardrobe.PLACES.length);
 }
+// Every Bit has a home (bit-wardrobe.js 'hut'), put in its place once: taken off, it stays off.
+const HOME = 'hut';
+const homedOf = (src, bit) => !bit || src.homed === true;
+const withHome = (worn) => (wardrobe.outfit(worn).some((it) => it.slot === 'home') ? worn : wornOf([...worn, HOME]));
 
 function normalizeBirth(raw) {
   if (!raw || typeof raw !== 'object' || typeof raw.seed !== 'string' || !SEED.test(raw.seed)) return null;
@@ -96,13 +100,16 @@ function cleanName(raw) {
 function normalize(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const days = src.days && typeof src.days === 'object' ? src.days : {};
+  const bit = normalizeBirth(src.bit);
+  const homed = homedOf(src, bit);
   return {
     v: VERSION,
     eggAt: iso(src.eggAt) || new Date().toISOString(),
     founder: src.founder === true,
-    bit: normalizeBirth(src.bit),
+    bit,
     name: cleanName(src.name),
-    worn: wornOf(src.worn),
+    worn: homed ? wornOf(src.worn) : withHome(wornOf(src.worn)),
+    homed: !!bit,
     owned: keptIds(src.owned, MAX_OWNED),
     days: {
       count: Number.isSafeInteger(days.count) && days.count > 0 ? days.count : 0,
@@ -132,6 +139,7 @@ function hubItems(model) {
 function ownedItems(model) {
   const ids = new Set([...model.owned, ...Traits.earnedItems(model.traits)]);
   if (model.founder) ids.add('medal');
+  if (model.bit) ids.add(HOME);
   return [...ids].filter((id) => wardrobe.item(id));
 }
 
@@ -146,7 +154,7 @@ function hatched(model, birth, now) {
   const b = normalizeBirth(birth);
   if (!b) return { error: 'bad_birth' };
   const gift = birthGift(b.seed);
-  const born = { ...model, bit: b, owned: [...new Set([...model.owned, gift])], worn: [gift], days: { count: 1, last: Traits.dateKey(now) } };
+  const born = { ...model, bit: b, owned: [...new Set([...model.owned, gift])], worn: [gift, HOME], homed: true, days: { count: 1, last: Traits.dateKey(now) } };
   return { model: Seasons.seasonal(born, now) };
 }
 

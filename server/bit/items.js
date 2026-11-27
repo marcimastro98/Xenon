@@ -25,7 +25,6 @@ const RETRY_MS = 30 * 60 * 1000;
 const MAX_ITEMS = 200;
 const MAX_LAYERS = 8;
 const MAX_RECTS = 64;
-const MAX_CELLS = 160;
 const NAME_MAX = 40;
 const LANGS = Object.freeze(['en', 'it', 'de', 'es', 'fr', 'ja', 'ko', 'nl', 'pt', 'ru', 'zh']);
 const ID = /^[a-z][a-zA-Z0-9]{1,31}$/;
@@ -79,7 +78,7 @@ function itemOf(raw) {
   if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !ID.test(raw.id)) return null;
   const known = wardrobe.item(raw.id);
   if (known && !known.names) return null; // an id of the code
-  if (!wardrobe.SLOTS.includes(raw.slot) || (raw.source !== 'supporter' && raw.source !== 'shop')) return null;
+  if (!wardrobe.PLACES.includes(raw.slot) || (raw.source !== 'supporter' && raw.source !== 'shop')) return null;
   if (!Array.isArray(raw.layers) || !raw.layers.length || raw.layers.length > MAX_LAYERS) return null;
   const layers = raw.layers.map(partOf);
   const names = namesOf(raw.names);
@@ -88,8 +87,10 @@ function itemOf(raw) {
     id: raw.id, slot: raw.slot, source: raw.source,
     ...(raw.source === 'supporter' ? { month: raw.month } : { price: raw.price }),
     layers, names,
+    // A move's teleport: only the two numbers warp.js reads, rebuilt (validate() checks them).
+    ...(raw.slot === 'move' ? { params: { base: raw.params?.base, ms: raw.params?.ms } } : {}),
   };
-  return wardrobe.cellsOf(it).length <= MAX_CELLS && !wardrobe.validate(it, TIPS).length ? it : null;
+  return wardrobe.cellsOf(it).length <= wardrobe.maxCells(it.slot) && !wardrobe.validate(it, TIPS).length ? it : null;
 }
 
 /**

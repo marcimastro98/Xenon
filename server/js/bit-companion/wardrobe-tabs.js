@@ -26,6 +26,22 @@
     return svg;
   }
 
+  // A move draws nothing on Bit: its picture is its own bits, three of them flying off up and
+  // right, the Bit's colours as the text's colour.
+  function moveArt(it) {
+    const svg = glyph(['']);
+    svg.setAttribute('viewBox', '0 0 17 16');
+    [[1, 9, 1], [6, 5, 0.75], [11, 1, 0.5]].forEach(([ox, oy, o]) => {
+      for (const part of it.layers) for (const [x, y, w = 1, h = 1] of part.cells) {
+        const r = document.createElementNS(SVG_NS, 'rect');
+        const fill = /^#[0-9a-f]{6}$/i.test(part.fill) ? part.fill : 'currentColor';
+        for (const [k, v] of [['x', ox + x], ['y', oy + y], ['width', w], ['height', h], ['fill', fill], ['fill-opacity', o]]) r.setAttribute(k, String(v));
+        svg.append(r);
+      }
+    });
+    return svg;
+  }
+
   /**
    * Whether a tab holds an item: the supporters' tab only theirs, which elsewhere show once owned.
    * @param {string} id the tab
@@ -42,7 +58,7 @@
    * The tabs with something in them, each with the item its picture shows.
    * @param {{ it: { id: string, slot: string }, owned: boolean }[]} entries the rail's items, its own first
    * @param {{ worn?: string[] }} bit the server's view of the Bit
-   * @param {{ SLOTS: string[] }} W the engine's wardrobe
+   * @param {{ PLACES: string[] }} W the engine's wardrobe
    * @param {(key: string) => string} say
    * @returns {{ id: string, word: string, item: object|null }[]}
    */
@@ -51,7 +67,7 @@
     if (entries.some((e) => e.owned)) tabs.push({ id: 'mine', word: say('mybit_mine'), item: null });
     if (entries.some((e) => holds('supporter', e))) tabs.push({ id: 'supporter', word: say('mybit_group_supporter'), item: null });
     const worn = new Set(Array.isArray(bit.worn) ? bit.worn : []);
-    for (const slot of W.SLOTS) {
+    for (const slot of W.PLACES) {
       const here = entries.filter((e) => holds(slot, e));
       if (here.length) tabs.push({ id: slot, word: say(`mybit_slot_${slot}`), item: (here.find((e) => worn.has(e.it.id)) || here[0]).it });
     }
@@ -96,5 +112,5 @@
     return box;
   }
 
-  window.BitTabs = { list, row, holds };
+  window.BitTabs = { list, row, holds, moveArt };
 })();

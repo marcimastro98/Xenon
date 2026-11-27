@@ -198,6 +198,15 @@ test('a stroll: out along the bar on foot, a sit, then back to its place', () =>
   assert.equal(r.last().loop.length, bit.clip('idle').frames.length);
 });
 
+test('on a ride it glides along faster, as in the dashboard', () => {
+  const BOARD = { id: 'testBoard', slot: 'ride', source: 'shop', price: 120, names: { en: 'Test board' }, layers: [{ fill: '#d9603b', cells: [[1, 9, 10]] }] };
+  wardrobe.addItems([BOARD]);
+  const r = rig({ pace: 'slow' });
+  r.ctx.BitApp.personal = () => bitLook.lookOf(genome.decode(SEED), { background: '#0d1117', worn: wardrobe.outfit(['testBoard']) });
+  for (let s = 0; s < 301 && !r.last()?.walk; s += 1) r.advance(1000);
+  assert.equal(r.last().walk.pxs, 57);
+});
+
 test('no stroll with roam stay, in reduced motion or asleep', () => {
   for (const r of [rig({ bit: born({ roam: 'stay' }) }), rig({ reduced: true }), rig({ pace: 'asleep' })]) {
     r.advance(600000);
@@ -369,6 +378,19 @@ test("tapped: the pocket, the chat or its room alone in the menu's window, as th
     assert.deepEqual(asked.map((p) => p.body), [{ sheet: { open } }]);
     assert.deepEqual(r.taps, [], 'the window shows it: nothing on the dashboard');
   }
+});
+
+test('tapped where the shell has the pocket window: the pocket opens over Bit, the chat and room as before', async () => {
+  const r = rig({ pace: 'game', caps: { bitDesk: true, bitPocket: true } });
+  r.advance(100);
+  await r.desk.tapped();
+  assert.equal(r.signals.at(-1), 'xenon-app:bit-pocket');
+  assert.deepEqual(r.posts.filter((p) => p.url === '/screen-menu'), [], "not in the menu's big window");
+  const chat = rig({ pace: 'game', caps: { bitDesk: true, bitPocket: true }, bit: born({ tap: 'chat' }) });
+  chat.advance(100);
+  await chat.desk.tapped();
+  assert.deepEqual(chat.posts.filter((p) => p.url === '/screen-menu').map((p) => p.body), [{ sheet: { open: 'chat' } }]);
+  assert.ok(!chat.signals.includes('xenon-app:bit-pocket'));
 });
 
 test('tapped with no window to show it: the dashboard opens what was chosen', async () => {

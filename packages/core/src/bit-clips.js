@@ -232,7 +232,7 @@
       ],
     },
     {
-      id: 'sleep',
+      id: 'sleep', home: true, // asleep in its home, when it has one (bit.js)
       frames: [
         F(700, { eyes: 'blink', mouth: 'low', ex: [['z', 9, -2, 0.35]] }),
         F(700, { eyes: 'blink', mouth: 'low', sy: 1.03, ex: [['z', 9, -3, 1]] }),

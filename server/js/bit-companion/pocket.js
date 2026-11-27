@@ -38,17 +38,24 @@
   /** Does what a key or a line asks: { run } a Deck action, { open } a screen, { ask } a question for Bit. */
   async function act(what) {
     const sheet = ui?.sheet;
+    // Its own little window over the desktop Bit (js/ai/sheet-page.js): every screen opens in the menu's window.
+    const away = sheet && document.documentElement.classList.contains('is-pocket-window');
     close();
+    if (away) window.XenonSheet?.back(); // gone at once: a screenshot key must not catch it
     if (what.chat || what.ask) {
       if (sheet) await post('/screen-menu', { sheet: { open: 'chat' }, ...(what.ask ? { ask: what.ask } : {}) });
       else if (what.ask && typeof window.aiAsk === 'function') window.aiAsk(what.ask);
       else window.DashboardOpen?.run({ open: 'chat' });
       return;
     }
-    if (what.room) { window.BitSheet?.open(); return; }
+    if (what.room) {
+      if (away) await post('/screen-menu', { sheet: { open: 'bitroom' } }); else window.BitSheet?.open();
+      return;
+    }
     if (what.open) {
       // Alone in the menu's window, the window becomes that screen, as the menu's own rows do.
       const req = { open: String(what.open).split(':')[0] };
+      if (away) { await post('/screen-menu', { sheet: req }); return; }
       const address = sheet && window.DashboardOpen?.sheetAddress(req);
       if (address) window.location.href = address; else window.DashboardOpen?.run(req);
       return;

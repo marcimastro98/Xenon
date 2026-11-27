@@ -5,6 +5,9 @@
 // js/grid/dashboard-open.js, with nothing behind them (components/SheetPage). When the
 // screen closes the window goes back to the menu it came from, or away; a screen or a menu section asked
 // for elsewhere (a tile's Set up button, Bit, the tray) takes its place.
+// Bit's pocket can also be alone in a little window of its own over the desktop Bit (`alone=pocket`, the
+// shell's pocket_window.rs): there the window takes the card's height, goes when the pocket closes, and
+// the menu's moves are not its own.
 
 (function () {
   if (typeof isSheetPage !== 'function' || !isSheetPage()) return;
@@ -20,6 +23,23 @@
   let inner = false;
   let overlays = 0;
   let showAll = false;
+  const POCKET = /[?&]alone=pocket(&|$)/.test(window.location.search);
+  if (POCKET) document.documentElement.classList.add('is-pocket-window');
+  const signal = (path) => { try { window.location.href = (window.__xenonSignal || String)('xenon-app:' + path); } catch (e) { /* not the shell */ } };
+  const fit = typeof ResizeObserver === 'function' && POCKET ? new ResizeObserver((all) => {
+    const h = Math.ceil(all[0].target.getBoundingClientRect().height);
+    if (h > 0) signal('bit-pocket-fit?h=' + h);
+  }) : null;
+  let fitted = null;
+  // The window shows once it has the card's height: the card is watched as soon as it is there.
+  function fitCard() {
+    const card = document.querySelector('.bitp-card');
+    if (card && card !== fitted) { fit.disconnect(); fitted = card; fit.observe(card); }
+  }
+  if (fit) {
+    const start = () => new MutationObserver(fitCard).observe(document.body, { childList: true });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
+  }
 
   const settingsOpen = () => {
     const el = document.getElementById('settings-overlay');
@@ -34,11 +54,13 @@
   function go(address) {
     if (leaving) return;
     leaving = true;
-    window.location.replace(address);
+    if (POCKET) signal('bit-pocket-close');
+    else window.location.replace(address);
   }
 
   // The window goes first, then its page changes back to the menu for the next open.
   function hideWindow() {
+    if (POCKET) { go(''); return; }
     fetch(SERVER + '/screen-menu', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: false }),
     }).catch(() => { /* the server is restarting: the shell closes it with the server */ })
@@ -128,7 +150,7 @@
   });
 
   function onMenu(d) {
-    if (d?.open !== true) return;   // closed: the shell takes the window away
+    if (POCKET || d?.open !== true) return;   // closed: the shell takes the window away
     const next = d.sheet ? DashboardOpen.sheetAddress(d.sheet) : '';
     if (next) { go(next); return; }
     try { sessionStorage.setItem(SECTION_KEY, d.section || ''); } catch (e) { /* the first section */ }
@@ -148,5 +170,13 @@
     }, OPEN_GRACE_MS);
   }, { once: true });
 
-  window.XenonSheet = Object.freeze({ onMenu, back: done });
+  // The shell's pocket window opened again over a page that is still here (pocket_window.rs): a fresh pocket.
+  function again() {
+    if (!POCKET) return;
+    leaving = false;
+    window.BitPocket?.close();
+    DashboardOpen.run({ open: 'pocket' });
+  }
+
+  window.XenonSheet = Object.freeze({ onMenu, back: done, again });
 })();

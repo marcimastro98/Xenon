@@ -1187,7 +1187,7 @@ it made on the dashboard, so a widget's Bit moves with the others.
     patternColor: 'accent', tip: 'capsule', eyes: 'ink', cheeks: 'rosy',
     temperament: 'shy', quirk: 'juggle', voice: 'chirpy',
   },
-  worn: ['scarf'],     // what it wears, item ids
+  worn: ['scarf', 'hut'], // what it has on, item ids: one per place (see below)
   played: { clip: 'wave', at: 1764000000000 },  // the last move on the dashboard, or null
   items: [],           // the items it wears that Xenon's hub made (a month's supporters' item, a newer
                        // shop item): their drawing, which the Bit kit takes in by itself
@@ -1217,6 +1217,13 @@ bit.set(m.data, { light: theme.appearance === 'light' });
 - **The kit is the app's own engine**: the same shape, clips and clothes as the
   dashboard, the egg before it hatches, idle moves in its own character, still
   poses with reduced motion, and it stops while the frame is hidden.
+- **Places.** An item's place is where it goes: on the body (`head`, `face`,
+  `neck`, `back`, `feet`, `hand`), a `ride` under its feet that lifts it,
+  a `prop` on the floor beside it, its `home` behind everything, and a
+  `move` (how it teleports on the dashboard: nothing to draw). Every Bit has
+  the little house `hut`. The kit draws each in its place, the home only while
+  Bit sleeps; mount with `{ home: true }` to keep it behind Bit always (a room,
+  a scene about Bit).
 - **`played`** makes the kit play a move the dashboard played (a Deck key, Bit
   in the chat, another widget). The first update only says where things stand:
   a move from before the widget opened is not replayed.

@@ -236,7 +236,7 @@
       ],
     },
     {
-      id: 'sleep',
+      id: 'sleep', home: true, // asleep in its home, when it has one (bit.js)
       frames: [
         F(700, { eyes: 'blink', mouth: 'low', ex: [['z', 9, -2, 0.35]] }),
         F(700, { eyes: 'blink', mouth: 'low', sy: 1.03, ex: [['z', 9, -3, 1]] }),
@@ -1068,6 +1068,7 @@
 
   const { BODY, CHEEKS, INK } = clips;
   const OUTLINE_BELOW = 3; // contrast with the background under which Bit gets an outline
+  const FLOOR_ROW = 11; // the floor's row (bit.js FLOOR_Y): a ride whose top row is 9 lifts Bit by 2
   const SHINE = '#ffffff';
   const SPARKLE = '#fff6c8';
 
@@ -1118,20 +1119,26 @@
   }
 
   /* Worn items (bit-wardrobe.js), each split by layer: `back` goes behind
-   * the body, `face` over the face (glasses), the rest over the body. `box`
-   * (cell edges) lets bit.js set an item down in a clip it would not fit. */
+   * the body, `face` over the face (glasses), the rest over the body. Off the
+   * body, a home goes behind everything, a ride under the feet (`lift`: the rows
+   * Bit stands on it) and a prop on the floor beside it; a move draws nothing on
+   * Bit (its cells are the bits that fly, bit-companion/warp.js). `box` (cell
+   * edges) lets bit.js set an item down in a clip it would not fit. */
+  const OFF_BODY = { home: 'home', ride: 'ride', prop: 'prop' };
+  const MAX_LIFT = 2;
   function wornItems(items, pal) {
-    return (items || []).map((item) => {
-      const out = { id: item.id, behind: [], over: [], face: [] };
-      const slotLayer = item.slot === 'back' ? 'behind' : item.slot === 'face' ? 'face' : 'over';
+    return (items || []).filter((item) => item.slot !== 'move').map((item) => {
+      const out = { id: item.id, slot: item.slot, behind: [], over: [], face: [], home: [], ride: [], prop: [], lift: 0 };
+      const slotLayer = OFF_BODY[item.slot] || (item.slot === 'back' ? 'behind' : item.slot === 'face' ? 'face' : 'over');
       const cells = [];
       for (const part of item.layers) {
         const unit = unitCells(part.cells);
         cells.push(...unit);
-        out[part.layer || slotLayer].push(...cellRects(unit, resolveFill(part.fill, pal), part.o == null ? 1 : part.o));
+        out[(!OFF_BODY[item.slot] && part.layer) || slotLayer].push(...cellRects(unit, resolveFill(part.fill, pal), part.o == null ? 1 : part.o));
       }
       const xs = cells.map((c) => c[0]);
       out.box = { x0: Math.min(...xs), x1: Math.max(...xs) + 1, y0: Math.min(...cells.map((c) => c[1])) };
+      if (item.slot === 'ride') out.lift = Math.min(MAX_LIFT, Math.max(0, FLOOR_ROW - out.box.y0));
       return out;
     });
   }
@@ -1188,9 +1195,20 @@
    * permanent (owned items are stored by id). A season item has its season (SEASONS) and a shop
    * item its fixed price in Sparks. A supporters' item (its month 'YYYY-MM', one a month) and any
    * newer shop item come from the hub (addItems); both are kept through the hub's key
-   * entryOf(item) (server/bit/keep.js). */
+   * entryOf(item) (server/bit/keep.js).
+   * Beyond the body, four more places (PLACES), one thing each: a ride under its feet (Bit stands
+   * on it), a prop on the floor beside it, its home behind everything, and a move: how it
+   * teleports, whose cells are the bits that fly (MOVE_BASES, params). */
 
   const SLOTS = Object.freeze(['head', 'face', 'neck', 'back', 'feet', 'hand']);
+  const PLACES = Object.freeze([...SLOTS, 'ride', 'prop', 'home', 'move']);
+  const MOVE_BASES = Object.freeze(['crumble', 'beam', 'packet', 'glitch']); // the teleports of warp.js a move builds on
+  // Where each place's cells may go, [x0, x1, y0, y1]: the stage for the body, the two rows a ride
+  // lifts Bit by, a move's bits in a 5x5 box. A prop also stays off the body's columns.
+  const BOUNDS = Object.freeze({ ride: [-3, 14, 9, 10], move: [0, 4, 0, 4] });
+  const STAGE = [-3, 14, -5, 10];
+  const CELLS_MAX = Object.freeze({ home: 288, move: 25 }); // a hub item's cells; a home fills the stage
+  const maxCells = (slot) => CELLS_MAX[slot] || 160;
   const SOURCES = Object.freeze(['trait', 'season', 'supporter', 'shop', 'founder']);
   const SLATE = '#3b4250';
   const WHITE = '#f0f3f1';
@@ -1208,7 +1226,7 @@
   const ARM = { fill: 'body', cells: [[10, 6]] };
 
   // When each season's items are given: [month, day] to [month, day], both kept.
-  // 'birthday' is the Bit's own week, from the day it hatched (seasonsOn).
+  // 'birthday' is the Bit's own week, from the day it hatched (server/bit/seasons.js).
   const SEASONS = Object.freeze({
     winter: [[12, 1], [2, 29]],
     christmas: [[12, 15], [12, 31]],
@@ -1364,6 +1382,16 @@
       { fill: PINK, cells: [[11, 4, 2, 2]] },
       { fill: '#d9a066', cells: [[11, 6, 2], [11, 7]] },
     ], S('summer')),
+    // home: every Bit has this one (server/bit/model.js) and stands in its doorway
+    I('hut', 'home', 'trait', [
+      { fill: '#6e4b35', cells: [[-2, 1, 4, 10], [10, 1, 4, 10], [2, 1, 8, 2]] },
+      { fill: '#2b211c', cells: [[2, 3, 8, 8]] },
+      { fill: '#86603f', cells: [[-2, 7, 4], [10, 7, 4]] },
+      { fill: '#ffd77a', cells: [[-1, 3, 2, 2], [11, 3, 2, 2]] },
+      { fill: '#7a4b3a', cells: [[9, -4, 1, 2]] },
+      { fill: '#b4533c', cells: [[5, -4, 2], [3, -3, 6], [1, -2, 10], [-1, -1, 14]] },
+      { fill: '#8e3c2c', cells: [[-3, 0, 18]] },
+    ]),
   ]);
 
   const BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
@@ -1402,14 +1430,17 @@
   function validate(it, tipCells = []) {
     const errors = [];
     if (!/^[a-z][a-zA-Z0-9]{1,31}$/.test(it.id || '')) errors.push('id');
-    if (!SLOTS.includes(it.slot)) errors.push('slot');
+    if (!PLACES.includes(it.slot)) errors.push('slot');
     if (!SOURCES.includes(it.source)) errors.push('source');
     if (it.source === 'season' && !Object.hasOwn(SEASONS, it.season)) errors.push('season');
     if (it.source === 'supporter' && !MONTH.test(it.month || '')) errors.push('month');
     if (it.source === 'shop' && !(Number.isInteger(it.price) && it.price >= 50 && it.price <= 300)) errors.push('price');
-    const keep = new Set([[6, 0], [6, 1], ...tipCells].map(([x, y]) => `${x},${y}`));
+    if (it.slot === 'move' && !(MOVE_BASES.includes(it.params?.base) && Number.isInteger(it.params.ms) && it.params.ms >= 300 && it.params.ms <= 1500)) errors.push('params');
+    // Home and ride sit behind and under the body: only what is drawn over it must leave the antenna be.
+    const keep = new Set(SLOTS.includes(it.slot) || it.slot === 'prop' ? [[6, 0], [6, 1], ...tipCells].map(([x, y]) => `${x},${y}`) : []);
+    const [x0, x1, y0, y1] = BOUNDS[it.slot] || STAGE;
     for (const [x, y] of cellsOf(it)) {
-      if (x < -3 || x > 14 || y < -5 || y > 10) errors.push(`outside ${x},${y}`);
+      if (x < x0 || x > x1 || y < y0 || y > y1 || (it.slot === 'prop' && x > 1 && x < 10)) errors.push(`outside ${x},${y}`);
       if (keep.has(`${x},${y}`)) errors.push(`covers antenna ${x},${y}`);
     }
     for (const part of it.layers) {
@@ -1429,42 +1460,17 @@
   /** What a Bit hatches wearing, one of the shop's cheapest, from `pick` in [0, 1) (its seed's 'birth-gift' stream): the hub reads it the same way. */
   const birthItem = (pick) => { const first = ITEMS.filter((it) => it.source === 'shop' && it.price === 50); return first[Math.min(first.length - 1, Math.floor(pick * first.length))].id; };
 
-  const md = (m, d) => m * 100 + d;
-  const DAY_MS = 864e5;
-  /**
-   * The seasons running on `date` (local time). `born` is when the Bit hatched:
-   * from its first birthday on, the week that starts on that day is its own season.
-   * @returns {string[]}
-   */
-  function seasonsOn(date, born) {
-    const today = md(date.getMonth() + 1, date.getDate());
-    const out = [];
-    for (const [id, span] of Object.entries(SEASONS)) {
-      if (!span) continue;
-      const from = md(...span[0]);
-      const to = md(...span[1]);
-      if (from <= to ? today >= from && today <= to : today >= from || today <= to) out.push(id);
-    }
-    const b = born ? new Date(born) : null;
-    if (b && !Number.isNaN(b.getTime()) && date.getFullYear() > b.getFullYear()) {
-      const birthday = new Date(date.getFullYear(), b.getMonth(), b.getDate());
-      const since = Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() - birthday.getTime()) / DAY_MS);
-      if (since >= 0 && since < 7) out.push('birthday');
-    }
-    return out;
-  }
-
-  /** One item per slot, last one wins; unknown ids are dropped. */
+  /** One item per place, last one wins; unknown ids are dropped. */
   function outfit(ids) {
     const bySlot = new Map();
     for (const id of ids || []) {
       const it = item(id);
       if (it) bySlot.set(it.slot, it);
     }
-    return SLOTS.map((s) => bySlot.get(s)).filter(Boolean);
+    return PLACES.map((s) => bySlot.get(s)).filter(Boolean);
   }
 
-  return { SLOTS, SOURCES, SEASONS, get ITEMS() { return all; }, item, addItems, cellsOf, validate, outfit, seasonsOn, monthOf, supporterOut, entryOf, birthItem };
+  return { SLOTS, PLACES, MOVE_BASES, maxCells, SOURCES, SEASONS, get ITEMS() { return all; }, item, addItems, cellsOf, validate, outfit, monthOf, supporterOut, entryOf, birthItem };
 });
 
 // ---- bit.js
@@ -1581,34 +1587,48 @@
     const top = dy + FLOOR_Y + sy * (box.y0 - FLOOR_Y);
     return Math.min(...xs) >= STAGE.x - 0.01 && Math.max(...xs) <= STAGE.x + STAGE.w + 0.01 && top >= STAGE.y - 0.01;
   }
-  function wornFor(look, c) {
-    if (!fitCache.has(c)) fitCache.set(c, new Map());
-    const fits = fitCache.get(c);
-    const out = { behind: [], over: [], face: [] };
-    for (const w of look.worn) {
-      if (!fits.has(w.id)) fits.set(w.id, c.frames.every((f) => inStage(f, w.box)));
-      if (fits.get(w.id)) for (const k of Object.keys(out)) out[k].push(...w[k]);
+  // A ride lifts the body and what it wears by its `lift` and follows only the body's moves; a home
+  // and a prop never move (validate() keeps them on the stage).
+  const LAYERS = ['behind', 'over', 'face', 'home', 'ride', 'prop'];
+  function fits(c, w, lift) {
+    const cache = fitCache.get(c) || fitCache.set(c, new Map()).get(c);
+    const key = `${w.id}:${lift}`;
+    if (!cache.has(key)) {
+      const at = (f) => (w.slot === 'ride' ? { dx: f.dx, dy: f.dy } : { ...f, dy: (f.dy || 0) - lift });
+      cache.set(key, w.slot === 'home' || w.slot === 'prop' || c.frames.every((f) => inStage(at(f), w.box)));
     }
+    return cache.get(key);
+  }
+  function wornFor(look, c) {
+    const out = { behind: [], over: [], face: [], home: [], ride: [], prop: [], lift: 0 };
+    const ride = look.worn.find((w) => w.slot === 'ride');
+    if (ride && fits(c, ride, 0)) out.lift = ride.lift;
+    for (const w of look.worn) if (fits(c, w, out.lift)) for (const k of LAYERS) out[k].push(...w[k]);
     return out;
   }
+  // On a ride, a step is a glide: no bob, no squash, no dust.
+  const glide = (frame) => ({ ...frame, dy: 0, sx: 1, sy: 1, ex: (frame.ex || []).filter((e) => e[0] !== 'dust') });
 
   /**
    * Render one frame of a clip to layers of rectangles.
    * @param {object|string} clipOrId  a clip from bit-clips.js or its id
    * @param {number} index            frame index (wraps)
-   * @param {{tint?: string, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
-   *   look (bit-look.js) draws a personal Bit, whose mood then lights the antenna tip
+   * @param {{tint?: string, home?: boolean, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
+   *   look (bit-look.js) draws a personal Bit, whose mood then lights the antenna tip; its home shows
+   *   behind it with `home` or in a clip that rests there (`home: true`, sleep), its prop beside it
+   *   unless it is on its way somewhere (`travel: true`)
    * @returns {{ layers: Array<{ transform: object|null, clipFloor: boolean, rects: Array }> }}
    */
   function renderFrame(clipOrId, index = 0, opts = {}) {
     const c = typeof clipOrId === 'string' ? clip(clipOrId) : clipOrId;
     if (!c?.frames.length) throw new Error(`Unknown Bit clip: ${clipOrId}`);
-    const frame = c.frames[((index % c.frames.length) + c.frames.length) % c.frames.length];
-    const mood = `rgb(${rgb(frame.tint || opts.tint || c.tint)})`;
     const look = opts.look || null;
-    const fill = look ? look.body : mood;
     const worn = look ? wornFor(look, c) : null;
-    const t = transform(frame);
+    const at = c.frames[((index % c.frames.length) + c.frames.length) % c.frames.length];
+    const frame = worn?.ride.length && c.travel ? glide(at) : at;
+    const mood = `rgb(${rgb(frame.tint || opts.tint || c.tint)})`;
+    const fill = look ? look.body : mood;
+    const t = transform(worn?.lift ? { ...frame, dy: (frame.dy || 0) - worn.lift } : frame);
 
     const back = [];
     const front = [];
@@ -1622,11 +1642,13 @@
     }
 
     const layers = [];
+    if (worn?.home.length && (opts.home || c.home)) layers.push({ transform: null, clipFloor: false, rects: worn.home });
     if (!frame.noShadow) {
       const lift = Math.max(0, -(frame.dy || 0));
       const w = Math.max(2, 6 - lift);
       layers.push({ transform: null, clipFloor: false, rects: [{ x: PIVOT_X - w / 2 + (frame.dx || 0), y: FLOOR_Y, w, h: 0.6, fill, o: 0.16 }] });
     }
+    if (worn?.prop.length && !c.travel) layers.push({ transform: null, clipFloor: false, rects: worn.prop });
     if (back.length) layers.push({ transform: null, clipFloor: false, rects: back });
     if (frame.glitch) {
       const off = frame.glitch;
@@ -1637,6 +1659,7 @@
     }
     if (look?.outline) layers.push({ transform: t, clipFloor: true, rects: outline(look.outline) });
     if (worn?.behind.length) layers.push({ transform: t, clipFloor: true, rects: worn.behind });
+    if (worn?.ride.length) layers.push({ transform: transform({ dx: frame.dx, dy: frame.dy }), clipFloor: true, rects: worn.ride });
     const own = look ? personal(look, mood, worn.over) : [];
     layers.push({ transform: t, clipFloor: true, rects: [...rects(BODY, fill), ...own, ...attached, ...(worn ? worn.face : []), ...face(frame, look)] });
     if (front.length) layers.push({ transform: null, clipFloor: false, rects: front });
@@ -2296,7 +2319,6 @@
     pageLook = look || null;
     for (const p of live) p.refresh();
   }
-
   const { stillIndex } = bit;
 
   /**
@@ -2312,6 +2334,7 @@
    * @param {() => void} [opts.onWake] told when it starts playing again after a stop
    * @param {() => object|null} [opts.look] a look of its own (bit-look.js), read on every
    *   frame: a try-on preview. Without it the player draws the page's look (useLook)
+   * @param {boolean} [opts.home] its home always behind it (its room), not only while it sleeps
    * @param {object|(() => object|null)} [opts.director] a personal Bit's rhythm
    *   (bitDirector.createDirector), or a getter for it; default the classic one
    */
@@ -2357,7 +2380,7 @@
     const rhythm = () => (typeof opts.director === 'function' ? opts.director() : opts.director) || director()?.CLASSIC || null;
 
     function draw(c, i) {
-      const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook });
+      const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook, home: opts.home === true });
       state.shown = c;
       state.drawn = i;
       const groups = layers.map((l) => {
@@ -2612,6 +2635,7 @@
 // Not hatched yet: the egg. A move played on the dashboard (data.played) plays here too, and the
 // sign over its head (data.signal) shows in the top-right corner; `signs: false` leaves it to you.
 // `XenonBit.signs(svg)` draws the same sign over a Bit drawn without mount (the Maker's Bit layer).
+// Its home (a worn item of place 'home') shows while it sleeps; `home: true` keeps it behind Bit always.
 // `classic: true` draws the classic Bit with its own rhythm, as the app does where the person
 // chose the classic Bit (data.everywhere === false).
 (() => {
@@ -2645,7 +2669,7 @@
     let seen = 0;
     let key = '';
     const player = X.bitPlayer.mount(host, {
-      label: opts.label, mood: 'egg', look: () => look, director: () => director,
+      label: opts.label, mood: 'egg', look: () => look, director: () => director, home: opts.home === true,
     });
     const sign = opts.signs === false ? () => {} : signer(player.element);
 

@@ -53,8 +53,9 @@
   }
 
   // This Bit standing still in `look`, built cell by cell (no markup), framed on `box`
-  // ([x, y, w, h]; the whole stage by default), with a sticker's edge around `edge` cells.
-  function figure(lookOf, box, edge = []) {
+  // ([x, y, w, h]; the whole stage by default), with a sticker's edge around `edge` cells and,
+  // with `home`, its home behind it.
+  function figure(lookOf, box, edge = [], home = false) {
     const X = engine();
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('aria-hidden', 'true');
@@ -62,7 +63,7 @@
     const { x, y, w, h } = X.bit.STAGE;
     svg.setAttribute('viewBox', (box || [x, y, w, h]).join(' '));
     if (!lookOf) return svg;
-    const { layers } = X.bit.renderFrame(stillClip(X), 0, { look: lookOf });
+    const { layers } = X.bit.renderFrame(stillClip(X), 0, { look: lookOf, home });
     if (edge.length) {
       const g = document.createElementNS(SVG_NS, 'g');
       g.setAttribute('class', 'broom-edge');
@@ -91,13 +92,13 @@
       const genes = engine().bitGenome.decode(bit.seed);
       const dressed = window.BitApp?.dressed([it.id]) || engine().bitLook.lookOf(genes, { worn: [it] });
       const mine = dressed.worn[0];
-      const own = mine ? [...mine.behind, ...mine.over, ...mine.face] : [];
-      if (!own.length) return figure(null, [0, 0, 1, 1]);
+      const own = mine ? [...mine.behind, ...mine.over, ...mine.face, ...mine.home, ...mine.ride, ...mine.prop] : [];
+      if (!own.length) return it.slot === 'move' ? window.BitTabs.moveArt(it) : figure(null, [0, 0, 1, 1]);
       const xs = own.flatMap((r) => [r.x, r.x + r.w]);
       const ys = own.flatMap((r) => [r.y, r.y + r.h]);
       const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
       const side = Math.max(x1 - x0, y1 - y0, 10) + 2;
-      thumbs.set(key, figure(dressed, [(x0 + x1 - side) / 2, (y0 + y1 - side) / 2, side, side], edgeCells(own)));
+      thumbs.set(key, figure(dressed, [(x0 + x1 - side) / 2, (y0 + y1 - side) / 2, side, side], edgeCells(own), it.slot === 'home'));
     }
     return thumbs.get(key).cloneNode(true);
   }
@@ -151,12 +152,13 @@
     else if (it.source !== 'shop') tried = [it.id];
     else tried = [...tried.filter((id) => W.item(id)?.source === 'shop' && W.item(id).slot !== it.slot), it.id];
     restyle(bit, ctx, tried.includes(it.id) ? 'pose' : null);
+    if (it.slot === 'move' && tried.includes(it.id)) window.BitWarp?.move(document.querySelector('.broom .broom-bit'), '', () => {}, { own: it });
   }
 
   // Two or three places on the body, each with something from the shop it does not own yet.
   function random(bit, ctx) {
     const mine = new Set(bit.owned);
-    const shop = engine().bitWardrobe.ITEMS.filter((it) => it.source === 'shop' && !mine.has(it.id));
+    const shop = engine().bitWardrobe.ITEMS.filter((it) => it.source === 'shop' && !mine.has(it.id) && it.slot !== 'move');
     const slots = [...new Set(shop.map((it) => it.slot))];
     for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
     tried = slots.slice(0, 2 + Math.floor(Math.random() * 2)).map((slot) => {

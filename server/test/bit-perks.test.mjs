@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { readFileSync as browserSource } from './browser-source.mjs';
 import { makeDom, settle } from './mini-dom.mjs';
+import { engineSource } from './engine-source.mjs';
 
 const require = createRequire(import.meta.url);
 const Perks = require('../bit/perks.js');
@@ -117,7 +118,7 @@ test('through the routes and the actions: locked names the extra, POST /api/bit/
   assert.equal(yes.bit.perks.allScreens.open, true, 'answers with the Bit');
   assert.equal((await call('POST /api/bit/prefs', { desk: 'all' })).ok, true);
   assert.ok(REMOTE_ADMIN.has('/api/bit/perk'), 'it uses the pass: the PC only');
-  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const server = engineSource();
   assert.ok(server.includes("'/api/bit/buy', '/api/bit/perk'"), 'in CSRF_MUTATION_PATHS');
 });
 

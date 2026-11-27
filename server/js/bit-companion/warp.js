@@ -6,7 +6,9 @@
 // while Bit stands. The cells are read off the sprite as drawn, what it wears and its tint included,
 // and keep Bit's own colours. Arriving plays the leaving backwards. With reduced motion Bit simply
 // shows in its new place. Used by stroll.js (a stroll that teleports) and moments.js (the day's first
-// hello, a very hot PC). send() is the packet alone: news running from Bit to the island.
+// hello, a very hot PC). send() is the packet alone: news running from Bit to the island. A move
+// it wears (bit-wardrobe.js, place 'move') takes over its teleports: its base effect, its time, and its
+// own bits flying instead of square cells.
 (() => {
   const NAMES = ['crumble', 'beam', 'packet', 'glitch']; // what the person can pick; 'any' is one of them
   const MS = { crumble: 650, beam: 560, packet: 380, glitch: 480, download: 900 };
@@ -21,6 +23,8 @@
   const RECT = /M(-?[\d.]+) (-?[\d.]+)h(-?[\d.]+)v(-?[\d.]+)/g;
   const MOVE = /translate\((-?[\d.]+) (-?[\d.]+)\) scale\((-?[\d.]+) (-?[\d.]+)\)/;
   const busy = new WeakSet();
+  const HEX = /^#[0-9a-f]{6}$/i;
+  const BIT_K = 0.5; // one cell of a move's bits, in Bit's cells
 
   const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const clamp01 = (n) => Math.min(1, Math.max(0, n));
@@ -137,8 +141,23 @@
     });
   }
 
-  /** One half of an effect over the sprite, which stays hidden after it. */
-  async function play(sprite, name, arriving) {
+  // The move it wears, or null.
+  function ownMove() {
+    const W = window.Xenon?.bitWardrobe;
+    const worn = window.BitApp?.state?.()?.worn;
+    return (W && Array.isArray(worn) && W.outfit(worn).find((it) => it.slot === 'move' && it.params)) || null;
+  }
+
+  // A move's bits at (x, y), k px a cell: its own colours, the cell's where a part takes the Bit's.
+  function bits(ctx, own, x, y, k, colour) {
+    for (const part of own.layers) {
+      ctx.fillStyle = HEX.test(part.fill) ? part.fill : colour;
+      for (const [cx, cy, w = 1, h = 1] of part.cells) ctx.fillRect(x + cx * k, y + cy * k, w * k, h * k);
+    }
+  }
+
+  /** One half of an effect over the sprite, which stays hidden after it. `own`: a move's bits. */
+  async function play(sprite, name, arriving, own = null) {
     const cells = cellsOf(sprite);
     sprite.classList.add('bit-warping');
     if (!cells.length) return;
@@ -149,7 +168,7 @@
     const { canvas, ctx } = sheet(area);
     canvas.classList.toggle('is-top', !!sprite.closest?.('.bitc-overlay')); // the room's Bit: over the room
     try {
-      await animate(MS[name], (t) => {
+      await animate(own?.params.ms || MS[name], (t) => {
         const at = arriving ? 1 - t : t;
         ctx.clearRect(area.x, area.y, area.w, area.h);
         for (const p of parts) {
@@ -157,6 +176,11 @@
           if (s.a <= 0) continue;
           const w = p.w * s.k + 0.4;
           const h = p.h * s.k + 0.4;
+          if (own && Math.hypot(s.x - p.x, s.y - p.y) > p.w) { // on its way: one of the move's bits
+            ctx.globalAlpha = s.a * p.o;
+            bits(ctx, own, s.x, s.y, p.w * s.k * BIT_K, p.c);
+            continue;
+          }
           ctx.fillStyle = p.c;
           if (s.ghost) { ctx.globalAlpha = s.a * p.o * 0.35; ctx.fillRect(s.x - s.ghost, s.y, w, h); ctx.fillRect(s.x + s.ghost, s.y, w, h); }
           ctx.globalAlpha = s.a * p.o;
@@ -218,25 +242,27 @@
    * Bit leaves where it stands, relocate() moves it, and it arrives there. Without anything to draw
    * (reduced motion, an effect already running on it) it only moves. Resolves when it shows again.
    * @param {Element} sprite @param {string} name an effect, or 'any' @param {() => void} relocate
-   * @param {{leave?: boolean}} [opts] leave: false hides it at once and only plays the arriving
+   * @param {{leave?: boolean, own?: boolean|object}} [opts] leave: false hides it at once and only plays the
+   *   arriving; own: true goes the way of the move it wears, if any, or of this move item (a try-on)
    */
   async function move(sprite, name, relocate = () => {}, opts = {}) {
     if (!sprite || busy.has(sprite) || reduced() || typeof requestAnimationFrame !== 'function') { relocate(); return; }
-    const effect = pick(name);
+    const own = opts.own === true ? ownMove() : opts.own || null;
+    const effect = own ? own.params.base : pick(name);
     let moved = false;
     const go = () => { if (!moved) { moved = true; relocate(); } };
     busy.add(sprite);
     try {
       const from = centreOf(sprite);
       if (opts.leave === false) sprite.classList.add('bit-warping');
-      const b = opts.leave === false ? null : await play(sprite, effect, false);
+      const b = opts.leave === false ? null : await play(sprite, effect, false, own);
       go();
       if (effect === 'packet' && b) {
         const to = centreOf(sprite);
         const path = [from, { x: from.x, y: to.y }, to]; // down or up first, then along
         await dash(path, b.main, (lengthOf(path) / PACKET_PX_S) * 1000);
       }
-      await play(sprite, effect, true);
+      await play(sprite, effect, true, own);
     } catch (err) {
       console.warn('[bit] an effect stopped:', err.message);
       go();

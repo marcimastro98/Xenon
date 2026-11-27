@@ -10,6 +10,7 @@
 // Not hatched yet: the egg. A move played on the dashboard (data.played) plays here too, and the
 // sign over its head (data.signal) shows in the top-right corner; `signs: false` leaves it to you.
 // `XenonBit.signs(svg)` draws the same sign over a Bit drawn without mount (the Maker's Bit layer).
+// Its home (a worn item of place 'home') shows while it sleeps; `home: true` keeps it behind Bit always.
 // `classic: true` draws the classic Bit with its own rhythm, as the app does where the person
 // chose the classic Bit (data.everywhere === false).
 (() => {
@@ -43,7 +44,7 @@
     let seen = 0;
     let key = '';
     const player = X.bitPlayer.mount(host, {
-      label: opts.label, mood: 'egg', look: () => look, director: () => director,
+      label: opts.label, mood: 'egg', look: () => look, director: () => director, home: opts.home === true,
     });
     const sign = opts.signs === false ? () => {} : signer(player.element);
 

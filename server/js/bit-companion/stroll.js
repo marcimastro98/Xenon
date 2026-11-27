@@ -16,6 +16,7 @@
   const PAUSE_MS = [5000, 14000]; // it sits this long at the far end
   const TURN_MAX_MS = 400; // a turn held back (the Bit stopped meanwhile) is not waited for
   const SPEED_PX_S = 26;
+  const RIDE_SPEED = 2.2; // on a ride (bit-wardrobe.js, place 'ride') it glides this many times faster
   const REACH_PX = 240; // how far from its place it goes, at most
   const EDGE_PX = 8; // it never walks closer to the screen's edge
   const SNAP_PX = 24; // dropped this near an edge, it sticks to it
@@ -41,6 +42,7 @@
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const clamp01 = (n) => Math.min(1, Math.max(0, n));
   const warp = () => window.BitWarp || null;
+  const riding = () => { const W = window.Xenon?.bitWardrobe; const worn = window.BitApp?.state?.()?.worn; return !!W && Array.isArray(worn) && W.outfit(worn).some((it) => it.slot === 'ride'); };
   const keyOf = (spot) => (spot && !phone() ? `${spot.x},${spot.y}` : '');
 
   /** Its spot from the prefs onto the page (the corner when none, or on a phone). */
@@ -81,7 +83,7 @@
       if (!alive(btn)) return false;
     }
     p.setMood('walk');
-    const ms = (Math.abs(to - w.x) / SPEED_PX_S) * 1000;
+    const ms = (Math.abs(to - w.x) / (SPEED_PX_S * (riding() ? RIDE_SPEED : 1))) * 1000;
     slide(w.node, to, ms);
     w.x = to;
     await wait(ms);
@@ -91,7 +93,7 @@
   // One leg in a blink: it leaves where it stands and builds itself again there.
   async function jump(btn, to) {
     const w = walking;
-    await warp().move(btn, prefs().warp, () => { if (walking === w) { slide(w.node, to, 0); w.x = to; } });
+    await warp().move(btn, prefs().warp, () => { if (walking === w) { slide(w.node, to, 0); w.x = to; } }, { own: true });
     return alive(btn);
   }
 
@@ -156,7 +158,7 @@
     if (shown === null || keyOf(prefs().spot) === shown || drag || !btn || !warp()) { place(); return; }
     if (walking) home(btn);
     warping = true;
-    try { await warp().move(btn, prefs().warp, () => place()); } finally { warping = false; }
+    try { await warp().move(btn, prefs().warp, () => place(), { own: true }); } finally { warping = false; }
   }
 
   // The island's glass while a notification holds it (js/alerts/toast.js), else nothing.

@@ -19,6 +19,7 @@
   const PAUSE_MS = [5000, 14000]; // it sits this long at the far end
   const REACH = [0.04, 0.12]; // how far it walks, in lengths of the bar
   const SPEED_PX_S = 26; // as stroll.js
+  const RIDE_SPEED = 2.2; // on a ride (a worn item of place 'ride') it glides this much faster, as stroll.js
   const WALK_GUARD_MS = 90000; // no word from the shell by then: it counts as arrived
   const ONCE_MARGIN_MS = 1000;
   const QUIET_RETRY_MS = 30000; // a pace with no fidgets is asked again after this
@@ -63,6 +64,7 @@
 
   const playing = () => (once && Date.now() < once.until ? once : null);
   const lookNow = () => window.BitDeskTry?.look() || app()?.personal(); // desk-try.js: ten minutes in something tried on
+  const riding = () => (lookNow()?.worn || []).some((w) => w.slot === 'ride');
   const loopId = () => (walk ? 'walk' : sitting ? 'sit' : pace() === 'asleep' ? 'sleep' : 'idle');
 
   /** What the shell is asked to show now. */
@@ -76,7 +78,7 @@
     const msg = { on: true, monitor: here(), cell: CELL, body: frames().BODY, pal: f.pal, loop: f.loop, home: at.x };
     if (at.y !== null) msg.rise = at.y;
     if (f.once) msg.once = { seq: shown.seq, frames: f.once };
-    if (walk) msg.walk = { seq: walk.seq, to: walk.to, pxs: SPEED_PX_S };
+    if (walk) msg.walk = { seq: walk.seq, to: walk.to, pxs: Math.round(SPEED_PX_S * (riding() ? RIDE_SPEED : 1)) };
     return msg;
   }
 
@@ -216,11 +218,15 @@
   }
 
   /** Tapped: a poke, and what the person chose for a tap (prefs.tap) alone in the Xenon menu's window, where
-   *  they are; with no window to show it (the server says 'closed'), on the dashboard. */
+   *  they are; with no window to show it (the server says 'closed'), on the dashboard. The pocket opens in a
+   *  little window of its own just over Bit, where the shell has one (caps.bitPocket, pocket_window.rs). */
   async function tapped() {
     const pokes = (engine().bit?.POKES || []).filter((id) => id !== recent[recent.length - 1]);
     if (pokes.length) play(pokes[Math.floor(Math.random() * pokes.length)]);
     const open = { chat: 'chat', room: 'bitroom' }[prefs().tap] || 'pocket';
+    if (open === 'pocket' && caps().bitPocket === true) {
+      try { window.location.href = (window.__xenonSignal || String)('xenon-app:bit-pocket'); return; } catch { /* the menu's window, below */ }
+    }
     const r = await fetch(SERVER + '/screen-menu', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheet: { open } }),
     }).then((res) => res.json()).catch(() => null);

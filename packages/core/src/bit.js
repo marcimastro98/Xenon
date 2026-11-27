@@ -111,34 +111,48 @@
     const top = dy + FLOOR_Y + sy * (box.y0 - FLOOR_Y);
     return Math.min(...xs) >= STAGE.x - 0.01 && Math.max(...xs) <= STAGE.x + STAGE.w + 0.01 && top >= STAGE.y - 0.01;
   }
-  function wornFor(look, c) {
-    if (!fitCache.has(c)) fitCache.set(c, new Map());
-    const fits = fitCache.get(c);
-    const out = { behind: [], over: [], face: [] };
-    for (const w of look.worn) {
-      if (!fits.has(w.id)) fits.set(w.id, c.frames.every((f) => inStage(f, w.box)));
-      if (fits.get(w.id)) for (const k of Object.keys(out)) out[k].push(...w[k]);
+  // A ride lifts the body and what it wears by its `lift` and follows only the body's moves; a home
+  // and a prop never move (validate() keeps them on the stage).
+  const LAYERS = ['behind', 'over', 'face', 'home', 'ride', 'prop'];
+  function fits(c, w, lift) {
+    const cache = fitCache.get(c) || fitCache.set(c, new Map()).get(c);
+    const key = `${w.id}:${lift}`;
+    if (!cache.has(key)) {
+      const at = (f) => (w.slot === 'ride' ? { dx: f.dx, dy: f.dy } : { ...f, dy: (f.dy || 0) - lift });
+      cache.set(key, w.slot === 'home' || w.slot === 'prop' || c.frames.every((f) => inStage(at(f), w.box)));
     }
+    return cache.get(key);
+  }
+  function wornFor(look, c) {
+    const out = { behind: [], over: [], face: [], home: [], ride: [], prop: [], lift: 0 };
+    const ride = look.worn.find((w) => w.slot === 'ride');
+    if (ride && fits(c, ride, 0)) out.lift = ride.lift;
+    for (const w of look.worn) if (fits(c, w, out.lift)) for (const k of LAYERS) out[k].push(...w[k]);
     return out;
   }
+  // On a ride, a step is a glide: no bob, no squash, no dust.
+  const glide = (frame) => ({ ...frame, dy: 0, sx: 1, sy: 1, ex: (frame.ex || []).filter((e) => e[0] !== 'dust') });
 
   /**
    * Render one frame of a clip to layers of rectangles.
    * @param {object|string} clipOrId  a clip from bit-clips.js or its id
    * @param {number} index            frame index (wraps)
-   * @param {{tint?: string, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
-   *   look (bit-look.js) draws a personal Bit, whose mood then lights the antenna tip
+   * @param {{tint?: string, home?: boolean, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
+   *   look (bit-look.js) draws a personal Bit, whose mood then lights the antenna tip; its home shows
+   *   behind it with `home` or in a clip that rests there (`home: true`, sleep), its prop beside it
+   *   unless it is on its way somewhere (`travel: true`)
    * @returns {{ layers: Array<{ transform: object|null, clipFloor: boolean, rects: Array }> }}
    */
   function renderFrame(clipOrId, index = 0, opts = {}) {
     const c = typeof clipOrId === 'string' ? clip(clipOrId) : clipOrId;
     if (!c?.frames.length) throw new Error(`Unknown Bit clip: ${clipOrId}`);
-    const frame = c.frames[((index % c.frames.length) + c.frames.length) % c.frames.length];
-    const mood = `rgb(${rgb(frame.tint || opts.tint || c.tint)})`;
     const look = opts.look || null;
-    const fill = look ? look.body : mood;
     const worn = look ? wornFor(look, c) : null;
-    const t = transform(frame);
+    const at = c.frames[((index % c.frames.length) + c.frames.length) % c.frames.length];
+    const frame = worn?.ride.length && c.travel ? glide(at) : at;
+    const mood = `rgb(${rgb(frame.tint || opts.tint || c.tint)})`;
+    const fill = look ? look.body : mood;
+    const t = transform(worn?.lift ? { ...frame, dy: (frame.dy || 0) - worn.lift } : frame);
 
     const back = [];
     const front = [];
@@ -152,11 +166,13 @@
     }
 
     const layers = [];
+    if (worn?.home.length && (opts.home || c.home)) layers.push({ transform: null, clipFloor: false, rects: worn.home });
     if (!frame.noShadow) {
       const lift = Math.max(0, -(frame.dy || 0));
       const w = Math.max(2, 6 - lift);
       layers.push({ transform: null, clipFloor: false, rects: [{ x: PIVOT_X - w / 2 + (frame.dx || 0), y: FLOOR_Y, w, h: 0.6, fill, o: 0.16 }] });
     }
+    if (worn?.prop.length && !c.travel) layers.push({ transform: null, clipFloor: false, rects: worn.prop });
     if (back.length) layers.push({ transform: null, clipFloor: false, rects: back });
     if (frame.glitch) {
       const off = frame.glitch;
@@ -167,6 +183,7 @@
     }
     if (look?.outline) layers.push({ transform: t, clipFloor: true, rects: outline(look.outline) });
     if (worn?.behind.length) layers.push({ transform: t, clipFloor: true, rects: worn.behind });
+    if (worn?.ride.length) layers.push({ transform: transform({ dx: frame.dx, dy: frame.dy }), clipFloor: true, rects: worn.ride });
     const own = look ? personal(look, mood, worn.over) : [];
     layers.push({ transform: t, clipFloor: true, rects: [...rects(BODY, fill), ...own, ...attached, ...(worn ? worn.face : []), ...face(frame, look)] });
     if (front.length) layers.push({ transform: null, clipFloor: false, rects: front });

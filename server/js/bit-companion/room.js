@@ -135,7 +135,7 @@
       spot.replaceChildren(bitBtn);
       const hold = window.BitApp ? window.BitApp.TILE_HOLD.filter((name) => name !== 'overlay-frozen') : [];
       room.player = window.BitApp?.mount(bitBtn, {
-        mood: bit.hatched ? 'idle' : 'egg', fidgets: bit.hatched, look: () => window.BitWardrobe?.preview() || window.BitApp.personal(), hold,
+        mood: bit.hatched ? 'idle' : 'egg', fidgets: bit.hatched, look: () => window.BitWardrobe?.preview() || window.BitApp.personal(), hold, home: true,
       }) || null;
     }
 

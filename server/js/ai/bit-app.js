@@ -102,7 +102,7 @@
     const mine = typeof host.hasAttribute === 'function' && host.hasAttribute('data-own-bit');
     const player = X.bitPlayer.mount(host, {
       mood: opts.mood, label: opts.label, fidgets: opts.fidgets, calm: opts.calm, context: () => context(),
-      director: () => (opts.look || own ? director : null), look: opts.look, onWake: mine ? () => window.BitMoments?.woke() : undefined,
+      director: () => (opts.look || own ? director : null), look: opts.look, home: opts.home, onWake: mine ? () => window.BitMoments?.woke() : undefined,
     });
     const entry = { player, hold: Array.isArray(opts.hold) ? opts.hold : TILE_HOLD, own: mine };
     players.set(host, entry);

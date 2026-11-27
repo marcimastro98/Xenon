@@ -14,7 +14,8 @@
   /* Bit on the move: the loops it plays while it walks somewhere and when it sits down there.
    * Same data shape as bit-clips.js. The body never changes, so a step is a bob and a lean;
    * the walk itself is the place moving the Bit (bit-companion/stroll.js), and a Bit going left
-   * is the same clip mirrored by its place. Every loop faces right. */
+   * is the same clip mirrored by its place. Every loop faces right. A clip on its way somewhere is
+   * `travel`: its prop stays behind, and on a ride a step is a glide (bit.js). */
 
   const P = (fill, cells, opts) => Object.freeze({ fill, cells, attach: false, back: true, ...opts });
   const PARTS = Object.freeze({
@@ -30,10 +31,10 @@
   ];
 
   const MOVES = [
-    { id: 'walk', frames: [...step(170, 0.5), ...step(170, 0.5, { mouth: 'smile' })] },
-    { id: 'run', frames: [...step(110, 1, { mouth: 'open' }), ...step(110, 1, { mouth: 'open', brows: 'up' })] },
+    { id: 'walk', travel: true, frames: [...step(170, 0.5), ...step(170, 0.5, { mouth: 'smile' })] },
+    { id: 'run', travel: true, frames: [...step(110, 1, { mouth: 'open' }), ...step(110, 1, { mouth: 'open', brows: 'up' })] },
     // Carrying news: the sign of bit-clips-life.js held up while it walks.
-    { id: 'walkSign', frames: [...step(190, 0.5, { ex: SIGN }), ...step(190, 0.5, { mouth: 'smile', ex: SIGN })] },
+    { id: 'walkSign', travel: true, frames: [...step(190, 0.5, { ex: SIGN }), ...step(190, 0.5, { mouth: 'smile', ex: SIGN })] },
     {
       id: 'sit',
       frames: [
@@ -47,7 +48,7 @@
 
   // Turning round: Bit narrows to a sliver, its place mirrors it, and it opens up the other way.
   const TURNS = [
-    { id: 'turn', frames: [F(80, { sx: 0.55, eyes: 'open' }), F(80, { sx: 0.15, eyes: 'open' })] },
+    { id: 'turn', travel: true, frames: [F(80, { sx: 0.55, eyes: 'open' }), F(80, { sx: 0.15, eyes: 'open' })] },
   ].map((c) => ({ kind: 'react', ...c }));
 
   return { PARTS, CLIPS: Object.freeze([...MOVES, ...TURNS]) };

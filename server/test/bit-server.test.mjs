@@ -49,7 +49,8 @@ test('the hub hatches the egg: number, gift, first day', async (t) => {
   assert.equal(v.local, false);
   assert.equal(v.days, 1);
   assert.equal(v.stage, 'baby');
-  assert.equal(v.worn.length, 1, 'a gift at birth');
+  assert.equal(v.worn.length, 2, 'a gift at birth, and its home');
+  assert.ok(v.worn.includes('hut') && v.owned.includes('hut'));
   assert.deepEqual(await hatch.hatch(), { ok: true, already: true });
 });
 

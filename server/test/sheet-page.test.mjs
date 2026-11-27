@@ -29,7 +29,7 @@ function pageChecks(search) {
   return ctx;
 }
 
-function sheetPage({ settingsHidden = true, overlays = [], section = 'now' } = {}) {
+function sheetPage({ settingsHidden = true, overlays = [], section = 'now', search = '' } = {}) {
   const listeners = {};
   const settings = { hidden: settingsHidden };
   const replaced = [];
@@ -37,9 +37,12 @@ function sheetPage({ settingsHidden = true, overlays = [], section = 'now' } = {
   const stored = { 'xenon.menuSection': section };
   const has = (sel) => overlays.some((o) => sel.includes(o));
   const window = {
-    location: { replace: (a) => replaced.push(a) },
+    location: { search, replace: (a) => replaced.push(a), set href(v) { signals.push(v); } },
     addEventListener: (n, f) => { (listeners[n] ||= []).push(f); },
+    __xenonSignal: (u) => u,
   };
+  const signals = [];
+  const classes = new Set();
   const ctx = {
     window,
     isSheetPage: () => true,
@@ -48,6 +51,8 @@ function sheetPage({ settingsHidden = true, overlays = [], section = 'now' } = {
     SERVER: '',
     fetch: (url, o) => { posts.push({ url, body: JSON.parse(o.body) }); return Promise.resolve({ ok: true }); },
     document: {
+      readyState: 'complete',
+      documentElement: { classList: { add: (c) => classes.add(c) } },
       body: { dataset: {} },
       getElementById: () => settings,
       querySelector: (sel) => (has(sel) ? {} : null),
@@ -63,7 +68,7 @@ function sheetPage({ settingsHidden = true, overlays = [], section = 'now' } = {
     const e = { key, defaultPrevented: false, preventDefault() { e.defaultPrevented = true; }, stopImmediatePropagation() { stopped = true; }, ...extra };
     for (const f of listeners.keydown) { if (stopped) break; f(e); }
   };
-  return { ctx, window, replaced, posts, stored, press, settings };
+  return { ctx, window, replaced, posts, stored, press, settings, signals, classes };
 }
 
 test('only the screens the menu window can hold open as a sheet, with safe values only', () => {
@@ -271,4 +276,34 @@ test('a screen opened straight from a key closes the window: no menu lands over 
   fromMenu.ctx.window.XenonSheet.back();
   assert.deepEqual(fromMenu.posts, [], 'opened from the menu, it goes back to the menu');
   assert.deepEqual(fromMenu.replaced, ['/menu?back=1']);
+});
+
+test("Bit's pocket alone in its own little window: it says when it is done, and the menu's moves are not its own", async () => {
+  const p = sheetPage({ section: '', search: '?panel=sheet&open=pocket&alone=pocket' });
+  assert.ok(p.classes.has('is-pocket-window'));
+  p.ctx.window.XenonSheet.onMenu({ open: true, section: 'keys' });
+  assert.deepEqual(p.replaced, [], 'the menu opening elsewhere leaves it be');
+  p.ctx.window.XenonSheet.back();
+  await Promise.resolve();
+  assert.deepEqual(p.signals, ['xenon-app:bit-pocket-close']);
+  assert.deepEqual([p.posts, p.replaced], [[], []], 'no menu to close, no page to change');
+  p.ctx.window.XenonSheet.back();
+  assert.equal(p.signals.length, 1, 'once');
+  const opened = [];
+  p.ctx.DashboardOpen = { run: (req) => opened.push(req) };
+  p.ctx.window.XenonSheet.again();
+  p.ctx.window.XenonSheet.back();
+  assert.equal(JSON.stringify([opened, p.signals.length]), JSON.stringify([[{ open: 'pocket' }], 2]), 'opened again, a fresh pocket that can close again');
+
+  const menu = sheetPage({ section: '' });
+  assert.ok(!menu.classes.has('is-pocket-window'));
+  menu.ctx.window.XenonSheet.again();
+  assert.deepEqual(menu.signals, []);
+});
+
+test('the pocket window fits its card and runs keys only once it is gone', () => {
+  const css = read('../components/BitPocket/BitPocket.css');
+  assert.match(css, /html.is-pocket-window .bitp.is-sheet .bitp-card { position: static;/);
+  const pocket = read('../js/bit-companion/pocket.js');
+  assert.ok(pocket.indexOf('window.XenonSheet?.back()') < pocket.indexOf("post('/screen-menu', { run: what.run })"));
 });

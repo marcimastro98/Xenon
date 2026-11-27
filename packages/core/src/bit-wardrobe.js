@@ -18,9 +18,20 @@
    * permanent (owned items are stored by id). A season item has its season (SEASONS) and a shop
    * item its fixed price in Sparks. A supporters' item (its month 'YYYY-MM', one a month) and any
    * newer shop item come from the hub (addItems); both are kept through the hub's key
-   * entryOf(item) (server/bit/keep.js). */
+   * entryOf(item) (server/bit/keep.js).
+   * Beyond the body, four more places (PLACES), one thing each: a ride under its feet (Bit stands
+   * on it), a prop on the floor beside it, its home behind everything, and a move: how it
+   * teleports, whose cells are the bits that fly (MOVE_BASES, params). */
 
   const SLOTS = Object.freeze(['head', 'face', 'neck', 'back', 'feet', 'hand']);
+  const PLACES = Object.freeze([...SLOTS, 'ride', 'prop', 'home', 'move']);
+  const MOVE_BASES = Object.freeze(['crumble', 'beam', 'packet', 'glitch']); // the teleports of warp.js a move builds on
+  // Where each place's cells may go, [x0, x1, y0, y1]: the stage for the body, the two rows a ride
+  // lifts Bit by, a move's bits in a 5x5 box. A prop also stays off the body's columns.
+  const BOUNDS = Object.freeze({ ride: [-3, 14, 9, 10], move: [0, 4, 0, 4] });
+  const STAGE = [-3, 14, -5, 10];
+  const CELLS_MAX = Object.freeze({ home: 288, move: 25 }); // a hub item's cells; a home fills the stage
+  const maxCells = (slot) => CELLS_MAX[slot] || 160;
   const SOURCES = Object.freeze(['trait', 'season', 'supporter', 'shop', 'founder']);
   const SLATE = '#3b4250';
   const WHITE = '#f0f3f1';
@@ -38,7 +49,7 @@
   const ARM = { fill: 'body', cells: [[10, 6]] };
 
   // When each season's items are given: [month, day] to [month, day], both kept.
-  // 'birthday' is the Bit's own week, from the day it hatched (seasonsOn).
+  // 'birthday' is the Bit's own week, from the day it hatched (server/bit/seasons.js).
   const SEASONS = Object.freeze({
     winter: [[12, 1], [2, 29]],
     christmas: [[12, 15], [12, 31]],
@@ -194,6 +205,16 @@
       { fill: PINK, cells: [[11, 4, 2, 2]] },
       { fill: '#d9a066', cells: [[11, 6, 2], [11, 7]] },
     ], S('summer')),
+    // home: every Bit has this one (server/bit/model.js) and stands in its doorway
+    I('hut', 'home', 'trait', [
+      { fill: '#6e4b35', cells: [[-2, 1, 4, 10], [10, 1, 4, 10], [2, 1, 8, 2]] },
+      { fill: '#2b211c', cells: [[2, 3, 8, 8]] },
+      { fill: '#86603f', cells: [[-2, 7, 4], [10, 7, 4]] },
+      { fill: '#ffd77a', cells: [[-1, 3, 2, 2], [11, 3, 2, 2]] },
+      { fill: '#7a4b3a', cells: [[9, -4, 1, 2]] },
+      { fill: '#b4533c', cells: [[5, -4, 2], [3, -3, 6], [1, -2, 10], [-1, -1, 14]] },
+      { fill: '#8e3c2c', cells: [[-3, 0, 18]] },
+    ]),
   ]);
 
   const BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
@@ -232,14 +253,17 @@
   function validate(it, tipCells = []) {
     const errors = [];
     if (!/^[a-z][a-zA-Z0-9]{1,31}$/.test(it.id || '')) errors.push('id');
-    if (!SLOTS.includes(it.slot)) errors.push('slot');
+    if (!PLACES.includes(it.slot)) errors.push('slot');
     if (!SOURCES.includes(it.source)) errors.push('source');
     if (it.source === 'season' && !Object.hasOwn(SEASONS, it.season)) errors.push('season');
     if (it.source === 'supporter' && !MONTH.test(it.month || '')) errors.push('month');
     if (it.source === 'shop' && !(Number.isInteger(it.price) && it.price >= 50 && it.price <= 300)) errors.push('price');
-    const keep = new Set([[6, 0], [6, 1], ...tipCells].map(([x, y]) => `${x},${y}`));
+    if (it.slot === 'move' && !(MOVE_BASES.includes(it.params?.base) && Number.isInteger(it.params.ms) && it.params.ms >= 300 && it.params.ms <= 1500)) errors.push('params');
+    // Home and ride sit behind and under the body: only what is drawn over it must leave the antenna be.
+    const keep = new Set(SLOTS.includes(it.slot) || it.slot === 'prop' ? [[6, 0], [6, 1], ...tipCells].map(([x, y]) => `${x},${y}`) : []);
+    const [x0, x1, y0, y1] = BOUNDS[it.slot] || STAGE;
     for (const [x, y] of cellsOf(it)) {
-      if (x < -3 || x > 14 || y < -5 || y > 10) errors.push(`outside ${x},${y}`);
+      if (x < x0 || x > x1 || y < y0 || y > y1 || (it.slot === 'prop' && x > 1 && x < 10)) errors.push(`outside ${x},${y}`);
       if (keep.has(`${x},${y}`)) errors.push(`covers antenna ${x},${y}`);
     }
     for (const part of it.layers) {
@@ -259,40 +283,15 @@
   /** What a Bit hatches wearing, one of the shop's cheapest, from `pick` in [0, 1) (its seed's 'birth-gift' stream): the hub reads it the same way. */
   const birthItem = (pick) => { const first = ITEMS.filter((it) => it.source === 'shop' && it.price === 50); return first[Math.min(first.length - 1, Math.floor(pick * first.length))].id; };
 
-  const md = (m, d) => m * 100 + d;
-  const DAY_MS = 864e5;
-  /**
-   * The seasons running on `date` (local time). `born` is when the Bit hatched:
-   * from its first birthday on, the week that starts on that day is its own season.
-   * @returns {string[]}
-   */
-  function seasonsOn(date, born) {
-    const today = md(date.getMonth() + 1, date.getDate());
-    const out = [];
-    for (const [id, span] of Object.entries(SEASONS)) {
-      if (!span) continue;
-      const from = md(...span[0]);
-      const to = md(...span[1]);
-      if (from <= to ? today >= from && today <= to : today >= from || today <= to) out.push(id);
-    }
-    const b = born ? new Date(born) : null;
-    if (b && !Number.isNaN(b.getTime()) && date.getFullYear() > b.getFullYear()) {
-      const birthday = new Date(date.getFullYear(), b.getMonth(), b.getDate());
-      const since = Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() - birthday.getTime()) / DAY_MS);
-      if (since >= 0 && since < 7) out.push('birthday');
-    }
-    return out;
-  }
-
-  /** One item per slot, last one wins; unknown ids are dropped. */
+  /** One item per place, last one wins; unknown ids are dropped. */
   function outfit(ids) {
     const bySlot = new Map();
     for (const id of ids || []) {
       const it = item(id);
       if (it) bySlot.set(it.slot, it);
     }
-    return SLOTS.map((s) => bySlot.get(s)).filter(Boolean);
+    return PLACES.map((s) => bySlot.get(s)).filter(Boolean);
   }
 
-  return { SLOTS, SOURCES, SEASONS, get ITEMS() { return all; }, item, addItems, cellsOf, validate, outfit, seasonsOn, monthOf, supporterOut, entryOf, birthItem };
+  return { SLOTS, PLACES, MOVE_BASES, maxCells, SOURCES, SEASONS, get ITEMS() { return all; }, item, addItems, cellsOf, validate, outfit, monthOf, supporterOut, entryOf, birthItem };
 });

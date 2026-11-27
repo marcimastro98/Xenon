@@ -376,7 +376,8 @@
         "server/components/BitCompanion/**",
         "server/components/BitPocket/**",
         "apps/native/src-tauri/src/layers/bit_desk.rs",
-        "apps/native/src-tauri/src/layers/bit_desk/**"
+        "apps/native/src-tauri/src/layers/bit_desk/**",
+        "apps/native/src-tauri/src/pocket_window.rs"
       ]
     },
     {

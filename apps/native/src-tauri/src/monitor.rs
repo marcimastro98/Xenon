@@ -41,7 +41,7 @@ mod foreground;
 mod display_info;
 
 pub use driver::{end_visit, opened_to_nothing, seed_driver, set_driver, started_by_hand};
-pub(crate) use driver::pointer_monitor;
+pub(crate) use driver::{pointer, pointer_monitor};
 pub use home::{enter_home, exit_home};
 pub use placement::{move_to_named_monitor, push_display_state, set_fullscreen_pref, set_placement};
 pub use reveal::{backend_port, note_startup, open_dashboard, reveal, show_now};
