@@ -72,6 +72,8 @@
   const game = (i) => [...PC, ...PAD, ['gameShip', SHIP[i], 5],
     ...(FOE[i] ? [['gameFoe', FOE[i], 2]] : []), ...(i % 3 === 1 ? [['gameShot', SHIP[i], 4]] : i % 3 === 2 ? [['gameShot', SHIP[i - 1], 3]] : []),
     ...(i === 6 ? [['star', 10, -3, 1]] : i === 7 ? [['star', 10, -4, 0.5]] : [])];
+  // A sign held up while it sits here stands on top of the monitor (bit.js), and nothing floats under it.
+  const ON_PC = Object.freeze({ dy: -5, clear: 1 });
   const step = (ms, lift, extra = {}) => [
     F(ms, { eyes: 'right', sx: 1.03, sy: 0.97, ...extra }),
     F(ms, { eyes: 'right', dy: -lift, ...extra, ex: [...(extra.ex || []), ['dust', -3, 10, 0.5]] }),
@@ -96,6 +98,7 @@
     {
       id: 'code',
       calm: true,
+      signAt: ON_PC,
       frames: [
         ...CODE.map((_, i) => F(260, { eyes: 'right', ex: [...typed(i, i % 2 === 0, i % 2 ? 'handOut' : 'handIn'), ...popped(i)] })),
         F(900, { eyes: 'right', mouth: 'smile', ex: [...typed(CODE.length), ...popped(8)] }),
@@ -108,6 +111,7 @@
     {
       id: 'gamer',
       calm: true,
+      signAt: ON_PC,
       frames: [
         ...SHIP.map((_, i) => F(i >= 6 ? 420 : 260, { eyes: 'right', mouth: i >= 6 ? 'smile' : 'flat', dy: i % 2 ? 0.3 : 0, ex: game(i) })),
         F(110, { eyes: 'blink', ex: game(0) }),

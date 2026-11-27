@@ -135,9 +135,11 @@
   // The sign in its hand, with the arm in the body's colour. Never set down like a worn item: it is what
   // Bit has to tell, and the liveliest clips carry its edge at most about a cell past the stage.
   const ARM = [[10, 6]];
-  function heldRects(held, fill) {
+  // At its desk (a clip's `signAt`) the sign stands planted on the monitor instead, its hands on the keys.
+  function heldRects(held, fill, at) {
     if (!Array.isArray(held) || !held.length) return [];
-    return [...rects(ARM, fill), ...held.map((h) => ({ x: h.x, y: h.y, w: 1, h: 1, fill: '#' + h.hex, o: 1 }))];
+    const dy = at ? at.dy : 0;
+    return [...(at ? [] : rects(ARM, fill)), ...held.map((h) => ({ x: h.x, y: h.y + dy, w: 1, h: 1, fill: '#' + h.hex, o: 1 }))];
   }
   // On a ride, a step is a glide: no bob, no squash, no dust.
   const glide = (frame) => ({ ...frame, dy: 0, sx: 1, sy: 1, ex: (frame.ex || []).filter((e) => e[0] !== 'dust') });
@@ -166,7 +168,9 @@
     const back = [];
     const front = [];
     const attached = [];
+    const signAt = opts.held?.length && c.signAt ? c.signAt : null;
     for (const entry of frame.ex || []) {
+      if (signAt && Array.isArray(entry) && entry[2] < signAt.clear) continue; // what floats there waits for it
       const e = extra(entry, fill, look ? look.accent : fill);
       if (!e) continue;
       if (e.part.back) back.push(...e.rects);
@@ -195,8 +199,8 @@
     if (worn?.ride.length) layers.push({ transform: transform({ dx: frame.dx, dy: frame.dy }), clipFloor: true, rects: worn.ride });
     const own = look ? personal(look, mood, worn.over) : [];
     layers.push({ transform: t, clipFloor: true, rects: [...rects(BODY, fill), ...own, ...attached, ...(worn ? worn.face : []), ...face(frame, look)] });
-    const held = heldRects(opts.held, fill);
-    if (held.length) layers.push({ transform: t, clipFloor: false, rects: held });
+    const held = heldRects(opts.held, fill, signAt);
+    if (held.length) layers.push({ transform: signAt ? null : t, clipFloor: false, rects: held });
     if (front.length) layers.push({ transform: null, clipFloor: false, rects: front });
     return { layers };
   }

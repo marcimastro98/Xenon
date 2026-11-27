@@ -72,6 +72,7 @@
   /** Something happened: the director picks the clip, or lets it pass. */
   function react(name) {
     if (!hatched()) return null;
+    if (name === 'claudeWorking' && rest() !== 'idle') return null; // already at its desk: that says it
     if (cantPlay(name)) { waiting = { name, at: Date.now() }; return null; }
     const A = app();
     const d = A?.director();
@@ -165,8 +166,7 @@
       else if (is === 'running') moves.add('claudeWorking');
       else if (was === 'running' && !(s.ended && s.endedReason === 'gone')) moves.add('claudeDone');
     }
-    const name = ['notification', 'claudeDone', 'claudeWorking'].find((n) => moves.has(n));
-    if (name) react(name);
+    return ['notification', 'claudeDone', 'claudeWorking'].find((n) => moves.has(n)) || null;
   }
 
   // While Claude Code or Codex work, Bit works with them at its own computer (the 'code' loop); while the
@@ -224,8 +224,10 @@
     on('media', api.onMedia);
     on('bit_play', api.onPlay);
     on('home_ring', () => react('doorbell'));   // someone at the door (server/smart-home/doorbell.js)
-    on('claude', guarded((d) => { agentMoment('claude', d); atWork(); }));
-    on('codex', guarded((d) => { agentMoment('codex', d); atWork(); }));
+    // To its desk first, then the moment: a start it already sits at needs no laptop on top (react).
+    const agent = (source) => guarded((d) => { const name = agentMoment(source, d); atWork(); if (name) react(name); });
+    on('claude', agent('claude'));
+    on('codex', agent('codex'));
     on('calendar_reminder', () => react('calendarSoon'));
     on('update_auto', guarded((d) => { if (d.phase === 'countdown') react('update'); }));
     on('widget_auto_updated', () => react('update'));

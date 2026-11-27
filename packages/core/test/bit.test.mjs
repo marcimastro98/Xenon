@@ -159,6 +159,27 @@ test('greetingFor covers the whole day', () => {
   assert.equal(phrases.greetingFor(2), 'night');
 });
 
+test('at its desk the sign stands on the monitor, still, and nothing floats under it', () => {
+  const signs = require('../src/bit-signs.js');
+  bit.addPack(require('../src/bit-clips-move.js'));
+  const held = signs.held('done');
+  for (const id of ['code', 'gamer']) {
+    const c = bit.clip(id);
+    assert.ok(c.signAt, id);
+    c.frames.forEach((_, i) => {
+      const f = bit.renderFrame(c, i, { held });
+      const sign = f.layers.find((l) => l.rects.some((r) => r.fill === '#3fd16b'));
+      assert.equal(sign.transform, null, `${id}[${i}]: planted, it does not bob`);
+      assert.ok(sign.rects.every((r) => r.y <= 0), `${id}[${i}]: above the monitor (top at 1)`);
+      assert.ok(!sign.rects.some((r) => r.x === 10 && r.y === 6), 'its hands stay on the keys');
+      const above = f.layers.filter((l) => l !== sign && !l.clipFloor).flatMap((l) => l.rects).filter((r) => r.y < 0 && r.h < 1.5);
+      assert.deepEqual(above, [], `${id}[${i}]: no code bit or star under the sign`);
+    });
+    const free = bit.renderFrame(c, 1, {});
+    assert.ok(!free.layers.some((l) => l.rects.some((r) => r.fill === '#3fd16b')), 'no sign: nothing planted');
+  }
+});
+
 test('a still frame takes a safe clip id, never arbitrary markup', () => {
   assert.match(bit.frameSvg('idle', 0, { clipId: 'bitfloor-still' }), /clipPath id="bitfloor-still"/);
   const bad = bit.frameSvg('idle', 0, { clipId: '"><script>x</script>' });
@@ -173,7 +194,7 @@ test('a sign held up moves with the body, on every clip, and takes the hand from
   const wardrobe = require('../src/bit-wardrobe.js');
   const held = signs.held('done');
   const signLayer = (f) => f.layers.find((l) => l.rects.some((r) => r.fill === '#3fd16b'));
-  for (const c of bit.clips) {
+  for (const c of bit.clips.filter((x) => !x.signAt)) {
     c.frames.forEach((_, i) => {
       const f = bit.renderFrame(c, i, { held });
       const body = f.layers.filter((l) => l.clipFloor).at(-1); // the body's own layer is the last one cut at the floor

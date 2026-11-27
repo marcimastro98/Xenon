@@ -57,7 +57,7 @@
     gameStart: { clips: ['padReady', 'nod'], priority: 1, cooldown: 30 * 60000, gaming: true },
     gameEnd: { clips: ['cheer', 'celebrate'], priority: 2, cooldown: 10 * 60000 },
     trackChange: { clips: ['airGuitar', 'headbang'], priority: 1, cooldown: 10 * 60000 },
-    claudeWorking: { clips: ['laptop', 'think'], priority: 1, cooldown: 20 * 60000 },
+    claudeWorking: { clips: ['laptop'], priority: 1, cooldown: 20 * 60000 },
     claudeDone: { clips: ['allDone', 'nod'], priority: 2, cooldown: 5 * 60000 },
     notification: { clips: ['sign', 'surprised'], priority: 1, cooldown: 5 * 60000 },
     calendarSoon: { clips: ['watch', 'surprised'], priority: 2, cooldown: 10 * 60000 },

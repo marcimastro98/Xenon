@@ -29,6 +29,13 @@ test('every reaction has a clip this engine knows', () => {
   }
 });
 
+test('a moment is one clip and back, never a loop that would stay', () => {
+  for (const pack of ['bit-clips-life', 'bit-clips-move']) bit.addPack(require(`../src/${pack}.js`));
+  for (const [name, ev] of Object.entries(D.EVENTS)) {
+    for (const id of ev.clips) assert.notEqual(bit.clip(id)?.kind, 'mood', `${name}: ${id}`);
+  }
+});
+
 test('every temperament and quirk of the genes has a rhythm', () => {
   const G = require('../src/bit-genes.js');
   for (const t of G.TEMPERAMENTS) assert.ok(D.TEMPERAMENTS[t.id], t.id);

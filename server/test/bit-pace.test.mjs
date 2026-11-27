@@ -216,6 +216,23 @@ test('while Claude Code or Codex work, every resting own Bit sits at its laptop,
   assert.equal(rest.mood, 'idle', 'one asking is not working');
 });
 
+test('a session starting while Bit already sits at its desk is no laptop on top of it', () => {
+  const p = { running: true, mood: 'idle', plays: [], play(id) { this.plays.push(id); }, setMood(id) { this.mood = id; } };
+  const { M, ctx, reacted } = bootMoments({ players: [p] });
+  ctx.Xenon.bit = { clip: (id) => (id === 'code' ? { id } : null) };
+  const handlers = {};
+  M.listen({ addEventListener: (name, fn) => { (handlers[name] ||= []).push(fn); } });
+  const send = (...list) => handlers.claude.forEach((fn) => fn({ data: JSON.stringify({ live: { sessions: list } }) }));
+  send({ id: 'a', state: 'idle' }, { id: 'b', state: 'idle' });
+  send({ id: 'a', state: 'running' }, { id: 'b', state: 'idle' });
+  assert.equal(p.mood, 'code', 'to its desk first');
+  send({ id: 'a', state: 'running' }, { id: 'b', state: 'running' });
+  assert.deepEqual(reacted, [], 'at its desk already: nothing plays over it');
+  send({ id: 'a', state: 'idle' }, { id: 'b', state: 'idle' });
+  assert.deepEqual(reacted, ['claudeDone'], 'a finish still shows');
+  assert.equal(p.mood, 'idle');
+});
+
 test('the laptop loop is calm: it plays on the slow pace too, every other loop rests there', () => {
   const { clock, Xenon } = bootPlayer();
   const move = require('../../packages/core/src/bit-clips-move.js');
