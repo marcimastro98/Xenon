@@ -171,7 +171,8 @@
         return;
       }
       // Held, a reaction waits as the current clip and shows the rest pose, never its first frame.
-      if (!state.running || (c.kind === 'mood' && state.pace !== 'live')) {
+      // A calm loop (bit-clips-move.js 'code') plays on the slow pace too.
+      if (!state.running || (c.kind === 'mood' && state.pace !== 'live' && !(c.calm && state.pace === 'slow'))) {
         rest();
         if (state.running) scheduleIdle();
         return;

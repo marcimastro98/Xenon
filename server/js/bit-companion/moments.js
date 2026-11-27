@@ -168,6 +168,19 @@
     if (name) react(name);
   }
 
+  // While Claude Code or Codex work, Bit works with them at its own laptop (the 'code' loop), on every
+  // own Bit resting and on the desktop (desk.js asks rest()); it stops when none runs.
+  let working = false;
+  const coding = () => Object.values(agents).some((m) => !!m && [...m.values()].includes('running'));
+  const rest = () => (working && hatched() && window.Xenon?.bit?.clip('code') ? 'code' : 'idle');
+  function atWork() {
+    const was = working;
+    working = coding();
+    const want = rest();
+    for (const p of players()) if ((p.mood === 'idle' || p.mood === 'code') && p.mood !== want) p.setMood(want);
+    if (was !== working && typeof dispatchEvent === 'function') dispatchEvent(new CustomEvent('xenon-bit-work'));
+  }
+
   function onTransfer(d) {
     const ids = (Array.isArray(d.items) ? d.items : []).filter((it) => it && it.direction !== 'out').map((it) => String(it.id));
     const fresh = !!shelf && ids.some((id) => !shelf.has(id));
@@ -198,8 +211,8 @@
     on('media', api.onMedia);
     on('bit_play', api.onPlay);
     on('home_ring', () => react('doorbell'));   // someone at the door (server/smart-home/doorbell.js)
-    on('claude', guarded((d) => agentMoment('claude', d)));
-    on('codex', guarded((d) => agentMoment('codex', d)));
+    on('claude', guarded((d) => { agentMoment('claude', d); atWork(); }));
+    on('codex', guarded((d) => { agentMoment('codex', d); atWork(); }));
     on('calendar_reminder', () => react('calendarSoon'));
     on('update_auto', guarded((d) => { if (d.phase === 'countdown') react('update'); }));
     on('widget_auto_updated', () => react('update'));
@@ -226,7 +239,7 @@
   // A move asked from the chat, a Deck key or a phone (server/bit/actions.js): played as asked, past the hourly cap.
   const onPlay = (d) => { if (typeof d.clip === 'string') play(d.clip); };
   const api = {
-    listen, react, play, pace, woke, lastPlayed: () => played,
+    listen, react, play, pace, woke, rest, working: () => working, lastPlayed: () => played,
     onStatus: guarded(onStatus), onSystem: guarded(onSystem), onMedia: guarded(onMedia), onPlay: guarded(onPlay),
   };
   window.BitMoments = api;

@@ -25,6 +25,7 @@
 
   const F = (ms, props) => Object.freeze({ ms, ...props });
   const SIGN = ['signPost', 'signBoard', 'signLines', 'armR'];
+  const LAP = ['lid', 'lidMark', 'keys']; // its laptop (bit-clips-life.js parts)
   const step = (ms, lift, extra = {}) => [
     F(ms, { eyes: 'right', sx: 1.03, sy: 0.97, ...extra }),
     F(ms, { eyes: 'right', dy: -lift, ...extra, ex: [...(extra.ex || []), ['dust', -3, 10, 0.5]] }),
@@ -42,6 +43,21 @@
         F(1500, { dy: 1, sx: 1.03, sy: 0.94, eyes: 'left' }),
         F(110, { dy: 1, sx: 1.04, sy: 0.92, eyes: 'blink' }),
         F(1600, { dy: 1, sx: 1.04, sy: 0.92 }),
+      ],
+    },
+    // At its own laptop while Claude Code or Codex work (bit-companion/moments.js): it types, reads, thinks.
+    // calm: it plays on the slow pace too, at about three frames a second (bit-player.js).
+    {
+      id: 'code',
+      calm: true,
+      frames: [
+        F(900, { eyes: 'down', ex: LAP }),
+        ...[0, 1, 2, 3, 4, 5].map((i) => F(240, { eyes: 'down', dy: i % 2 ? 0.3 : 0, ex: i % 3 ? ['lid', 'keys'] : LAP })),
+        F(110, { eyes: 'blink', ex: LAP }),
+        F(1100, { eyes: 'down', ex: LAP }),
+        F(800, { eyes: 'up', mouth: 'flat', ex: LAP }),
+        ...[0, 1, 2, 3].map((i) => F(240, { eyes: 'down', dy: i % 2 ? 0.3 : 0, ex: i % 2 ? ['lid', 'keys'] : LAP })),
+        F(600, { eyes: 'down', mouth: 'smile', ex: LAP }),
       ],
     },
   ].map((c) => ({ kind: 'mood', loop: true, tint: 'idle', ...c }));

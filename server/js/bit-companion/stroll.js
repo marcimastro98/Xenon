@@ -105,13 +105,14 @@
     w.node.classList.remove('is-left');
     if (w.x) slide(w.node, 0, 0);
     const p = playerOf(btn);
-    if (p && p.mood !== 'idle') p.setMood('idle');
+    const back = window.BitMoments?.rest?.() || 'idle'; // at its laptop while Claude Code or Codex work (moments.js)
+    if (p && p.mood !== back) p.setMood(back);
     app()?.sweep();
   }
 
   async function stroll() {
     const btn = corner();
-    if (!btn || walking || !free(btn)) return;
+    if (!btn || walking || !free(btn) || window.BitMoments?.working?.()) return; // it stays at its laptop
     const node = btn.parentNode;
     const box = node.getBoundingClientRect();
     const room = { left: Math.min(0, EDGE_PX - box.left), right: Math.max(0, innerWidth - EDGE_PX - box.right) };

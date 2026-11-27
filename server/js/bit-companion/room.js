@@ -189,10 +189,14 @@
       const built = bit && window.BitPanels?.build(kind, bit, hands);
       if (!built) return;
       if (!room.panel) room.opener = document.activeElement;
-      room.panel = kind;
+      // The same drawer drawn again after a choice keeps where it was scrolled to, never back at the top.
+      const kept = room.panel === kind ? drawer.querySelector('.broom-panel-body')?.scrollTop || 0 : 0;
       const bar = makeEl('div', 'broom-drawer-head');
       bar.append(makeEl('h3', 'broom-drawer-title', built.title), iconButton(CROSS, say('close'), closePanel, signal));
       drawer.replaceChildren(bar, built.body);
+      const body = drawer.querySelector('.broom-panel-body');
+      if (kept && body) body.scrollTop = kept;
+      room.panel = kind;
       drawer.setAttribute('aria-label', built.title);
       if (drawer.hidden) {
         drawer.hidden = false;

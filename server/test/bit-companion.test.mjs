@@ -1077,3 +1077,19 @@ test('a tap opens what the person chose: its pocket by default, the chat or its 
   shell.corner().querySelector('.bitc-sprite').click();
   assert.ok(shell.sheet(), 'an egg hatches in its room');
 });
+
+test('a choice in the room keeps the drawer where it was scrolled to; another drawer starts at the top', async () => {
+  const r = rig({ answers: { '/api/bit/prefs': (body) => ({ ok: true, bit: born({ ...body }) }) } });
+  r.tell(born());
+  r.ctx.BitSheet.open();
+  openAbout(r);
+  const body = () => r.sheet().querySelector('.broom-drawer .broom-panel-body');
+  body().scrollTop = 420;
+  r.sheet().querySelectorAll('.broom-drawer .bitc-seg-btn').find((b) => b.textContent === 'mybit_react_few').click();
+  await settle();
+  assert.equal(body().scrollTop, 420, 'still where the person was');
+  r.ctx.BitSheet.close();
+  r.ctx.BitSheet.open();
+  openAbout(r);
+  assert.ok(!body().scrollTop, 'opened again: from the top');
+});

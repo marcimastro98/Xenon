@@ -190,3 +190,46 @@ test('a notification opening on the island is news for Bit, once per opening', (
   classChanged('topbar-minimal xtoast-island');
   assert.deepEqual(reacted, ['notification'], 'closing is nothing');
 });
+
+test('while Claude Code or Codex work, every resting own Bit sits at its laptop, and gets up when none runs', () => {
+  const mood = (m) => ({ running: true, mood: m, plays: [], play() {}, setMood(id) { this.mood = id; } });
+  const [rest, walking] = [mood('idle'), mood('walk')];
+  const { M, ctx } = bootMoments({ players: [rest, walking] });
+  ctx.Xenon.bit = { clip: (id) => (id === 'code' ? { id } : null) };
+  const flips = [];
+  ctx.dispatchEvent = (e) => flips.push(e.type);
+  ctx.CustomEvent = class { constructor(type) { this.type = type; } };
+  const handlers = {};
+  M.listen({ addEventListener: (name, fn) => { (handlers[name] ||= []).push(fn); } });
+  const send = (name, ...list) => handlers[name].forEach((fn) => fn({ data: JSON.stringify({ live: { sessions: list } }) }));
+  send('claude', { id: 'a', state: 'running' });
+  assert.equal(rest.mood, 'code', 'at work from the first word, a session already running included');
+  assert.equal(walking.mood, 'walk', 'one out walking is left to its walk');
+  assert.equal(M.rest(), 'code');
+  assert.equal(M.working(), true);
+  send('codex', { id: 'c', state: 'idle' });
+  assert.equal(rest.mood, 'code', 'Codex resting: Claude Code still works');
+  send('claude', { id: 'a', state: 'idle' });
+  assert.equal(rest.mood, 'idle', 'none runs: back to its usual rest');
+  assert.deepEqual(flips, ['xenon-bit-work', 'xenon-bit-work'], 'told on each change only, for the desktop Bit');
+  send('codex', { id: 'c', state: 'running', waitFor: 'permission' });
+  assert.equal(rest.mood, 'idle', 'one asking is not working');
+});
+
+test('the laptop loop is calm: it plays on the slow pace too, every other loop rests there', () => {
+  const { clock, Xenon } = bootPlayer();
+  const move = require('../../packages/core/src/bit-clips-move.js');
+  Xenon.bit.addPack(move);
+  const code = Xenon.bit.clip('code');
+  assert.equal(code.kind, 'mood');
+  assert.ok(code.frames.length <= 24, 'fits the desktop message (desk-frames.js MAX_FRAMES)');
+  const avg = code.frames.reduce((a, f) => a + f.ms, 0) / code.frames.length;
+  assert.ok(avg >= 300, `about three frames a second or fewer (${Math.round(avg)} ms)`);
+  const p = Xenon.bitPlayer.mount(new FakeEl('span'), { reducedMotion: false });
+  p.setPace('slow');
+  p.setMood('code');
+  assert.ok(frameTimers(clock).length > 0, 'slow: the laptop loop still plays');
+  p.setMood('idle');
+  assert.equal(frameTimers(clock).length, 0, 'slow: the usual rest is still');
+  p.destroy();
+});

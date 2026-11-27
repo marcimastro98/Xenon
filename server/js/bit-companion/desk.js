@@ -70,7 +70,7 @@
   const playing = () => (once && Date.now() < once.until ? once : null);
   const lookNow = () => window.BitDeskTry?.look() || app()?.personal(); // desk-try.js: ten minutes in something tried on
   const riding = () => (lookNow()?.worn || []).some((w) => w.slot === 'ride');
-  const loopId = () => (walk ? 'walk' : sitting ? 'sit' : pace() === 'asleep' ? 'sleep' : 'idle');
+  const loopId = () => (walk ? 'walk' : sitting ? 'sit' : pace() === 'asleep' ? 'sleep' : window.BitMoments?.rest?.() || 'idle');
 
   /** What the shell is asked to show now. */
   function message() {
@@ -201,7 +201,8 @@
   // A short way along the bar from its place, at the live or slow pace only.
   function stroll() {
     const calm = pace() === 'live' || pace() === 'slow';
-    if (!out || walk || sitting || still() || spots().busy() || reduced() || prefs().roam === 'stay' || !calm) return armStroll();
+    const busy = window.BitMoments?.working?.(); // at its laptop with Claude Code or Codex
+    if (!out || walk || sitting || busy || still() || spots().busy() || reduced() || prefs().roam === 'stay' || !calm) return armStroll();
     const from = spot().x;
     const d = between(REACH);
     setWalk(from + d <= 1 && (from - d < 0 || Math.random() < 0.5) ? from + d : from - d, true);
@@ -269,6 +270,7 @@
     addEventListener('xenon-bit', schedule);
     addEventListener('xenon-bit-signals', schedule); // a sign in its hand comes or goes (signs.js)
     addEventListener('xenon-bit-desk-try', schedule); // something from the room put on, or its ten minutes over
+    addEventListener('xenon-bit-work', schedule); // Claude Code or Codex start or stop working (moments.js)
     schedule();
     armFidget();
     armStroll();

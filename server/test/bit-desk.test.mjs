@@ -541,3 +541,19 @@ test('travelling only across the screens the person chose: one taken off is neve
   assert.equal(lone.desk.hop(), false, 'one chosen: it stays there');
   assert.ok(lone.messages().filter((m) => m.on).every((m) => m.monitor === 'c'));
 });
+
+test('with Claude Code or Codex at work it sits at its laptop on the desktop and takes no stroll; it gets up when they stop', () => {
+  const r = rig();
+  let work = true;
+  r.ctx.BitMoments.rest = () => (work ? 'code' : 'idle');
+  r.ctx.BitMoments.working = () => work;
+  r.ctx.dispatchEvent(new r.ctx.CustomEvent('xenon-bit-work'));
+  r.advance(100);
+  assert.equal(r.last().loop.length, bit.clip('code').frames.length, 'the laptop loop');
+  r.advance(20 * 60000);
+  assert.ok(r.messages().slice(-30).every((m) => !m.walk), 'no stroll while it works');
+  work = false;
+  r.ctx.dispatchEvent(new r.ctx.CustomEvent('xenon-bit-work'));
+  r.advance(100);
+  assert.equal(r.last().loop.length, bit.clip('idle').frames.length, 'back to its usual rest');
+});
