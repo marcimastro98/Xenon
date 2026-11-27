@@ -119,6 +119,9 @@ test('the file read back is cleaned: broken item ids, bad seeds and names', () =
   for (const bad of ['me@example.com', 'https://x', 'www.example', 'example.com', 'discord.gg', 'bit.ly', 'call 5550123', ...spelt]) {
     assert.equal(Model.cleanName(bad), '', bad);
   }
+  // A domain with a digit or _ after it, and one a cut at 24 characters would leave behind.
+  for (const bad of ['example.com1', 'site.io_x', 'a'.repeat(20) + '.com1']) assert.equal(Model.cleanName(bad), '', bad);
+  assert.equal(Model.cleanName('Mr. Bit'), 'Mr. Bit');
   assert.equal(Model.cleanName('Zo' + '́'.repeat(30)), 'Zó́́', 'a pile of combining marks keeps two');
   assert.equal(Model.cleanName('नमस्ते'), 'नमस्ते');
   assert.equal(Model.cleanName('R2-D2'), 'R2-D2');

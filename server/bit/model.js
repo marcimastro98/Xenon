@@ -42,7 +42,8 @@ const NAME_MAX = 24;
 const MARK_PILE = /(\p{M}{2})\p{M}+/gu;
 // A link, address, domain or long number in any spelling: tested on the NFKC form, so fullwidth,
 // styled and small-form letters, dots and digits count as the plain ones.
-const LINKISH = /@|:\/\/|www\.|https?|[.。][a-z]{2,}\b|\p{Nd}{5,}/iu;
+// A dot then two letters, whatever follows them: a word boundary let "example.com1" through.
+const LINKISH = /@|:\/\/|www\.|https?|[.。][a-z]{2}|\p{Nd}{5,}/iu;
 const SIG_MAX = 200;
 // Its page on the site, when shown (the hub's src/bit-public.js answers it).
 const SITE_PAGE = 'https://xenon-app.com/bit.html#';
@@ -90,10 +91,10 @@ function normalizeBirth(raw) {
  */
 function cleanName(raw) {
   if (typeof raw !== 'string') return '';
-  let name = raw.normalize('NFC').replace(/[\p{C}]/gu, '').replace(MARK_PILE, '$1').replace(/\s+/g, ' ').trim();
-  if (LINKISH.test(name.normalize('NFKC'))) return '';
-  name = [...name].slice(0, NAME_MAX).join('').trim();
-  return name;
+  const name = raw.normalize('NFC').replace(/[\p{C}]/gu, '').replace(MARK_PILE, '$1').replace(/\s+/g, ' ').trim();
+  const cut = [...name].slice(0, NAME_MAX).join('').trim();
+  // The whole name and what is kept: a cut must not leave a link the whole name hid.
+  return [name, cut].some((s) => LINKISH.test(s.normalize('NFKC'))) ? '' : cut;
 }
 
 /** bit.json as this engine keeps it, whatever came from disk. */
