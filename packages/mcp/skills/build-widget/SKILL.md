@@ -55,7 +55,8 @@ person's own dashboard, so you can see it run and fix it.
 - To draw the person's own Bit (Xenon 5.3), ask for the `bit` stream (pulled: send `{ type: 'refresh', stream: 'bit' }`
   about once a second while on screen) and copy `bit-kit.js` into the package, loaded before your script: `XenonBit.mount(el).set(data, { light })` draws it from each `bit` update, egg included, plays
   the moves it makes on the dashboard and shows the sign it holds up (`signal`: done, ask, soon, bell, disk; only the
-  kind; `{ signs: false }` to draw your own). The `bit` action category adds `{ type: 'bitReact', move }`. Never draw Bit by
+  kind; `{ signs: false }` to draw your own) and what it is busy with (`doing`: code while Claude Code or Codex work,
+  gamer while a game runs, idle). The `bit` action category adds `{ type: 'bitReact', move }`. Never draw Bit by
   hand. Read sdk_reference section "bit". `new_widget` with `bit: true` writes a starter with the kit.
 - For what happened at home (Xenon 5.3), the `homeEvents` stream: rings, what the cameras picked out, doors and windows
   opened, newest first, never a picture. Read sdk_reference section "homeEvents".

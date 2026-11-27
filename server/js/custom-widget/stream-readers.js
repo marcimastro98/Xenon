@@ -63,17 +63,19 @@
 
   // The person's own Bit (server/bit/, GET /api/bit): what a widget draws it from with the Bit
   // kit (docs/create/bit-kit.js), its genes without the seed, the last move it played on the
-  // dashboard and the sign in its hand (bit-companion/signals.js): only its kind, from the shared table
-  // (shared/src/bit-signs.js), never what it is about. Never what it learned about the person (traits,
-  // days), or what it owns.
+  // dashboard, the sign in its hand (bit-companion/signals.js): only its kind, from the shared table
+  // (shared/src/bit-signs.js), never what it is about; and what it does at rest (moments.js rest(), or
+  // elsewhere.js on the pump's screen): idle, coding beside Claude Code or Codex, gaming beside the
+  // person. Never what it learned about the person (traits, days), or what it owns.
   const BIT_STAGES = ['egg', 'baby', 'young', 'adult', 'veteran', 'legend'];
   const GENES = ['palette', 'pattern', 'patternColor', 'tip', 'eyes', 'cheeks', 'temperament', 'quirk', 'voice'];
   const ID = /^[a-z][a-zA-Z0-9-]{0,31}$/;
+  const BIT_DOING = ['idle', 'code', 'gamer'];
 
   // A hub item it wears (server/bit/items.js, already checked there), as the kit draws it: no names, no price.
   const drawn = (it) => ({ id: it.id, slot: it.slot, source: it.source, month: it.month, price: it.price, layers: it.layers });
 
-  function bit(answer, played, signal) {
+  function bit(answer, played, signal, doing) {
     const d = answer?.bit; // the route answers { ok, bit }
     if (!d || typeof d !== 'object' || d.ok !== true) return { ok: false, error: 'failed' };
     const g = d.genes && typeof d.genes === 'object' ? d.genes : null;
@@ -94,6 +96,7 @@
       items: (Array.isArray(d.items) ? d.items : []).filter((it) => it && worn.includes(it.id)).slice(0, 8).map(drawn),
       played: move ? { clip: move.clip, at: move.at } : null,
       signal: (window.Xenon?.bitSigns?.KINDS || []).includes(signal) ? signal : null,
+      doing: one(doing, BIT_DOING),
     };
   }
 

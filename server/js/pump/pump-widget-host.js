@@ -181,6 +181,7 @@
   function connect() {
     const es = new EventSource('/sse');
     WidgetFeed.listen(es, widgets);
+    window.BitElsewhere?.listen(es); // what Bit does and holds up, as on the dashboard (bit-companion/elsewhere.js)
     es.addEventListener('settings', onSettingsEvent);
     // A save made while the stream was down is read on reconnect.
     es.addEventListener('open', onSettingsEvent);

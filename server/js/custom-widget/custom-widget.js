@@ -262,8 +262,8 @@
     } }),
     // How the fans are (server/airflow/), as often as the Fans section reads them; these three are rebuilt by stream-readers.js.
     airflow: Object.freeze({ ttl: 2000, load: async () => Readers.airflow(await api('/airflow')) }),
-    // The own Bit, its last move on this page (bit-companion/moments.js) and the sign in its hand, each second while seen.
-    bit: Object.freeze({ ttl: 1000, load: async () => Readers.bit(await api('/api/bit'), window.BitMoments?.lastPlayed(), window.BitSignals?.top()?.kind) }),
+    // The own Bit, its last move, its sign and what it does at rest (bit-companion/moments.js; elsewhere.js on a pump), each second while seen.
+    bit: Object.freeze({ ttl: 1000, load: async () => Readers.bit(await api('/api/bit'), (window.BitMoments || window.BitElsewhere)?.lastPlayed(), window.BitSignals?.top()?.kind, (window.BitMoments || window.BitElsewhere)?.rest()) }),
     homeEvents: Object.freeze({ ttl: 2000, load: async () => Readers.homeEvents(await api('/api/home/events')) }), // the home log (smart-home/home-events.js)
     network: Object.freeze({ ttl: 1500, load: async () => {
       const d = await api('/network');

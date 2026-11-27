@@ -30,7 +30,7 @@ function hatchedView() {
 function reader({ signs = true } = {}) {
   const window = signs ? { Xenon: { bitSigns } } : {};
   vm.runInNewContext(readFileSync(new URL('../js/custom-widget/stream-readers.js', import.meta.url), 'utf8'), { window });
-  return (d, played, signal) => JSON.parse(JSON.stringify(window.CustomWidgetStreamReaders.bit(d, played, signal)));
+  return (d, played, signal, doing) => JSON.parse(JSON.stringify(window.CustomWidgetStreamReaders.bit(d, played, signal, doing)));
 }
 // The shape GET /api/bit answers with.
 const reply = (view) => ({ ok: true, bit: view });
@@ -44,7 +44,7 @@ test('SDK: a bit stream and a bit category with the move alone', () => {
 
 test('SDK: the bridge pulls /api/bit every second with the last move, and mirrors the category', () => {
   const src = readFileSync(new URL('../js/custom-widget/custom-widget.js', import.meta.url), 'utf8');
-  assert.ok(src.includes("    bit: Object.freeze({ ttl: 1000, load: async () => Readers.bit(await api('/api/bit'), window.BitMoments?.lastPlayed(), window.BitSignals?.top()?.kind) }),"));
+  assert.ok(src.includes("    bit: Object.freeze({ ttl: 1000, load: async () => Readers.bit(await api('/api/bit'), (window.BitMoments || window.BitElsewhere)?.lastPlayed(), window.BitSignals?.top()?.kind, (window.BitMoments || window.BitElsewhere)?.rest()) }),"));
   assert.ok(src.includes("    bit: ['bitReact'],"));
   const allowed = readFileSync(new URL('../js/settings/allowed-values.js', import.meta.url), 'utf8');
   for (const list of ['SDK_WIDGET_STREAMS', 'SDK_WIDGET_ACTION_CATS']) {
@@ -66,7 +66,7 @@ test('SDK: the stream draws the Bit and nothing it learned about the person', ()
   const view = hatchedView();
   assert.ok(view.traits && view.owned && view.genes, 'the app\'s own view has more than a widget gets');
   const out = reader()(reply({ ok: true, ...view, seed: SEED }), { clip: 'wave', at: 5 });
-  assert.deepEqual(Object.keys(out).sort(), ['everywhere', 'founder', 'genes', 'hatched', 'items', 'name', 'number', 'ok', 'played', 'signal', 'stage', 'worn']);
+  assert.deepEqual(Object.keys(out).sort(), ['doing', 'everywhere', 'founder', 'genes', 'hatched', 'items', 'name', 'number', 'ok', 'played', 'signal', 'stage', 'worn']);
   assert.equal(out.number, 7);
   assert.deepEqual(out.played, { clip: 'wave', at: 5 });
   assert.deepEqual(out.genes, view.genes);
@@ -114,7 +114,7 @@ function fakePage() {
 test('kit: the app\'s engine in load order, and the site\'s copy is the same text', async () => {
   const order = JSON.parse(readDisk(new URL('./fixtures/bit-engine.json', import.meta.url), 'utf8'));
   assert.deepEqual(ENGINE, order.filter((f) => ENGINE.includes(f)), 'the dashboard\'s order');
-  assert.deepEqual(FILES.slice(ENGINE.length), ['shared/src/bit-signs.js', 'js/bit-companion/kit-api.js']);
+  assert.deepEqual(FILES.slice(ENGINE.length), ['shared/src/bit-clips-move.js', 'shared/src/bit-signs.js', 'js/bit-companion/kit-api.js']);
   const site = readDisk(new URL('../../docs/create/bit-kit.js', import.meta.url), 'utf8');
   assert.equal(site, await bitKit(), 'docs/create/bit-kit.js is stale: run node tools/bit-kit.mjs');
 });

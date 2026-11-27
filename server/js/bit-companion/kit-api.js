@@ -8,7 +8,9 @@
 //   bit.set(m.data, { light: theme.appearance === 'light' });
 //
 // Not hatched yet: the egg. A move played on the dashboard (data.played) plays here too, and the
-// sign of the moment (data.signal) is in its hand; `signs: false` leaves it to you.
+// sign of the moment (data.signal) is in its hand; `signs: false` leaves it to you. What it does at rest
+// on the dashboard (data.doing: 'code' at its computer while Claude Code or Codex work, 'gamer' while
+// the person plays) it does here too.
 // `XenonBit.signs(player)` puts the same sign in the hand of a Bit drawn without mount, from its own
 // player (the Maker's Bit layer).
 // Its home (a worn item of place 'home') shows while it sleeps; `home: true` keeps it behind Bit always.
@@ -17,6 +19,7 @@
 (() => {
   const X = globalThis.Xenon;
   const BACKGROUND = { dark: '#15191c', light: '#f4f6f5' };
+  const RESTS = ['idle', 'code', 'gamer']; // bit-companion/moments.js
 
   /** The sign of the moment (shared/src/bit-signs.js) in the hand of `player`'s Bit (a bitPlayer). */
   function signer(player) {
@@ -59,6 +62,8 @@
         player.refresh();
       }
       sign(data.signal);
+      const rest = RESTS.includes(data.doing) && X.bit.clip(data.doing) ? data.doing : null;
+      if (rest && rest !== player.mood && RESTS.includes(player.mood)) player.setMood(rest);
       const p = data.played;
       if (p && p.at > seen) {
         // The first answer only says where things stand: a move from before is not replayed.
