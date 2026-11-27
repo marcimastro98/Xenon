@@ -3,7 +3,8 @@
 // here is made up.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -21,7 +22,8 @@ const born = { ok: true, seed: SEED, number: 1284, born: '2026-12-03T11:00:00.00
 
 async function harness(t, { local = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'xenon-bit-pub-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  // A refresh the hub answered may still be writing bit.json when a test ends: rm retries on ENOTEMPTY.
+  t.after(() => rm(dir, { recursive: true, force: true, maxRetries: 5 }));
   const store = createBitStore({ dataDir: dir });
   await store.create(false);
   const sent = [];
@@ -77,7 +79,7 @@ test('while shown, a new name goes to the hub too', async (t) => {
 
 test('a refresh says it is one, and comes after a choice made before it, bursts as one', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'xenon-bit-pub-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rm(dir, { recursive: true, force: true, maxRetries: 5 }));
   const store = createBitStore({ dataDir: dir });
   await store.create(false);
   await store.update((m) => ({ model: { ...m, bit: { seed: SEED, number: 1284, born: born.born, sig: 'x', local: false } } }));
