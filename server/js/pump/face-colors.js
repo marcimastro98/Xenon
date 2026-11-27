@@ -90,10 +90,9 @@
   // post(colors, ring): the colours to the face's look (null: none read), and to Xenon what the
   // ring wants ({ colors, level }, or null); resolves true once it took them.
   function create(post) {
-    const canvas = document.createElement('canvas');
-    canvas.width = SAMPLE;
-    canvas.height = SAMPLE;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    // A cover from another site taints the canvas for good, so each one that fails gets a new one.
+    const sampler = () => Object.assign(document.createElement('canvas'), { width: SAMPLE, height: SAMPLE }).getContext('2d', { willReadFrequently: true });
+    let ctx = sampler();
     let said = '';
     let saidAt = 0;
     let busy = false;
@@ -105,7 +104,7 @@
         ctx.clearRect(0, 0, SAMPLE, SAMPLE);
         ctx.drawImage(node, 0, 0, SAMPLE, SAMPLE);
         return asList(window.extractAlbumAccent.pick(ctx.getImageData(0, 0, SAMPLE, SAMPLE).data));
-      } catch { return null; }   // a cover from another site cannot be read from the page
+      } catch { ctx = sampler(); return null; }   // a cover from another site cannot be read from the page
     }
 
     async function coloursOf(layer) {

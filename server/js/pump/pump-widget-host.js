@@ -169,7 +169,7 @@
 
   async function refresh() {
     const next = await loadSettings();
-    if (!next) { settingsTimer = setTimeout(refresh, SETTINGS_RETRY_MS); return; }
+    if (!next) { settingsTimer = setTimeout(() => { settingsTimer = 0; refresh(); }, SETTINGS_RETRY_MS); return; }
     await apply(next);
   }
 

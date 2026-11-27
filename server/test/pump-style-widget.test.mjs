@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync as readDisk } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import vm from 'node:vm';
@@ -322,4 +322,14 @@ test('the style key: next goes round Xenon, Gauge and the Store styles that fit,
   // The phone may press it; the Deck draws it with an icon of its own.
   assert.match(read('../paired/remote-actions.js'), /'pumpFace', 'pumpSetup', 'pumpStyle', 'pumpSet', 'pumpGet',/);
   assert.match(read('../js/deck-editor/action-icons.js'), /\n\s+pumpStyle: _ai\(/);
+});
+
+// Found 26 Nov 2026: the readings' first look became a drop, and the Xenon card still promised rings.
+test('menu: the Xenon style card names the readings\' own looks, in every language', () => {
+  for (const lang of ['en', 'it', 'de', 'es', 'fr', 'ja', 'ko', 'nl', 'pt', 'ru', 'zh']) {
+    const src = readDisk(new URL(`../js/i18n/${lang}.js`, import.meta.url), 'utf8');
+    const word = (key) => new RegExp(`^ +${key}: '([^']+)'`, 'm').exec(src)[1];
+    const sub = word('xmenu_pump_drawn_xenon_sub').toLowerCase();
+    for (const style of Faces.SENSOR_STYLES) assert.ok(sub.includes(word('xmenu_pump_style_' + style).toLowerCase()), `${lang}: ${style}`);
+  }
 });

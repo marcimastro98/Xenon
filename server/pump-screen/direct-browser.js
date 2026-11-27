@@ -123,9 +123,12 @@ function createDirectBrowser(o) {
 
   async function start() {
     const launched = await o.launch();
+    // Stopped while it was starting: stop() saw no process to end, so it ends here.
+    if (done) { o.kill(launched.proc); throw new Error('closed'); }
     proc = launched.proc;
     proc?.on?.('exit', () => fail('exited'));
     await connect(launched.wsUrl);
+    if (done) { try { ws?.close(); } catch { /* already closed */ } ws = null; throw new Error('closed'); }
     // A window of its own: a page opened as a background tab is never drawn, so it has no
     // frames to film (embedded-browser.js createTargetWindow, the same for the Browser tile).
     const { targetId } = await cdp('Target.createTarget', { url: 'about:blank', newWindow: true, width: o.width, height: o.height });

@@ -267,7 +267,8 @@
   // colours; each minute the night hours; every quarter of an hour the weather, if shown.
   function everySecond() {
     if (face?.impl.tick) face.impl.tick();
-    if (face) colors.tick(face, preview ? null : settings, data);
+    // A face whose colours cannot be read this second keeps its last ones; the next second asks again.
+    if (face) colors.tick(face, preview ? null : settings, data).catch(() => {});
     else colors.reset();
     const t = new Date();
     if (t.getSeconds() === 0) {
