@@ -13,7 +13,7 @@ const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((r) =
 
 function page({ loadFails = false, search = '?frameless=1' } = {}) {
   const classes = new Set();
-  const calls = { load: 0, opened: 0, closed: 0, attached: [], fresh: 0, said: [], announced: [], signals: [] };
+  const calls = { heads: [], load: 0, opened: 0, closed: 0, attached: [], fresh: 0, said: [], announced: [], signals: [] };
   const docListeners = {};
   const box = { attachMenu: null, observer: null };
   const input = { value: '', focused: 0, events: 0, focus() { this.focused++; }, dispatchEvent() { this.events++; } };
@@ -22,10 +22,12 @@ function page({ loadFails = false, search = '?frameless=1' } = {}) {
     __xenonSignal: (s) => { calls.signals.push(s); return s; },
     dispatchEvent: (ev) => calls.announced.push(ev.detail.open),
     ScreenBit: { load: async () => { calls.load++; if (loadFails) throw new Error('no'); } },
+    BitChat: { mountHeads() { calls.heads.push(box.panel.role); } },
     Spotlight: { fresh() { calls.fresh++; }, say(s) { calls.said.push(s); } },
     SpotlightChat: null,
   };
-  box.panel = { role: null, setAttribute(k, v) { if (k === 'data-chatf') this.role = v; } };
+  box.face = { removed: 0, remove() { this.removed++; } };
+  box.panel = { role: null, setAttribute(k, v) { if (k === 'data-chatf') this.role = v; }, querySelector: (sel) => (sel === '.ai-header-face' ? box.face : null) };
   const ctx = vm.createContext({
     window,
     location: { search },
@@ -65,6 +67,8 @@ test('the icon opens the chat with what was typed, and loads it only then', asyn
   assert.ok(p.input.focused > 0);
   assert.ok(p.chat.isOpen());
   assert.equal(p.box.panel.role, 'pane', 'the panel takes the theme colours, as the chat tile does');
+  assert.deepEqual(p.calls.heads, ['pane'], 'its live Bit is placed once it is a pane, by the composer');
+  assert.equal(p.box.face.removed, 1, 'one Bit: the head keeps the name');
 });
 
 test('a second open only puts the text in', async () => {

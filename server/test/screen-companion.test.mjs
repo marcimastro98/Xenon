@@ -126,7 +126,8 @@ function boot({ markup = true, busy = false, shows = true } = {}) {
               const ov = frag.appendChild(el('div', 'gc-overlay'));
               ov.hidden = true;
               const card = ov.appendChild(el('div', 'gc-card'));
-              card.appendChild(el('div', 'gc-ask'));
+              const ask = card.appendChild(el('div', 'gc-ask'));
+              for (const cls of ['gc-bit', 'gc-ask-input', 'gc-ask-btn']) ask.appendChild(el(cls === 'gc-bit' ? 'span' : 'input', cls));
               card.appendChild(el('div', 'gc-keys')).appendChild(el('button', 'gc-analyze'));
               return frag;
             },
@@ -176,15 +177,17 @@ test('nothing loads until the first open; then the CSS, the card and the scripts
   assert.equal(b.api.isOpen(), true);
 });
 
-test('the typed question gives way to "Ask out loud", which hands over to Bit', async () => {
+test('the typed question gives way to "Ask out loud" beside Bit, which hands over to Bit', async () => {
   const b = boot();
   await b.api.open({});
   const card = b.overlay().children[0];
-  assert.equal(card.querySelector('.gc-ask'), null, 'no box this window could never type into');
+  const ask = card.querySelector('.gc-ask');
+  assert.equal(card.querySelector('.gc-ask-input'), null, 'no box this window could never type into');
+  assert.equal(card.querySelector('.gc-ask-btn'), null);
   const voice = card.querySelector('.gc-ask-voice');
   assert.ok(voice);
   assert.equal(voice.tagName, 'button');
-  assert.equal(voice.parent.children.at(-1).className, 'gc-analyze', 'the quiet key on the left, the main one last');
+  assert.deepEqual(ask.children.map((c) => c.className), ['gc-bit', 'gc-ask-voice'], 'Bit stays at the foot, the key where the box was');
   assert.equal(voice.textContent, 'Chiedi a voce');
   await voice.listeners.click();
   await new Promise((r) => setImmediate(r));

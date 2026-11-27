@@ -65,8 +65,12 @@
     announce(true);
     try {
       await window.ScreenBit.load();
-      // The chat tile's role: the theme's colours in place of the voice room's dark.
-      document.querySelector('.ai-panel').setAttribute('data-chatf', 'pane');
+      // The chat tile's role: the theme's colours in place of the voice room's dark,
+      // and its live Bit at the foot of the chat (bit-floor.js), so the head keeps the name.
+      const panel = document.querySelector('.ai-panel');
+      panel.setAttribute('data-chatf', 'pane');
+      panel.querySelector('.ai-header-face')?.remove();
+      window.BitChat.mountHeads();
       reachDashboard();
       openAiPanel();
       watchPanel();

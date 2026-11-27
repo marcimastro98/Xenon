@@ -54,9 +54,11 @@
   body.ai-voice-mode.ai-voice-ambient .ai-overlay::after { opacity: .8; }
 }
 
-/* ── What to ask next, and answers to a question: quiet rows, one tap sends one.
-   No boxes: a row of bordered buttons under every reply read as noise. ──── */
-.ai-choices { display: flex; flex-direction: column; align-items: flex-start; gap: 0; margin: -4px 0 8px 28px; }
+/* ── What to ask next, and answers to a question: one tap sends one. They sit
+   on the person's side, as their own words would, in a faint bubble with no
+   border (a row of bordered buttons under every reply read as noise). ──── */
+.ai-choices { display: flex; flex-direction: column; align-items: flex-start; gap: 0; margin: -4px 0 8px var(--ai-reply-indent, 38px); }
+.ai-choices:not(.ai-ask) { align-self: flex-end; align-items: flex-end; gap: 6px; max-width: 86%; margin: -6px 0 4px; }
 .ai-choice {
   display: inline-flex; align-items: center; gap: 10px;
   min-height: 44px; max-width: 100%; padding: 0 8px; margin-left: -8px; cursor: pointer;
@@ -74,9 +76,18 @@
 }
 .ai-choice:hover { background: var(--hover-bg, rgba(255,255,255,.06)); color: var(--text); }
 .ai-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ai-choice:not(.ai-ask-row) {
+  gap: 8px; margin: 0; padding: 8px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: color-mix(in oklab, var(--control-bg, rgba(255,255,255,.08)) 55%, transparent);
+  animation: ai-msg-in .2s cubic-bezier(.22, 1, .36, 1) both;
+}
+.ai-choice:not(.ai-ask-row):nth-child(2) { animation-delay: .07s; }
+.ai-choice:not(.ai-ask-row):hover { background: var(--control-bg, rgba(255,255,255,.08)); }
+@media (prefers-reduced-motion: reduce) { .ai-choice { animation: none; } }
 
 /* ── Bit's question with real alternatives (js/ai/ai-ask-card.js) ── */
-.ai-ask { align-items: stretch; gap: 2px; margin: 0 0 8px 17px; outline: none; }
+.ai-ask { align-items: stretch; gap: 2px; margin: 0 0 8px var(--ai-reply-indent, 38px); outline: none; }
 .ai-ask-row {
   display: flex; align-items: flex-start; gap: 10px;
   width: 100%; min-height: 44px; margin: 0; padding: 8px 10px; cursor: pointer;
@@ -96,7 +107,7 @@
 .ai-ask-leave { align-self: flex-start; margin: 2px 0 0 2px; font-weight: 600; }
 .ai-ask-leave::before { content: none; }
 /* A file only the person can pick (AiAskCard.pumpPicture): one row and its answer under it. */
-.ai-ask-file { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 0 0 8px 17px; }
+.ai-ask-file { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 0 0 8px var(--ai-reply-indent, 38px); }
 .ai-ask-pick {
   min-height: 44px; max-width: 100%; padding: 0 14px; cursor: pointer;
   border: 1px solid var(--line); border-radius: 6px; background: transparent;
@@ -122,7 +133,7 @@
 .ai-buy-go { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; min-height: 44px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 
 /* ── "Annulla" and "Riprova ora": underlined words under a reply, no box. ──── */
-.ai-undo-row { display: flex; justify-content: flex-start; margin: -6px 0 4px 28px; }
+.ai-undo-row { display: flex; justify-content: flex-start; margin: -6px 0 4px var(--ai-reply-indent, 38px); }
 .ai-undo-btn,
 .ai-retry-btn {
   min-height: 36px; padding: 0 4px; margin-left: -4px; cursor: pointer;
@@ -153,3 +164,99 @@
 }
 .ai-told-go:hover { background: var(--hover-bg, rgba(255,255,255,.06)); }
 .ai-told-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* An empty chat: Bit says hello in its bubble by the composer, and above it
+   a few things to ask that fit this PC, on the person's side of the chat as
+   their own words would sit (js/ai/bit-welcome.js). */
+.bit-welcome { margin-top: auto; display: flex; justify-content: flex-end; padding: 4px 0; }
+.bit-starters { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: min(100%, 360px); }
+.bit-starter {
+  min-height: 44px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  border: 0; border-radius: 16px 16px 4px 16px;
+  background: color-mix(in oklab, var(--control-bg) 55%, transparent);
+  color: var(--text);
+  font: inherit; font-size: 13.5px; text-align: left;
+  cursor: pointer;
+  animation: ai-msg-in .24s cubic-bezier(.22, 1, .36, 1) both;
+}
+.bit-starter:nth-child(2) { animation-delay: .06s; }
+.bit-starter:nth-child(3) { animation-delay: .12s; }
+.bit-starter:nth-child(4) { animation-delay: .18s; }
+.bit-starter > svg { flex: none; width: 17px; height: 17px; color: var(--muted-text); }
+.bit-starter-words { display: grid; gap: 1px; min-width: 0; }
+.bit-starter-words small { font-size: 12px; color: var(--muted-text); }
+.bit-starter:hover { background: var(--control-bg); }
+.bit-starter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .bit-starter { animation: none; } }
+/* A short log never scrolls: js/ai/bit-welcome.js names the starters its room
+   leaves out, from the last. */
+[data-welcome-fit~="starter4"] .bit-starter:nth-child(n+4),
+[data-welcome-fit~="starter3"] .bit-starter:nth-child(n+3),
+[data-welcome-fit~="starter2"] .bit-starter:nth-child(n+2),
+[data-welcome-fit~="welcome"] .bit-welcome { display: none; }
+
+/* ── What Bit just set, live in its reply (js/ai/reply-controls.js) ─────
+   One row per control inside Bit's bubble: the switch on the left, lit in
+   Bit's colour while it is on; the name with its slider; the value or the
+   skip buttons on the right. Colours lean on the bubble's own text colour,
+   so any Bit reads on a light theme and a dark one. */
+.ai-ctl-set { display: grid; gap: 4px; margin: 8px -4px -2px; min-width: min(250px, 100%); }
+.ai-ctl {
+  --ctl-ink: color-mix(in oklab, var(--bit-tint) 70%, currentColor);
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; column-gap: 10px;
+}
+.ai-ctl button {
+  width: 44px; height: 44px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 12px; background: transparent; color: inherit; cursor: pointer;
+  transition: background-color .15s ease;
+}
+.ai-ctl button svg { width: 20px; height: 20px; }
+.ai-ctl .ai-ctl-main { background: color-mix(in oklab, currentColor 10%, transparent); }
+.ai-ctl[data-state="on"] .ai-ctl-main { background: color-mix(in oklab, var(--bit-tint) 48%, transparent); }
+.ai-ctl[data-state="on"] .ai-ctl-main svg:nth-child(2),
+.ai-ctl:not([data-state="on"]) .ai-ctl-main svg:nth-child(1):not(:only-child) { display: none; }
+.ai-ctl-side { display: flex; align-items: center; }
+.ai-ctl-side button:hover, .ai-ctl .ai-ctl-main:hover { background: color-mix(in oklab, currentColor 16%, transparent); }
+.ai-ctl[data-state="on"] .ai-ctl-main:hover { background: color-mix(in oklab, var(--bit-tint) 60%, transparent); }
+.ai-ctl button:focus-visible, .ai-ctl-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ai-ctl-body { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: 44px; }
+.ai-ctl-name, .ai-ctl-sub { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; line-height: 1.35; }
+.ai-ctl-sub { font-size: 12px; opacity: .62; }
+.ai-ctl-sub:empty { display: none; }
+.ai-ctl.is-failed .ai-ctl-name { color: var(--color-warn); }
+.ai-ctl-val { min-width: 4ch; padding-right: 4px; font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; opacity: .8; }
+.ai-ctl[data-state="na"] :is(.ai-ctl-main, .ai-ctl-range, .ai-ctl-val) { opacity: .35; pointer-events: none; }
+.ai-ctl[data-ctl="volume"][data-state="off"] :is(.ai-ctl-range, .ai-ctl-val) { opacity: .5; } /* muted: the level waits */
+/* The slider: a thin track filled in Bit's colour, a round thumb, 32px to grab. */
+.ai-ctl-range { --fill: 0%; width: 100%; height: 32px; margin: 0; background: transparent; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.ai-ctl-range::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, var(--ctl-ink) 0 var(--fill), color-mix(in oklab, currentColor 18%, transparent) var(--fill) 100%); }
+.ai-ctl-range::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -6px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .4); -webkit-appearance: none; appearance: none; }
+.ai-ctl-range::-moz-range-track { height: 6px; border-radius: 3px; background: color-mix(in oklab, currentColor 18%, transparent); }
+.ai-ctl-range::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--ctl-ink); }
+.ai-ctl-range::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
+/* A narrow chat keeps the title readable: play and next, as phone mini players do. */
+@container bitchat (max-width: 400px) { .ai-ctl[data-ctl="media"] [data-ctl-do="previous"] { display: none; } }
+
+/* ── A home camera in Bit's reply (js/ai/reply-camera.js) ─────
+   The picture across the bubble, its name under it; before Bit first looks
+   for the AI, the question and three answers sit under the picture. */
+.ai-cam { display: grid; gap: 6px; margin: 10px -4px -2px; min-width: min(260px, 100%); max-width: min(440px, 54vh); } /* no % here: the bubble sizes to it; a short wide screen keeps room for the question */
+.ai-cam-shot { display: block; width: 100%; padding: 0; border: 0; border-radius: 12px; overflow: hidden; background: color-mix(in oklab, currentColor 12%, transparent); cursor: zoom-in; }
+.ai-cam-shot img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.ai-cam-shot:focus-visible, .ai-cam-ask-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ai-cam-name { padding: 0 4px; font-size: 12.5px; line-height: 1.35; opacity: .7; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ai-cam-name:empty { display: none; }
+.ai-cam-ask { display: grid; gap: 8px; padding: 4px 4px 2px; }
+.ai-cam-ask-text { margin: 0; font-size: 13px; line-height: 1.4; }
+.ai-cam-ask-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-cam-ask-btn {
+  min-height: 44px; padding: 0 14px; border: 0; border-radius: 12px;
+  background: color-mix(in oklab, currentColor 10%, transparent); color: inherit;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color .15s ease;
+}
+.ai-cam-ask-btn:hover { background: color-mix(in oklab, currentColor 16%, transparent); }
+.ai-cam-ask-btn.is-primary { background: color-mix(in oklab, var(--bit-tint) 48%, transparent); }
+.ai-cam-ask-btn.is-primary:hover { background: color-mix(in oklab, var(--bit-tint) 60%, transparent); }
+.ai-cam-ask-btn:disabled { opacity: .5; cursor: default; }

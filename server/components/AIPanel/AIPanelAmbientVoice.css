@@ -80,7 +80,6 @@ body.ai-voice-mode.ai-voice-ambient .ai-voice-stage {
 }
 body.ai-voice-mode.ai-voice-ambient .ai-presence { gap: 0; padding: 0; }
 body.ai-voice-mode.ai-voice-ambient .ai-voice-bit { width: 36px; }
-body.ai-voice-mode.ai-voice-ambient .ai-voice-aura,
 body.ai-voice-mode.ai-voice-ambient .ai-voice-bars { display: none; }
 body.ai-voice-mode.ai-voice-ambient .ai-voice-words { flex: 1 1 auto; align-items: flex-start; gap: 4px; }
 body.ai-voice-mode.ai-voice-ambient .ai-voice-user {

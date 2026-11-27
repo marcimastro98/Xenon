@@ -51,6 +51,7 @@ function _aiRenderWelcomeIfEmpty() {
 function _aiDropWelcome() {
   const box = document.querySelector('#ai-chat [data-bit-welcome]');
   if (box) box.remove();
+  if (window.BitFloor) BitFloor.hold(''); // and with it Bit's hello
 }
 
 function _aiRetry(text) {

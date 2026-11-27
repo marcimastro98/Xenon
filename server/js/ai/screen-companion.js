@@ -46,19 +46,18 @@
     if (window.ScreenBit) window.ScreenBit.wake();
   }
 
-  // The question box needs a keyboard this window does not get: a quiet key
-  // beside the card's main one asks out loud instead.
+  // The question box needs a keyboard this window does not get: beside Bit, in
+  // the box's place, a quiet key asks out loud instead.
   function voiceInsteadOfTyping(card) {
     const ask = card.querySelector('.gc-ask');
-    const main = card.querySelector('.gc-analyze');
-    if (!ask || !main) return;
+    if (!ask) return;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'gc-ask-voice';
     btn.textContent = typeof t === 'function' ? t('gc_ask_voice') : 'Ask out loud';
     btn.addEventListener('click', askByVoice);
-    ask.remove();
-    main.before(btn);
+    for (const typing of ['.gc-ask-input', '.gc-ask-btn']) ask.querySelector(typing)?.remove();
+    ask.appendChild(btn);
   }
 
   function load() {

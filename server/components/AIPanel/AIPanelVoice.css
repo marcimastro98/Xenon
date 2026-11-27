@@ -11,6 +11,7 @@
    see-through voice mode would blank that tab behind it). */
 body.ai-voice-mode .ai-overlay .ai-chat,
 body.ai-voice-mode .ai-overlay .ai-status,
+body.ai-voice-mode .ai-overlay .bit-say,
 body.ai-voice-mode .ai-overlay .ai-attach-preview,
 body.ai-voice-mode .ai-overlay .ai-input-row { display: none !important; }
 
@@ -20,7 +21,7 @@ body.ai-voice-mode .ai-voice-view {
   align-items: center;
   justify-content: flex-start;
   flex: 1;
-  gap: 22px;
+  gap: var(--voice-gap);
   padding: 56px 30px 32px;
   cursor: pointer;
   text-align: center;
@@ -32,10 +33,24 @@ body.ai-voice-mode .ai-voice-view {
 
 /* ── The presence: Bit ───────────────────────────────────────────────
    Bit (shared engine, mounted by ai-bit-chat.js) listens, thinks and talks.
-   Its mood colour (--bit-rgb, set with the mood) tints the halo and the
-   bars under it. Tapping Bit listens again. Only transform and opacity
-   animate, and both stop with reduced motion and the low-GPU choices. */
-.ai-voice-view { --bit-rgb: 255, 215, 94; }
+   Its mood colour (--bit-rgb, set with the mood) tints the bars under it.
+   Tapping Bit listens again. Only transform and opacity animate, and both
+   stop with reduced motion and the low-GPU choices.
+   Its words sit in its bubble as in the chat (AIPanelConversation.css): the
+   colour of the person's Bit over a plain ground, with a stepped tail toward
+   it. The room is dark on every theme, so the ground is a fixed dark one,
+   not the theme's control colour; solid, so the tail can overlap its bubble
+   by a pixel without a seam. */
+.ai-voice-view {
+  --bit-rgb: 255, 215, 94;
+  --voice-gap: 22px;
+  --bit-tint: var(--bit-body, var(--bit-action, #6ee787));
+  --voice-bit-bubble: linear-gradient(color-mix(in oklab, var(--bit-tint) 20%, transparent) 0 0) #1c2023;
+  --voice-you-bubble: rgba(255, 255, 255, .08);
+  /* Bit's pixels are steps of 5 px; each tail runs one pixel under its bubble. */
+  --px-tail: polygon(0 0, 16px 0, 16px 15px, 10px 15px, 10px 10px, 5px 10px, 5px 5px, 0 5px);
+  --px-tail-up: polygon(0 16px, 0 10px, 5px 10px, 5px 5px, 10px 5px, 10px 0, 15px 0, 15px 5px, 20px 5px, 20px 10px, 25px 10px, 25px 16px);
+}
 .ai-presence {
   position: relative;
   flex: none;
@@ -45,16 +60,6 @@ body.ai-voice-mode .ai-voice-view {
   gap: 22px;
   padding: 18px;
   cursor: pointer;
-}
-.ai-voice-aura {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 280px; height: 280px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--bit-rgb), .16) 0%, rgba(var(--bit-rgb), 0) 68%);
-  animation: vx-breathe 3.2s ease-in-out infinite;
-  pointer-events: none;
 }
 .ai-voice-bit { position: relative; width: 132px; }
 .ai-voice-bit .xbit { display: block; width: 100%; height: auto; }
@@ -88,14 +93,13 @@ body.voice-speaking .ai-voice-bars { opacity: 1; }
 body.voice-listening .ai-voice-bars span { animation-duration: 1.6s; }
 
 @keyframes vx-bar { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
-@keyframes vx-breathe { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-voice-aura, .ai-voice-bars span { animation: none; }
-  .ai-voice-bars span { transform: scaleY(.6); }
+  .ai-voice-bars span { animation: none; transform: scaleY(.6); }
+  body.ai-voice-mode .ai-voice-user, body.ai-voice-mode .ai-voice-reply { animation: none; }
 }
-body.low-power-gpu .ai-voice-aura, body.low-power-gpu .ai-voice-bars span,
-body.perf-mode .ai-voice-aura, body.perf-mode .ai-voice-bars span { animation: none; }
+body.low-power-gpu .ai-voice-bars span,
+body.perf-mode .ai-voice-bars span { animation: none; }
 body.low-power-gpu .ai-voice-bars span, body.perf-mode .ai-voice-bars span { transform: scaleY(.6); }
 
 .ai-voice-stage { display: contents; }
@@ -107,6 +111,43 @@ body.low-power-gpu .ai-voice-bars span, body.perf-mode .ai-voice-bars span { tra
   width: 100%;
   min-width: 0;
 }
+
+/* ── The words — the person's in a plain bubble above Bit, Bit's in its own
+   under it, read top to bottom; the empty one keeps its place, so Bit does
+   not jump when the words arrive. The ambient card keeps plain lines. ──── */
+body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-words { display: contents; }
+body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-user {
+  order: -1;
+  box-sizing: border-box;
+  width: fit-content;
+  min-height: calc(1.4em + 16px);
+  padding: 8px 16px;
+  border-radius: 14px;
+  background: var(--voice-you-bubble);
+  color: rgba(255, 255, 255, .72);
+  text-align: left;
+}
+body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-user:empty { visibility: hidden; }
+body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-reply {
+  box-sizing: border-box;
+  width: fit-content;
+  padding: 14px 22px 16px;
+  border-radius: 18px;
+  background: var(--voice-bit-bubble);
+  text-align: left;
+}
+body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-reply:empty { display: none; }
+body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-words:has(.ai-voice-reply:not(:empty))::before {
+  content: "";
+  flex: none;
+  width: 25px;
+  height: 16px;
+  margin-bottom: calc(-1 * var(--voice-gap) - 1px);
+  background: var(--voice-bit-bubble);
+  clip-path: var(--px-tail-up);
+}
+body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-user:not(:empty),
+body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-reply:not(:empty) { animation: bit-say-in .2s steps(4, end) both; }
 
 /* A wide, short screen (the Xeneon Edge, a bar display): Bit on the left,
    the words beside it, the hint along the bottom. */
@@ -121,9 +162,22 @@ body.low-power-gpu .ai-voice-bars span, body.perf-mode .ai-voice-bars span { tra
     padding: 16px 64px 44px 16px;
     text-align: left;
   }
-  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-words { align-items: flex-start; }
-  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-user,
-  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-reply { width: 100%; max-width: 900px; text-align: left; }
+  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-words {
+    display: grid;
+    grid-template-columns: 15px minmax(0, 1fr);
+    align-items: start;
+    justify-items: start;
+    gap: 14px 0; /* the tail's column touches the bubble */
+  }
+  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-user { grid-area: 1 / 2; order: 0; max-width: 900px; }
+  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-reply { grid-area: 2 / 2; max-width: 900px; border-top-left-radius: 0; }
+  body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-words:has(.ai-voice-reply:not(:empty))::before {
+    grid-area: 2 / 1;
+    width: 16px;
+    height: 15px;
+    margin: 0;
+    clip-path: var(--px-tail);
+  }
   body.ai-voice-mode:not(.ai-voice-ambient) .ai-voice-hint {
     position: absolute;
     left: 0; right: 0; bottom: 16px;
@@ -178,7 +232,6 @@ body.low-power-gpu .ai-voice-bars span, body.perf-mode .ai-voice-bars span { tra
   text-align: left;
   white-space: pre-line;
   max-height: 52vh;
-  padding: 0 6px;
 }
 
 .ai-voice-hint {

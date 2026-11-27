@@ -1,9 +1,20 @@
 
 /* ══════════════════════════════════════════════════════════════════
-   4 · CONVERSATION  (chat = calm transcript, not a messaging app)
-   Assistant speaks as borderless typography with a soft accent marker.
-   Only the user gets a minimal tinted pill, to mark the voice.
+   4 · CONVERSATION
+   Bit speaks in bubbles of its own colour (the person's Bit, or the classic
+   green), with its still pose beside each reply; the person's words sit on
+   the right in a plain bubble. Corners and tails are cut in steps, like Bit.
    ══════════════════════════════════════════════════════════════════ */
+.ai-chat,
+.bit-say {
+  /* --bit-body: the person's own Bit, set by bit-floor.js. */
+  --bit-tint: var(--bit-body, var(--bit-action, #6ee787));
+  --bit-fill: color-mix(in oklab, var(--bit-tint) 20%, transparent);
+  /* Bit's colour laid over the same ground as the person's bubble, so it reads on a light theme too. */
+  --bit-bubble: linear-gradient(var(--bit-fill) 0 0) var(--control-bg, rgba(255,255,255,.08));
+  --ai-reply-indent: 32px; /* the avatar and its gap: notes and rows under a reply line up with its words */
+  --px-tail: polygon(0 0, 100% 0, 100% 100%, 66.67% 100%, 66.67% 66.67%, 33.33% 66.67%, 33.33% 33.33%, 0 33.33%);
+}
 .ai-chat {
   flex: 1;
   overflow-y: auto;
@@ -29,14 +40,20 @@
 .ai-msg {
   display: flex;
   max-width: 92%;
-  animation: xn-msg-in .22s ease;
+  animation: ai-msg-in .2s cubic-bezier(.22, 1, .36, 1);
 }
-.ai-msg-user      { align-self: flex-end; max-width: 80%; }
-.ai-msg-assistant { align-self: flex-start; max-width: 94%; gap: 10px; }
+.ai-msg-user      { align-self: flex-end; max-width: 80%; transform-origin: 100% 100%; }
+.ai-msg-assistant { align-self: flex-start; max-width: 94%; gap: 12px; transform-origin: 0 0; }
+@keyframes ai-msg-in { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
 
-/* Bit beside its words: a still pose in the mood of the reply (ai-bit-chat.js). */
-.ai-msg-bit { flex: none; width: 18px; margin-top: 3px; }
-.ai-msg-bit svg { display: block; width: 18px; height: auto; }
+/* Bit beside its words: a still pose in the mood of the reply (ai-bit-chat.js).
+   The latest reply's Bit is the one looking at you; the earlier ones step back.
+   Bit's stage leaves room around it for its moves (5 cells of 18 each side and
+   on top): the margins take that room back, so Bit itself fills a 20px column
+   and its antenna lines up with the top of the bubble. */
+.ai-msg-bit { flex: none; width: 44px; margin: -12px -12px 0; transition: opacity .3s ease; }
+.ai-msg-bit svg { display: block; width: 44px; height: auto; }
+.ai-msg-assistant:has(~ .ai-msg-assistant) .ai-msg-bit { opacity: .45; }
 
 .ai-msg-bubble {
   font-size: 14px;
@@ -82,23 +99,27 @@
   .ai-msg-copy { opacity: .4; }
 }
 
-/* user — minimal tinted pill */
+/* The person: a plain bubble on the right. */
 .ai-msg-user .ai-msg-bubble {
-  padding: 9px 15px;
-  border-radius: 16px 16px 5px 16px;
-  background: rgba(var(--accent-rgb), .15);
-  border: 1px solid rgba(var(--accent-rgb), .22);
+  padding: 9px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: var(--control-bg, rgba(255,255,255,.08));
   color: rgba(255,255,255,.94);
   font-size: 13.5px;
   line-height: 1.5;
 }
 
-/* assistant — pure typography, no box */
+/* Bit: its colour, the corner by its face cut square, and a stepped tail toward it. */
 .ai-msg-assistant .ai-msg-bubble {
-  padding: 0;
-  background: none;
-  border: none;
-  color: rgba(255,255,255,.88);
+  position: relative;
+  padding: 9px 14px 10px;
+  border-radius: 0 16px 16px 16px;
+  background: var(--bit-bubble);
+  color: rgba(255,255,255,.90);
+}
+.ai-msg-assistant .ai-msg-bubble::before {
+  content: ""; position: absolute; top: 0; left: -9px; width: 9px; height: 9px;
+  background: var(--bit-bubble); clip-path: var(--px-tail);
 }
 
 /* ── Status / thinking ───────────────────────────────────────────── */
@@ -155,7 +176,58 @@ body.game-mode .ai-step-arc, body.low-power-gpu .ai-step-arc { animation: none; 
 /* A quiet line under a reply ("Stopped"). */
 .ai-note {
   align-self: flex-start;
-  margin: -8px 0 0 28px;
+  margin: -8px 0 0 var(--ai-reply-indent);
   font-size: 12.5px;
   color: var(--muted-text);
+}
+
+/* ── Bit at the foot of the chat (js/ai/bit-floor.js) ──────────────
+   The live Bit leads the composer; above it a bubble with what it says and
+   the status of the turn, its tail coming down to Bit's head. Empty, the
+   bubble is gone. A pane too narrow for Bit and the composer keeps the composer. */
+[data-chatf="pane"] { container: bitchat / inline-size; }
+/* 72px of stage is a 32px Bit; the margins give back the empty stage around it,
+   so the composer is no taller than its 44px buttons. */
+.bit-floor-bit {
+  flex: none; align-self: flex-end;
+  width: 72px; height: 68px; margin: -24px -16px 0 -14px;
+  cursor: pointer; touch-action: manipulation;
+}
+.bit-floor-bit svg { display: block; width: 100%; height: 100%; }
+@container bitchat (max-width: 300px) { .bit-floor-bit { display: none; } }
+/* Never squeezed: the log (flex 1 1 auto) shrinks in proportion to its height, so a bubble
+   allowed to shrink too lost its top line. The log gives all the room; under 300px the
+   bubble keeps only the turn's status (bit-say-tight), so the composer always stays. */
+.bit-say {
+  flex: none;
+  display: flex; align-items: flex-end;
+  padding: 0 18px 9px 40px; margin-bottom: -6px;
+}
+.bit-say:not(:has(.bit-say-line:not(:empty), .ai-status:not(:empty))),
+.bit-say-tight .bit-say:not(:has(.ai-status:not(:empty))) { display: none; }
+.bit-say-bubble {
+  position: relative; display: flex; flex-direction: column; gap: 4px;
+  max-width: min(100%, 440px); padding: 8px 13px 9px;
+  border-radius: 14px 14px 14px 0;
+  background: var(--bit-bubble);
+  animation: bit-say-in .2s steps(4, end);
+}
+.bit-say-bubble::after {
+  content: ""; position: absolute; left: 0; bottom: -9px; width: 9px; height: 9px;
+  background: var(--bit-bubble); clip-path: var(--px-tail); transform: scaleX(-1);
+}
+@container bitchat (max-width: 300px) {
+  .bit-say { padding-left: 18px; }
+  .bit-say-bubble { border-bottom-left-radius: 14px; }
+  .bit-say-bubble::after { content: none; }
+}
+.bit-say-line { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text, rgba(255,255,255,.92)); overflow-wrap: anywhere; }
+.bit-say-line:empty, .bit-say .ai-status:empty { display: none; }
+/* A short pane (bit-floor.js): only the turn's status, small, and the log gives it the room. */
+.bit-say-tight .bit-say-line { display: none; }
+.bit-say-tight .bit-say-bubble { padding: 4px 11px 5px; }
+.bit-say .ai-status { min-height: 18px; padding: 0; }
+@keyframes bit-say-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .ai-msg, .bit-say-bubble { animation: none; }
 }

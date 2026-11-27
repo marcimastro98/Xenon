@@ -49,6 +49,11 @@ const GROUPS = Object.freeze({
     about: 'the user\'s own Bit (the little companion on their dashboard): how it is and how rare, a move now, what it wears and what it can get, where it stands, its name',
     tools: ['get_my_bit', 'bit_move', 'dress_bit', 'place_bit', 'place_bit_desktop', 'bit_teleport_style', 'rename_bit'],
   },
+  // home_assistant (lights, switches, scenes) stays in the core: those are the quick asks.
+  home: {
+    about: 'the home cameras and the house: showing a camera in the reply, looking at one (who rang, a parcel at the door), how the house is (doors and windows left open, temperatures, lights on), what happened at home today',
+    tools: ['home_camera'],
+  },
   // deck_action_catalog stays in the core: run_deck_action looks action types up in it.
   create: {
     about: 'making something new: a widget (or changing one of the user\'s), a readout in the top bar or the island, a theme or style, an animated background, a Deck profile, any other creation as a share code, the model creations use',

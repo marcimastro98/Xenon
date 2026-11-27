@@ -4,46 +4,52 @@
 // biome-ignore-all lint/style/useConst: every function here is a piece of one long function, word for word, so the answer is declared on one line and set on another even where it is set only once.
 
 const { audioCache } = require('./device-cache.js');
+const { offerControl } = require('../ai/reply-control-offer.js');
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {
-  'toggle_mic': async (_context, { setMicMute }) => {
+  'toggle_mic': async ({ clientActions }, { setMicMute }) => {
       let fnResult;
       audioCache.muted = !audioCache.muted; setMicMute(audioCache.muted);
       fnResult = { ok: true, muted: audioCache.muted };
+      offerControl(clientActions, { kind: 'mic' });
       return fnResult;
   },
 
-  'mute_mic': async (_context, { setMicMute }) => {
+  'mute_mic': async ({ clientActions }, { setMicMute }) => {
       let fnResult;
       audioCache.muted = true; setMicMute(true);
       fnResult = { ok: true, muted: true };
+      offerControl(clientActions, { kind: 'mic' });
       return fnResult;
   },
 
-  'unmute_mic': async (_context, { setMicMute }) => {
+  'unmute_mic': async ({ clientActions }, { setMicMute }) => {
       let fnResult;
       audioCache.muted = false; setMicMute(false);
       fnResult = { ok: true, muted: false };
+      offerControl(clientActions, { kind: 'mic' });
       return fnResult;
   },
 
-  'set_volume': async ({ fnArgs }, { svvExec }) => {
+  'set_volume': async ({ fnArgs, clientActions }, { svvExec }) => {
       let fnResult;
       const vol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
       if (audioCache.speakerId) {
         await svvExec(['/SetVolume', audioCache.speakerId, String(vol)]);
+        offerControl(clientActions, { kind: 'volume' });
       }
       fnResult = { ok: true, level: vol };
       return fnResult;
   },
 
-  'toggle_speaker_mute': async (_context, { svvExec }) => {
+  'toggle_speaker_mute': async ({ clientActions }, { svvExec }) => {
       let fnResult;
       if (!audioCache.speakerId) { fnResult = { error: 'audio not ready' }; }
       else {
         await svvExec(['/Switch', audioCache.speakerId]);
         fnResult = { ok: true };
+        offerControl(clientActions, { kind: 'volume' });
       }
       return fnResult;
   },

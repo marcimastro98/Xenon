@@ -51,6 +51,8 @@ function _aiAppendBubble(role, text, imagesToShow, mood) {
     }
     bubble.appendChild(t);
   }
+  if (role === 'assistant' && window.BitControls) BitControls.take(bubble); // what Bit just set, live (reply-controls.js)
+  if (role === 'assistant' && window.BitCamera) BitCamera.take(bubble); // a home camera Bit shows (reply-camera.js)
   if (role === 'assistant' && window.BitChat) msg.insertAdjacentHTML('afterbegin', BitChat.avatarHtml(mood));
   msg.appendChild(bubble);
   // Copy affordance — only when there is text to copy. The click is handled by a

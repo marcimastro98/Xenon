@@ -88,6 +88,14 @@ async function addIntegrationAiFunctions(fns) {
       }, required: ['action'] } });
       _bits.push('Home Assistant (list devices, on/off/toggle, scenes, and detailed control: brightness, colour, temperature, fan speed, covers, media players)');
     }
+    const _uCfg = (_s2.unifi && typeof _s2.unifi === 'object') ? _s2.unifi : {};
+    if (_haOn || (_uCfg.host && _uCfg.username && _uCfg.password)) {
+      AI_FUNCTIONS.push({ name: 'home_camera', description: 'The home\'s cameras (UniFi Protect, Home Assistant) and how the house is. "list": the cameras. "show": a camera\'s live picture in your reply; the user sees it, you do not. "look": you see one picture to say what is there, only when the user asks what is happening ("who rang?", "is there a parcel?"); the first time the user is asked for permission. "summary": open doors and windows, temperatures, lights on and the last ring, for "how is the house?". "events": what happened at home today and yesterday (rings, what the cameras picked out, doors and windows opened), for "what happened today?". Never say who a person is; nothing here opens, unlocks or answers a door.', parameters: { type: 'OBJECT', properties: {
+        action: { type: 'STRING', description: 'One of: list, show, look, summary, events.' },
+        camera: { type: 'STRING', description: 'For show and look: the camera\'s name, area or id from "list", e.g. "garden". Omit for the doorbell\'s camera after a ring, or when there is one camera.' },
+      }, required: ['action'] } });
+      _bits.push('the home\'s cameras and state (show a camera, look at it with the user\'s permission, how the house is)');
+    }
     if (_dc.connected) {
       AI_FUNCTIONS.push({ name: 'discord_voice', description: 'Control the user\'s Discord voice settings via the desktop app: mute/unmute the microphone, deafen/undeafen, switch between push-to-talk and voice-activity, JOIN a voice channel by name, leave the current channel, nudge the input (mic) or output (speaker) volume up/down, toggle an audio-processing feature, and read the current voice state plus the list of available voice channels.', parameters: { type: 'OBJECT', properties: {
         action: { type: 'STRING', description: 'One of: mute, unmute, deafen, undeafen, ptt, vad, join, leave, input_volume, output_volume, audio_toggle, status. Use "status" to read the current mute/deafen state and the joinable channels before a join.' },
@@ -99,7 +107,7 @@ async function addIntegrationAiFunctions(fns) {
     }
     if (_bits.length) {
       _integrationsText = ' SMART DEVICE & MEDIA CONTROL is available for: ' + _bits.join('; ') + '.'
-        + ' Use these tools whenever the user asks to control the matching thing, e.g. "metti <canzone> su Spotify"/"play <song>" → spotify_control play_song; "accendi la luce del salotto"/"turn on the living room light" → home_assistant (list first if you don\'t know the entity, then turn_on); "abbassa le luci al 30%" → home_assistant service light.turn_on with {"brightness_pct":30}; "mettimi in muto su Discord" → discord_voice mute; "entra nel canale Gaming" → discord_voice join.'
+        + ' Use these tools whenever the user asks to control the matching thing, e.g. "metti <canzone> su Spotify"/"play <song>" → spotify_control play_song; "accendi la luce del salotto"/"turn on the living room light" → home_assistant (list first if you don\'t know the entity, then turn_on); "abbassa le luci al 30%" → home_assistant service light.turn_on with {"brightness_pct":30}; "mettimi in muto su Discord" → discord_voice mute; "entra nel canale Gaming" → discord_voice join; "fammi vedere il giardino" → home_camera show; "chi ha suonato?"/"is there a parcel?" → home_camera look; "how is the house?" → home_camera summary.'
         + ' For Home Assistant, ALWAYS call action "list" first when you are unsure of the exact entity_id, then act on the matched id. If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected (Settings → Spotify / Casa / Discord) rather than pretending it worked.';
     }
   }

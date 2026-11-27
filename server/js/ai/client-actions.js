@@ -140,6 +140,12 @@ function _aiExecuteClientAction(action, args) {
       if (window.BitTold && args?.id) window.BitTold.watchFit(String(args.id));
       if (window.CustomWidget && window.CustomWidget.placeCreated && args && args.id) window.CustomWidget.placeCreated(String(args.id));
       break;
+    case 'reply_control': // a live control the reply keeps (reply-controls.js)
+      if (window.BitControls) window.BitControls.queue(args);
+      break;
+    case 'reply_camera': // a home camera the reply shows (reply-camera.js)
+      if (window.BitCamera) window.BitCamera.queue(args);
+      break;
     case 'choose_pump_picture':
       if (window.AiAskCard && AiAskCard.pumpPicture) AiAskCard.pumpPicture(args || {});
       break;
