@@ -21,11 +21,26 @@
   const PARTS = Object.freeze({
     // Dust kicked up behind a step, on the floor line.
     dust: P('#a6b1ad', [[0, 0], [1, -1], [2, 0]], { opacity: 0.55 }),
+    // Its own computer, on a little desk beside it: the monitor and the desk stay put while it bobs; one cell
+    // of code at a time, and a hand that types.
+    pcFrame: P('#6b7686', [[10, 1, 5], [10, 6, 5], [10, 2, 1, 4], [14, 2, 1, 4]], { attach: false }),
+    pcScreen: P('#14202c', [[11, 2, 3, 4]], { attach: false }),
+    pcStand: P('#6b7686', [[12, 7]], { attach: false }),
+    desk: P('#9a7650', [[10, 8, 5], [10, 9, 1, 2], [14, 9, 1, 2]], { attach: false }),
+    handIn: P('body', [[10, 7]]),
+    handOut: P('body', [[10, 7, 2, 1]]),
+    codeA: P('#b4a0ff', [[0, 0]], { attach: false }),
+    codeB: P('#6ee787', [[0, 0]], { attach: false }),
+    codeC: P('#7dd3fc', [[0, 0]], { attach: false }),
+    cursor: P('#f0f3f1', [[0, 0]], { attach: false }),
   });
 
   const F = (ms, props) => Object.freeze({ ms, ...props });
   const SIGN = ['signPost', 'signBoard', 'signLines', 'armR'];
-  const LAP = ['lid', 'lidMark', 'keys']; // its laptop (bit-clips-life.js parts)
+  // At its computer: the screen fills with code one cell at a time, a cursor blinking where the next goes.
+  const PC = ['pcFrame', 'pcScreen', 'pcStand', 'desk'];
+  const CODE = [['codeA', 11, 2], ['codeA', 12, 2], ['codeB', 12, 3], ['codeB', 13, 3], ['codeC', 12, 4], ['codeB', 13, 4], ['codeC', 11, 5], ['codeC', 12, 5]];
+  const typed = (n, blink, hand = 'handIn') => [...PC, hand, ...CODE.slice(0, n), ...(blink && n < CODE.length ? [['cursor', ...CODE[n].slice(1)]] : [])];
   const step = (ms, lift, extra = {}) => [
     F(ms, { eyes: 'right', sx: 1.03, sy: 0.97, ...extra }),
     F(ms, { eyes: 'right', dy: -lift, ...extra, ex: [...(extra.ex || []), ['dust', -3, 10, 0.5]] }),
@@ -45,19 +60,17 @@
         F(1600, { dy: 1, sx: 1.04, sy: 0.92 }),
       ],
     },
-    // At its own laptop while Claude Code or Codex work (bit-companion/moments.js): it types, reads, thinks.
+    // At its own computer while Claude Code or Codex work (bit-companion/moments.js): it types, reads, thinks.
     // calm: it plays on the slow pace too, at about three frames a second (bit-player.js).
     {
       id: 'code',
       calm: true,
       frames: [
-        F(900, { eyes: 'down', ex: LAP }),
-        ...[0, 1, 2, 3, 4, 5].map((i) => F(240, { eyes: 'down', dy: i % 2 ? 0.3 : 0, ex: i % 3 ? ['lid', 'keys'] : LAP })),
-        F(110, { eyes: 'blink', ex: LAP }),
-        F(1100, { eyes: 'down', ex: LAP }),
-        F(800, { eyes: 'up', mouth: 'flat', ex: LAP }),
-        ...[0, 1, 2, 3].map((i) => F(240, { eyes: 'down', dy: i % 2 ? 0.3 : 0, ex: i % 2 ? ['lid', 'keys'] : LAP })),
-        F(600, { eyes: 'down', mouth: 'smile', ex: LAP }),
+        ...CODE.map((_, i) => F(260, { eyes: 'right', ex: typed(i, i % 2 === 0, i % 2 ? 'handOut' : 'handIn') })),
+        F(900, { eyes: 'right', mouth: 'smile', ex: typed(CODE.length) }),
+        F(110, { eyes: 'blink', ex: typed(CODE.length) }),
+        F(800, { eyes: 'up', ex: typed(CODE.length) }),
+        F(500, { eyes: 'right', ex: typed(0, true) }),
       ],
     },
   ].map((c) => ({ kind: 'mood', loop: true, tint: 'idle', ...c }));

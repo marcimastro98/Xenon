@@ -171,7 +171,10 @@
   // While Claude Code or Codex work, Bit works with them at its own laptop (the 'code' loop), on every
   // own Bit resting and on the desktop (desk.js asks rest()); it stops when none runs.
   let working = false;
-  const coding = () => Object.values(agents).some((m) => !!m && [...m.values()].includes('running'));
+  const AGENT_NAMES = Object.freeze({ claude: 'Claude Code', codex: 'Codex' }); // product names, never translated
+  // Who Bit codes with now (pocket.js says it), '' when none works.
+  const workingWith = () => Object.keys(agents).filter((k) => !!agents[k] && [...agents[k].values()].includes('running')).map((k) => AGENT_NAMES[k]).join(' + ');
+  const coding = () => workingWith() !== '';
   const rest = () => (working && hatched() && window.Xenon?.bit?.clip('code') ? 'code' : 'idle');
   function atWork() {
     const was = working;
@@ -239,7 +242,7 @@
   // A move asked from the chat, a Deck key or a phone (server/bit/actions.js): played as asked, past the hourly cap.
   const onPlay = (d) => { if (typeof d.clip === 'string') play(d.clip); };
   const api = {
-    listen, react, play, pace, woke, rest, working: () => working, lastPlayed: () => played,
+    listen, react, play, pace, woke, rest, working: () => working, workingWith, lastPlayed: () => played,
     onStatus: guarded(onStatus), onSystem: guarded(onSystem), onMedia: guarded(onMedia), onPlay: guarded(onPlay),
   };
   window.BitMoments = api;

@@ -24,6 +24,21 @@
     disk: { line: 'mybit_sig_disk', go: 'mybit_sig_disk_go', act: (v) => ({ ask: say('mybit_sig_disk_q', v) }) },
   });
 
+  // What it is doing, in a line of its own, when it has nothing to tell: one picked at random each time.
+  const DOING = Object.freeze({
+    code: ['mybit_doing_code_1', 'mybit_doing_code_2', 'mybit_doing_code_3', 'mybit_doing_code_4'],
+    sleep: ['mybit_doing_sleep_1', 'mybit_doing_sleep_2'],
+    idle: ['mybit_doing_idle_1', 'mybit_doing_idle_2', 'mybit_doing_idle_3'],
+  });
+  const pick = (keys) => keys[Math.floor(Math.random() * keys.length)];
+
+  function doing() {
+    const moments = window.BitMoments;
+    const who = moments?.working?.() ? moments.workingWith?.() : '';
+    if (who) return say(pick(DOING.code), { who });
+    return t(pick(moments?.pace?.() === 'asleep' ? DOING.sleep : DOING.idle));
+  }
+
   function close() {
     if (!ui) return;
     ui.ac.abort();
@@ -78,7 +93,7 @@
     const said = s && NOW[s.kind];
     if (!said) {
       row.classList.add('is-quiet');
-      row.append(makeEl('p', 'bitp-line', t('mybit_pocket_nothing')));
+      row.append(makeEl('p', 'bitp-line', doing()));
       return row;
     }
     const sign = window.BitSigns?.svg(s.kind);

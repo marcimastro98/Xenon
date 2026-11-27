@@ -213,10 +213,10 @@ function pocketRig({ keys = [], signal = null, keysAnswer = null, prefsOk = true
   return { ctx, P, all, keyNamed, btnNamed, press, posts, asked, opened, seen: () => seen, counted, location: ctx.location };
 }
 
-test('the pocket: nothing new, then the usual four keys; opening it is seeing its signs', async () => {
+test('the pocket: what Bit is doing, then the usual four keys; opening it is seeing its signs', async () => {
   const r = pocketRig();
   assert.equal(r.P.open(), true);
-  assert.equal(r.all('.bitp-line')[0].textContent, 'mybit_pocket_nothing');
+  assert.match(r.all('.bitp-line')[0].textContent, /^mybit_doing_idle_[123]$/);
   assert.equal(r.all('.bitp-note')[0].textContent, 'mybit_pocket_loading');
   assert.equal(r.seen(), 1);
   await settle();
@@ -419,4 +419,23 @@ test('a page opened after the flag went up keeps it while a session rests, and t
   busy.S.heard('claude', busy.session('a', 'running'));
   busy.S.heard('claude', busy.session('a', 'running'));
   assert.equal(busy.kinds(), '', 'every session at work: the old flag comes down');
+});
+
+test('with nothing to tell it says what it is doing: coding with whoever works, asleep, or keeping watch', () => {
+  const says = (moments, rolls = [0, 0.99]) => rolls.map((roll) => {
+    const r = pocketRig();
+    r.ctx.Math = Object.assign(Object.create(Math), { random: () => roll });
+    r.ctx.BitMoments = moments;
+    r.ctx.t = (key) => (key.startsWith('mybit_doing_code') ? key + ' {who}' : key);
+    r.P.open();
+    return r.all('.bitp-line')[0].textContent;
+  });
+  assert.deepEqual(says({ working: () => true, workingWith: () => 'Claude Code + Codex', pace: () => 'live' }),
+    ['mybit_doing_code_1 Claude Code + Codex', 'mybit_doing_code_4 Claude Code + Codex']);
+  assert.deepEqual(says({ working: () => false, pace: () => 'asleep' }), ['mybit_doing_sleep_1', 'mybit_doing_sleep_2']);
+  assert.deepEqual(says(undefined), ['mybit_doing_idle_1', 'mybit_doing_idle_3'], 'no moments (the menu window): keeping watch');
+  const r = pocketRig({ signal: { kind: 'done', vars: {} } });
+  r.ctx.BitMoments = { working: () => true, workingWith: () => 'Codex' };
+  r.P.open();
+  assert.equal(r.all('.bitp-line')[0].textContent, 'mybit_sig_done', 'a sign to tell comes first');
 });

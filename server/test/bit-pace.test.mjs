@@ -233,3 +233,17 @@ test('the laptop loop is calm: it plays on the slow pace too, every other loop r
   assert.equal(frameTimers(clock).length, 0, 'slow: the usual rest is still');
   p.destroy();
 });
+
+test('who Bit codes with is named for its pocket: Claude Code, Codex, or both', () => {
+  const { M } = bootMoments({ players: [] });
+  const handlers = {};
+  M.listen({ addEventListener: (name, fn) => { (handlers[name] ||= []).push(fn); } });
+  const send = (name, ...list) => handlers[name].forEach((fn) => fn({ data: JSON.stringify({ live: { sessions: list } }) }));
+  assert.equal(M.workingWith(), '');
+  send('codex', { id: 'c', state: 'running' });
+  assert.equal(M.workingWith(), 'Codex');
+  send('claude', { id: 'a', state: 'running' });
+  assert.equal(M.workingWith(), 'Claude Code + Codex');
+  send('codex', { id: 'c', state: 'idle' });
+  assert.equal(M.workingWith(), 'Claude Code');
+});
