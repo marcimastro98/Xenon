@@ -8,6 +8,7 @@ const { normalizeWaveLinkSettings } = require('../audio/wavelink-values.js');
 const { normalizeHomeAssistant } = require('../actions/home-assistant.js');
 const { normalizeRemoteControl } = require('../remote-control/settings.js');
 const { normalizeUnifi } = require('../actions/unifi.js');
+const { normalizeHome } = require('../smart-home/home-settings.js');
 const stocks = require('../ticker/stocks.js');
 const football = require('../ticker/football.js');
 const news = require('../ticker/news.js');
@@ -29,6 +30,7 @@ function normalizeHubConnections(source) {
     ticker: normalizeTicker(source.ticker),
     homeAssistant: normalizeHomeAssistant(source.homeAssistant),
     unifi: normalizeUnifi(source.unifi),
+    home: normalizeHome(source.home),
     // Razer Chroma / Elgato Wave Link — local hardware SDKs, opt-in (no secrets,
     // just an enable flag; Wave Link optionally pins a port, 0 = auto-scan).
     chroma: { enabled: !!(source.chroma && source.chroma.enabled === true) },

@@ -573,7 +573,7 @@
       "id": "smart-home",
       "area": "widgets",
       "name": "Smart home",
-      "what": "Home Assistant and UniFi: lights, switches, cameras.",
+      "what": "Home Assistant and UniFi: lights, cameras, the doorbell card, Bit's camera tool, the home log and its widget stream.",
       "files": [
         "server/smart-home/**",
         "server/actions/home-assistant*.js",

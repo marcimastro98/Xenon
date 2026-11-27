@@ -21,6 +21,7 @@ const FEATURES = Object.freeze([
   require('./lights/routes-icue-import.js'),
   require('./rtss/routes.js'),
   require('./bit/routes.js'),
+  require('./smart-home/routes-home.js'),
 ]);
 
 const ROUTES = new Map(FEATURES.flatMap((f) => Object.entries(f.routes)));

@@ -11,10 +11,10 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 - Cross-site guard: the list or rule of `handleRequest` that refuses a cross-site request or a navigation.
 - JSONP: may answer `?cb=` (`JSONP_PATHS`).
 
-564 routes.
-- Asked by: 1 before the chain, 56 chain, 37 feature, 4 socket, 466 table.
-- Paired device: 37 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 13 no: a GET that changes something, 4 no: sockets take the loopback door only, 420 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
-- Cross-site guard: 361 (none), 194 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
+566 routes.
+- Asked by: 1 before the chain, 56 chain, 39 feature, 4 socket, 466 table.
+- Paired device: 37 no: REMOTE_ADMIN, 73 no: REMOTE_DENY, 1 no: REMOTE_DENY_PREFIXES, 13 no: a GET that changes something, 4 no: sockets take the loopback door only, 422 yes, 14 yes (GET_READ_EXCEPTIONS), 2 yes, before pairing.
+- Cross-site guard: 362 (none), 195 CSRF_MUTATION_PATHS, 2 isPackMutation, 7 isSdkSensitive.
 - JSONP: GET /status.
 
 | Method | Address | Asked by | Body in | Paired device | Cross-site guard | JSONP | Note |
@@ -170,6 +170,8 @@ Written by `node tools/restructure/route-inventory.mjs --write` from the engine'
 | GET | `/api/guardian/history` | table | server/system/routes-info.js | yes |  |  |  |
 | GET | `/api/ha/camera/snapshot/*` | chain | server/smart-home/routes-cameras.js | yes |  |  |  |
 | GET | `/api/ha/cameras` | table | server/smart-home/routes.js | yes |  |  |  |
+| POST | `/api/home/cameras/consent` | feature | server/smart-home/routes-home.js | yes | CSRF_MUTATION_PATHS |  |  |
+| GET | `/api/home/events` | feature | server/smart-home/routes-home.js | yes |  |  |  |
 | GET | `/api/homeassistant/dashboards` | table | server/smart-home/routes.js | yes |  |  |  |
 | GET | `/api/homeassistant/entities` | table | server/smart-home/routes.js | yes |  |  |  |
 | POST | `/api/homeassistant/service` | table | server/smart-home/routes.js | yes |  |  |  |

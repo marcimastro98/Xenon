@@ -1248,13 +1248,13 @@ function mcpDevDeps() {
     dashboardOpen: () => sseClients.size > 0,
     getSdkReference: (section) => require('./ai/ai-knowledge.js').getSdkReference(section),
     validateWidgetPayload: (payload) => sdkWidgets.validateWidgetPayload(payload),
-    critiqueWidget: (id, files) => aiPresets.critiqueWidget(id, files, aiPresetDeps()),
+    critiqueWidget: (id, files) => aiPresets.critiqueWidget(id, files, aiPresetDeps()), presetDeps: aiPresetDeps,
     scanWidgetSource: (files) => SdkDiagnostics.scanWidgetSource(files),
     isInstalled: async (id) => trialVault.has(id) || !!(await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id)),
     isOwn: (id) => widgetExportable(id),
     install: (payload) => installWidgetPayload(payload, 'creator'),
     place: async (id) => !!(await mcpDev.ask('place', { id }, 4000)),
-    ask: (kind, args) => mcpDev.ask(kind, args),
+    ask: (kind, args, timeoutMs, payload) => mcpDev.ask(kind, args, timeoutMs, payload),
     captureRect: (where) => mcpDevCapture(where),
     listOwn: async () => aiMyWidgets.listOwn((await refreshSdkScan()).packages, widgetExportable),
     readPayload: (id) => sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id),
@@ -1272,7 +1272,7 @@ async function handleMcpDevRoute(req, res, reqPath, json) {
   if (sub === 'pair') { json(mcpDev.startPair((await body()).name)); return; }
   if (sub === 'pair/poll') { json(mcpDev.pollPair((await body()).pairId)); return; }
   if (sub === 'pair/answer') { const b = await body(); json(await mcpDev.answerPair(b.id, b.allow === true)); return; }
-  if (sub === 'report') { const b = await body(64 * 1024); json({ ok: true, accepted: mcpDev.report(b.reqId, b.data) }); return; }
+  if (sub === 'report') { const b = await body(64 * 1024), took = mcpDev.report(b.reqId, b.data); json({ ok: true, accepted: !!took, ...(typeof took === 'object' && took?.payload ? { payload: took.payload } : {}) }); return; }
   if (sub === 'revoke') { json({ ok: await mcpDev.revoke((await body()).id) }); return; }
   if (sub === 'connect') {
     json(await aiCli.addMcpServer(String((await body()).provider || ''), [process.execPath, MCP_BRIDGE_PATH]));
@@ -2681,6 +2681,8 @@ async function runAiTool(fnName, fnArgs, deps) {
       fnResult = await streamingToolsBranches['spotify_control']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { streams });
     } else if (fnName === 'home_assistant') {
       fnResult = await smartHomeToolsBranches['home_assistant']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { deckHa });
+    } else if (fnName === 'home_camera') { // the cameras and the house (smart-home/camera-look.js); a picture it may look at rides like capture_screen's
+      fnResult = await require('./smart-home/camera-look.js').branches.home_camera({ fnArgs, clientActions, provider, look: (jpeg) => { pendingScreenImage = jpeg; } }, { deckHa, deckUnifi });
     } else if (fnName === 'discord_voice') {
       fnResult = await discordToolsBranches['discord_voice']({ fnName, fnArgs, clientActions, runAction, phoneRefusal, provider, remote, pictures, uiLang, surface, apiKey, latestUserText }, { discordLink });
     } else if (fnName === 'list_audio_devices') {
@@ -2702,8 +2704,6 @@ async function runAiTool(fnName, fnArgs, deps) {
 
   return { fnResult, clientActions, pendingScreenImage };
 }
-
-
 
 const { getFfmpegPath } = require('./ffmpeg-install/ffmpeg-path.js');
 
@@ -4311,7 +4311,7 @@ const CSRF_MUTATION_PATHS = new Set([
   '/update/auto/postpone',
   // Marks What's New and the fixes of a release as read. A page on another site
   // could otherwise make sure the user never hears about an update. The hints, screens-off, pump screens and Bit the same.
-  '/update/notice-seen', '/hints/seen', '/hints/reset', '/screens-off', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import', '/api/bit/hatch', '/api/bit/wear', '/api/bit/name', '/api/bit/prefs', '/api/bit/seen', '/api/bit/publish', '/api/bit/claim', '/api/bit/buy', '/api/bit/perk',
+  '/update/notice-seen', '/hints/seen', '/hints/reset', '/screens-off', '/pump', '/pump/hello', '/pump/here', '/pump/colors', '/pump/picture', '/api/lighting/icue-import', '/api/bit/hatch', '/api/bit/wear', '/api/bit/name', '/api/bit/prefs', '/api/bit/seen', '/api/bit/publish', '/api/bit/claim', '/api/bit/buy', '/api/bit/perk', '/api/home/cameras/consent',
   // Bit's messages: filing one, or spending the day's on a page nobody sees, is
   // not something another site may do for the user.
   '/bit/messages/file',
@@ -4690,12 +4690,12 @@ remoteAccessLib.useGetMutators(CSRF_MUTATION_PATHS);
 const remoteAccess = remoteAccessLib.createRemoteAccess({ dir: DATA_DIR });
 remoteAccess.load().catch((e) => console.error('[remote-access] load failed:', e.message));
 
-// Web Push (T2c). Loaded eagerly because it is cheap (a JSON file that is
-// usually absent) and because `webPushNotify` below is called from timers that
-// must not await a first-use disk read. It mints NOTHING until the user asks:
-// the key pair appears on disk the first time a device subscribes.
+// Web Push (T2c). Loaded eagerly because it is cheap (a JSON file that is usually absent) and
+// because `webPushNotify` below is called from timers (and the doorbell) that must not await a
+// first-use disk read. It mints NOTHING until the user asks: the keys come with the first device.
 const webPush = webPushLib.createWebPush({ dir: DATA_DIR, log: (m) => console.log(m) });
 webPush.load().catch((e) => console.error('[web-push] load failed:', e.message));
+require('./smart-home/doorbell.js').usePush(webPushNotify);
 
 /**
  * The one place anything in this server sends a notification to a phone.
@@ -7531,8 +7531,8 @@ function _gracefulShutdown() {
   // The promise is awaited by the exit path below — firing it and exiting
   // immediately could kill the process mid write-fsync-rename. A game session
   // in progress is closed and saved the same way.
-  let shutdownFlush = featureStops.then(() => {});
-  try { shutdownFlush = shutdownFlush.then(() => _flushLightingPersist()).catch(() => {}); } catch {}
+  let shutdownFlush = featureStops.catch(() => {});
+  try { shutdownFlush = Promise.all([shutdownFlush, _flushLightingPersist()]).catch(() => {}); } catch {}
   // The apps Core Shield moved go back while this process can still reach them.
   try { shutdownFlush = Promise.all([shutdownFlush, perfSession.shield.stop()]).catch(() => {}); } catch {}
   try { const sessions = _gameSessions.flush(); shutdownFlush = Promise.all([shutdownFlush, sessions]).catch(() => {}); } catch {}

@@ -66,6 +66,9 @@ const CLASSIFIED = Object.freeze({
   'POST /api/bit/claim': { remote: false },
   'POST /api/bit/buy': { remote: false },
   'POST /api/bit/perk': { remote: false },
+  // The answer to Bit's question before it looks at a camera: the phone holds the same chat.
+  'POST /api/home/cameras/consent': { remote: true },
+  'GET /api/home/events': { remote: true },
 });
 
 const SERVER = engineSource();

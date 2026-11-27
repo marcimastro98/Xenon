@@ -66,8 +66,7 @@ function aiParamSchema(param, description) {
   throw new Error(`capability param kind "${param.kind}" has no AI schema`);
 }
 
-// `available`: the probes() result. A capability this machine cannot do is left
-// out, so the AI is never handed a function that can only fail.
+// `available`: the probes() result; what this machine cannot do is left out, so the AI never gets a function that can only fail.
 function aiFunctions(available) {
   const can = available || {};
   return CAPABILITIES.filter(c => c.capability.ai && can[c.capability.requires] !== false).map((c) => {
@@ -166,9 +165,9 @@ function createCapabilities(deps) {
       // A Store widget's own options (widget-options/).
       widgetOptions: !!d.widgetOptions,
       shortcuts: typeof d.shortcutsAvailable === 'function' ? !!d.shortcutsAvailable() : false,
-      // A pump screen and the person's own Bit (server/bit/) work on any OS; only the iCUE import is Windows-only.
+      // A pump screen, the person's own Bit (server/bit/) and the home cameras (smart-home/) work on any OS; only the iCUE import is Windows-only.
       pumpScreen: true,
-      bit: true,
+      bit: true, homeCameras: true,
       pumpIcue: require('../pump-screen/icue.js').icueImportAvailable(),
       // Xenon drawing on a pump screen itself (pump-screen/direct.js): Windows and Linux, the real Xenon only.
       pumpDirect: d.pumpDirect ?? require('../pump-screen/direct-start.js').directAvailable(),
@@ -288,6 +287,7 @@ function createCapabilities(deps) {
         return (d.airflow || require('../airflow/index.js')).actions.run(action);
       case 'bitGet': case 'bitReact': case 'bitPlace': case 'bitDesk': case 'bitWarp': case 'bitWear': case 'bitRename':
         return (d.bit || require('../bit/index.js')).actions.run(action);
+      case 'homeCamera': return (d.home || require('../smart-home/camera-show.js')).run(action);
       default: return { ok: false, error: 'unsupported' };
     }
   }

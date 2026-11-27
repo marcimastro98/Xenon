@@ -6,6 +6,7 @@ const stocks = require('../ticker/stocks.js');
 const football = require('../ticker/football.js');
 const news = require('../ticker/news.js');
 const claudeUsage = require('../claude-code/claude-usage.js');
+const { HOME_DEFAULTS } = require('../smart-home/home-settings.js');
 
 const HUB_DEFAULTS_CONNECTIONS = Object.freeze({
   // Stock-market (Borsa) widget + ticker. Watchlist/provider/refresh are
@@ -35,6 +36,8 @@ const HUB_DEFAULTS_CONNECTIONS = Object.freeze({
   // client-managed; the console `password` is a server-only secret (redacted on
   // the wire, restored on save). Mirror of settings.js.
   unifi: Object.freeze({ host: '', username: '', password: '', cameras: [], columns: 0, fit: 'cover', aspect: '16:9', order: [], refreshMs: 1500, angles: {}, notify: Object.freeze({ enabled: false, types: Object.freeze({ person: true, vehicle: true, package: false, animal: false, motion: false, ring: true }), cooldownSec: 45 }) }),
+  // A ring at the door (card + phone push) and whether Bit may look at a camera picture.
+  home: HOME_DEFAULTS,
   remoteControl: Object.freeze({ enabled: false, sunshineInstalled: false, tailscaleInstalled: false, sunshineUser: '', sunshinePass: '', selectedMonitors: [], selectedScreen: '' }),
   // Paired-device access (the phone as a second screen). OFF by default: while
   // false, remote-access.js is never consulted and a non-loopback request is

@@ -471,7 +471,6 @@
           <button type="button" class="bit-chat-btn bit-chat-back" data-bit-back data-i18n-title="bit_back" data-i18n-aria-label="bit_back" title="Torna alla dashboard" aria-label="Torna alla dashboard">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
           </button>
-          <span class="bit-chat-face" data-chatf="bit" aria-hidden="true"></span>
           <strong class="bit-chat-name">Bit</strong>
           <button type="button" class="bit-chat-model" data-bit-model hidden aria-haspopup="true" aria-expanded="false">
             <span class="bit-chat-spark" data-bit-model-spark aria-hidden="true"></span>
@@ -1099,7 +1098,6 @@
     <div class="ai-voice-view" id="ai-voice-view" aria-hidden="true" onclick="_aiVoiceTapInterrupt()">
       <div class="ai-voice-stage">
         <div class="ai-presence" aria-hidden="true" onclick="event.stopPropagation(); _aiVoiceOrbTap()">
-          <div class="ai-voice-aura"></div>
           <div class="ai-voice-bit" data-voice-bit></div>
           <div class="ai-voice-bars">
             <span></span>
@@ -4846,9 +4844,6 @@
   </div>
 </div>
 
-<!-- Notifications render into a single stacked container created by js/alerts/toast.js
-     (XenonToast). The old static #event-toast was replaced by that system. -->
-
 <!-- Game Companion (opt-in, Settings → Funzioni AI): pill + overlay shown while gaming -->
 <button class="gc-pill" id="gc-pill" type="button" onclick="GameCompanion.openOverlay()" hidden>
   <span class="gc-pill-icon" id="gc-pill-icon" aria-hidden="true"></span>
@@ -4858,7 +4853,6 @@
 <div class="gc-overlay" id="gc-overlay" role="dialog" aria-modal="true" data-i18n-aria-label="gc_title" aria-label="Game Companion" hidden>
   <div class="gc-card" tabindex="-1">
     <div class="gc-head">
-      <span class="gc-bit" id="gc-bit" aria-hidden="true"></span>
       <div class="gc-headline">
         <strong class="gc-name">Bit</strong>
         <div class="gc-game" id="gc-game">—</div>
@@ -4869,11 +4863,9 @@
       <div class="gc-stat"><span class="gc-stat-value" id="gc-session">0:00</span><span class="gc-stat-label" data-i18n="gc_session">Sessione</span></div>
       <div class="gc-stat"><span class="gc-stat-value" id="gc-fps">—</span><span class="gc-stat-label">FPS</span></div>
     </div>
-    <div class="gc-reply">
-      <span class="gc-reply-bit" id="gc-reply-bit" aria-hidden="true"></span>
-      <div class="gc-insight" id="gc-insight" aria-live="polite"></div>
-    </div>
+    <div class="gc-reply"><div class="gc-insight" id="gc-insight" aria-live="polite"></div></div>
     <div class="gc-ask">
+      <span class="gc-bit" id="gc-bit" aria-hidden="true"></span>
       <input class="gc-ask-input" id="gc-question" type="text" maxlength="300" autocomplete="off" data-i18n-placeholder="gc_ask_placeholder" placeholder="Chiedi a Bit del gioco…" onkeydown="if(event.key==='Enter')GameCompanion.ask()">
       <button class="gc-ask-btn" id="gc-ask-btn" type="button" onclick="GameCompanion.ask()" data-i18n-title="gc_ask_send" data-i18n-aria-label="gc_ask_send" title="Invia" aria-label="Invia"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
     </div>
@@ -4927,6 +4919,7 @@
 <script src="js/alerts/toast-island.js"></script>
 <script src="js/alerts/toast.js"></script>
 <script src="js/alerts/alert-toasts.js"></script>
+<script src="js/alerts/door-card.js"></script>
 <!-- Interrupt arbiter: busy()/whenIdle()/daily budget for every modal channel; before any channel that waits (catalog-drop). -->
 <script src="js/alerts/interrupt-queue.js"></script>
 <!-- Bit's messages: what every channel files instead of popping up. -->
@@ -5157,8 +5150,9 @@
 <script src="js/ambient/ambient-mode.js"></script>
 <script src="js/ai/ai-turn-wait.js"></script>
 <script src="js/ai/bit-app.js"></script>
+<script src="js/ai/bit-floor.js"></script>
 <script src="js/ai/ai-bit-chat.js"></script>
-<script src="js/ai/ai-reply-choices.js"></script>
+<script src="js/ai/ai-reply-choices.js"></script><script src="js/ai/reply-controls.js"></script><script src="js/ai/reply-camera.js"></script>
 <script src="js/ai/ai-ask-card.js"></script>
 <script src="js/ai/bit-composer.js"></script>
 <script src="js/ai/bit-welcome.js"></script>
@@ -5234,7 +5228,7 @@
 <script src="js/store-catalog/deck-store.js"></script>
 <script src="js/deck/deck-icons.js"></script>
 <script src="js/capabilities/catalog-pump.js"></script>
-<script src="js/capabilities/catalog-airflow.js"></script><script src="js/capabilities/catalog-bit.js"></script>
+<script src="js/capabilities/catalog-airflow.js"></script><script src="js/capabilities/catalog-bit.js"></script><script src="js/capabilities/catalog-home.js"></script>
 <script src="js/capabilities/capability-catalog.js"></script>
 <script src="js/deck/deck-actions.js"></script>
 <script src="js/deck/deck-error-text.js"></script>
@@ -5434,6 +5428,7 @@
 <script src="js/bit-companion/room-scenery.js"></script>
 <script src="js/bit-companion/room-panels.js"></script>
 <script src="js/bit-companion/room.js"></script>
+<script src="js/bit-companion/store-band.js"></script>
 <script src="js/bit-companion/sheet.js"></script>
 <script src="js/bit-companion/companion.js"></script>
 <script src="js/bit-companion/tile.js"></script>
@@ -5491,6 +5486,7 @@
 <script src="js/smart-home/settings-picker.js"></script>
 <script src="js/smart-home/board.js"></script>
 <script src="js/smart-home/smart-home.js"></script>
+<script src="js/smart-home/home-section.js"></script>
 <script src="js/unifi-widget/camera-layout.js"></script>
 <script src="js/unifi-widget/shown-cameras.js"></script>
 <script src="js/unifi-widget/settings-sections.js"></script>

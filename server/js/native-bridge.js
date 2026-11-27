@@ -19,14 +19,13 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 (function () {
-  // Two independent signals so detection can't silently fail: our own marker,
-  // set by the shell's init script, and Tauri's built-in `window.isTauri` global,
-  // which Tauri core injects into the webview regardless of our shim (so this
-  // still holds even on an older native build whose shim lacked the marker).
-  // A widget-layer window (apps/native/src-tauri/src/layers) is a Tauri webview
-  // too, but not the kiosk: its shell drops every signal except its own, and a
-  // dropped one sent while the page loads still cancels the page's `load` event.
-  const isNative = window.__XENON_LAYER_SHELL__ !== true
+  // Two independent signals so detection can't silently fail: our own marker, set by the shell's init
+  // script, and Tauri's `window.isTauri`, injected by Tauri core even on an older shell without the marker.
+  // A widget-layer window (apps/native/src-tauri/src/layers) is a Tauri webview but not the kiosk: its shell
+  // drops every signal but its own, and a dropped one sent while the page loads cancels its `load` event.
+  // Nor is a framed page: WebView2 runs the shell's scripts in every frame, and a signal from one takes
+  // that frame to an error page (26 Nov 2026: the pump preview in Settings went white).
+  const isNative = window.top === window && window.__XENON_LAYER_SHELL__ !== true
     && (window.__XENON_NATIVE__ === true || window.isTauri === true);
   // The origin that served this page, as SERVER in js/state.js: the engine can run on another
   // port, and the page can be the online demo. Not served over http: the local backend.

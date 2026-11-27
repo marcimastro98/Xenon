@@ -252,6 +252,12 @@ function normalizeSettings(source) {
     streamerbotPasswordSet: value.streamerbotPasswordSet === true || (typeof value.streamerbotPassword === 'string' && value.streamerbotPassword.length > 0),
     homeAssistant: normalizeHomeAssistant(value.homeAssistant),
     unifi: normalizeUnifi(value.unifi),
+    // The doorbell card and its phone push, whether Bit may send a camera picture to the AI ('ask'
+    // the first time) and whether the PC keeps what happened. Mirror of server/smart-home/home-settings.js.
+    home: (() => {
+      const h = (value.home && typeof value.home === 'object') ? value.home : {};
+      return { doorbell: h.doorbell !== false, doorbellPush: h.doorbellPush !== false, bitCameras: ['ask', 'yes', 'local', 'no'].includes(h.bitCameras) ? h.bitCameras : 'ask', log: h.log !== false };
+    })(),
     chroma: { enabled: !!(value.chroma && value.chroma.enabled === true) },
     wavelink: (() => {
       const w = (value.wavelink && typeof value.wavelink === 'object') ? value.wavelink : {};

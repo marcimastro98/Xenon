@@ -55,6 +55,8 @@ const FREE = new Set([
   'airflowMode', 'airflowSet', 'airflowGet',
   // The person's own Bit: the same dashboard on the phone (no purchase is here).
   'bitGet', 'bitReact', 'bitPlace', 'bitDesk', 'bitWarp', 'bitWear', 'bitRename',
+  // A camera over the dashboard: what the phone's own camera tile already shows.
+  'homeCamera',
   // A widget's own options: only what it declared, checked by the server.
   'widgetOption', 'widgetOptionList',
   'claudeStop',

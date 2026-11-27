@@ -207,6 +207,8 @@ function syncSettingsControls() {
   if (window.SmartHome && typeof window.SmartHome.initSettings === 'function') window.SmartHome.initSettings();
   // UniFi Protect connect + camera picker renders into Settings → Cameras.
   if (window.UnifiProtect && typeof window.UnifiProtect.initSettings === 'function') window.UnifiProtect.initSettings();
+  // The doorbell and camera choices, under both of the above once one is connected.
+  if (window.HomeSection) window.HomeSection.mount();
   if (window.SensorAccess && typeof window.SensorAccess.initSettings === 'function') window.SensorAccess.initSettings(); // Performance cards, only when needed
   if (window.FfmpegOffer) window.FfmpegOffer.initSettings();
   // "Sensor sources" lists render into Settings → Performance (polls only while shown).

@@ -546,14 +546,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   streamerbotPort: 8080,
   streamerbotPassword: '',
   streamerbotPasswordSet: false,
-  // Home Assistant Smart Home bridge. url/entities are client-managed; `token` is
-  // a server-only secret (redacted on the wire, restored on save), so the client
-  // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
+  // Home Assistant bridge: `token` is a server-only secret (redacted on the wire, restored on
+  // save), so the client copy is always '' and the server surfaces `tokenSet` for the UI.
   homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), cameras: Object.freeze([]), energyEntities: Object.freeze([]), camAngles: Object.freeze({}), areaOrder: Object.freeze([]), tileView: 'auto', tokenSet: false }),
   // UniFi Protect cameras. host/username/cameras are client-managed; the console
   // `password` is a server-only secret (redacted on the wire, restored on save),
   // so the client copy is always '' and the server surfaces a `passwordSet` flag.
   unifi: Object.freeze({ host: '', username: '', password: '', cameras: Object.freeze([]), passwordSet: false, columns: 0, fit: 'cover', aspect: '16:9', order: Object.freeze([]), refreshMs: 1500, angles: Object.freeze({}), notify: Object.freeze({ enabled: false, types: Object.freeze({ person: true, vehicle: true, package: false, animal: false, motion: false, ring: true }), cooldownSec: 45 }) }),
+  home: Object.freeze({ doorbell: true, doorbellPush: true, bitCameras: 'ask', log: true }),
   // Local hardware SDKs — opt-in, no secrets (unauthenticated localhost). Chroma:
   // just an enable flag. Wave Link: enable + optional pinned port (0 = auto-scan).
   chroma: Object.freeze({ enabled: false }),
