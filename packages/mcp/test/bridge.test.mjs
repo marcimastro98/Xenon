@@ -43,6 +43,7 @@ function fakeXenon({ pendingPolls = 1, deny = false } = {}) {
         if (b.op === 'widget_shot') { send(200, { ok: true, image: { mimeType: 'image/jpeg', data: 'QUJD' }, size: { width: 10, height: 20 } }); return; }
         if (b.op === 'install_widget') { send(200, { ok: true, id: b.args.id, files: b.args.files.length }); return; }
         if (b.op === 'widget_issues') { send(200, { ok: false, error: 'not_installed' }); return; }
+        if (b.op === 'dashboard_shot') { send(200, { ok: true, image: { mimeType: 'image/jpeg', data: 'REVG' }, size: { width: 1280, height: 720 } }); return; }
         send(200, { ok: true, op: b.op });
         return;
       }
@@ -123,7 +124,8 @@ test('protocol: initialize, tools/list, unknown method, parse error', async (t) 
   assert.equal(init.result.protocolVersion, '2025-06-18');
   const list = await rpc(2, 'tools/list', {});
   const names = list.result.tools.map((tl) => tl.name);
-  assert.deepEqual(names, ['xenon_status', 'sdk_reference', 'new_widget', 'check_widget', 'install_widget', 'widget_issues', 'widget_screenshot', 'my_widgets', 'share_widget']);
+  assert.deepEqual(names, ['xenon_status', 'sdk_reference', 'new_widget', 'check_widget', 'install_widget', 'widget_issues', 'widget_screenshot', 'my_widgets', 'share_widget',
+    'preset_reference', 'check_preset', 'import_preset', 'dashboard_screenshot']);
   for (const tl of list.result.tools) assert.equal(tl.inputSchema.type, 'object', tl.name);
   assert.equal((await rpc(3, 'resources/list', {})).error.code, -32601);
   await srv.feed('not json\n');
@@ -165,6 +167,35 @@ test('tools: screenshot is an image, errors are marked, unknown tools refused', 
   assert.equal((await rpc(3, 'tools/call', { name: 'rm', arguments: {} })).result.isError, true);
   const noFolder = await rpc(4, 'tools/call', { name: 'check_widget', arguments: { folder: path.join(os.tmpdir(), 'no-such-xenon-widget') } });
   assert.match(noFolder.result.content[0].text, /no_folder/);
+});
+
+test('tools: a theme or background goes to Xenon as data, its draw() code read from a .js file here', async (t) => {
+  const { x, rpc } = await session(t);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xenon-mcp-bg-'));
+  const codeFile = path.join(dir, 'tide.js');
+  fs.writeFileSync(codeFile, 'function draw(ctx, t, w, h) { ctx.fillRect(0, 0, w, h); }\n');
+  await rpc(1, 'tools/call', { name: 'check_preset', arguments: { kind: 'bg', name: 'Tide', data: { fps: 20 }, codeFile } });
+  assert.deepEqual(x.state.calls.at(-1), { op: 'check_preset', args: { kind: 'bg', name: 'Tide', data: { fps: 20, code: fs.readFileSync(codeFile, 'utf8') } } });
+  await rpc(2, 'tools/call', { name: 'import_preset', arguments: { kind: 'theme', data: { accent: '#8b6cff', bgCustom: { fps: 30 } }, codeFile } });
+  assert.equal(x.state.calls.at(-1).op, 'import_preset');
+  assert.deepEqual(x.state.calls.at(-1).args.data.bgCustom, { fps: 30, code: fs.readFileSync(codeFile, 'utf8') }, 'a theme carries it as bgCustom');
+  await rpc(3, 'tools/call', { name: 'check_preset', arguments: { kind: 'bundle', data: { theme: {} }, codeFile } });
+  assert.equal(x.state.calls.at(-1).args.data.bg.code.length > 0, true, 'a package carries it as bg');
+  const calls = x.state.calls.length;
+  const page = await rpc(4, 'tools/call', { name: 'check_preset', arguments: { kind: 'page', data: {}, codeFile } });
+  assert.match(page.result.content[0].text, /no_code_here/);
+  const rel = await rpc(5, 'tools/call', { name: 'check_preset', arguments: { kind: 'bg', data: {}, codeFile: 'tide.js' } });
+  assert.match(rel.result.content[0].text, /bad_code_file/);
+  const missing = await rpc(6, 'tools/call', { name: 'check_preset', arguments: { kind: 'bg', data: {}, codeFile: path.join(dir, 'gone.js') } });
+  assert.match(missing.result.content[0].text, /unreadable/);
+  fs.writeFileSync(codeFile, 'x'.repeat(60001));
+  const long = await rpc(7, 'tools/call', { name: 'check_preset', arguments: { kind: 'bg', data: {}, codeFile } });
+  assert.match(long.result.content[0].text, /code_too_long/);
+  assert.equal(x.state.calls.length, calls, 'nothing bad reaches Xenon');
+  await rpc(8, 'tools/call', { name: 'preset_reference', arguments: { kind: 'theme' } });
+  assert.deepEqual(x.state.calls.at(-1), { op: 'preset_reference', args: { kind: 'theme' } });
+  const shot = await rpc(9, 'tools/call', { name: 'dashboard_screenshot', arguments: {} });
+  assert.deepEqual(shot.result.content[0], { type: 'image', data: 'REVG', mimeType: 'image/jpeg' });
 });
 
 test('bin: prints its version, and speaks MCP on stdin', async () => {

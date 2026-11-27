@@ -11,7 +11,7 @@
     {
       "name": "xenon-widgets",
       "source": "./packages/mcp",
-      "description": "Build your own Xenon widgets: the Widget SDK, a starter, install on the dashboard, the errors it hits and a picture of its tile."
+      "description": "Build your own Xenon widgets, themes and animated backgrounds: the Widget SDK, a starter, install on the dashboard, the errors it hits, a picture of the tile, and themes checked and opened in the import window."
     }
   ]
 }

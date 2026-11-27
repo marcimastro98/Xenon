@@ -92,9 +92,11 @@ const REF = {
       what: 'An animated dashboard background: JavaScript drawn on a canvas in a sandbox with no network.',
       fields: {
         code: 'string, max ' + CustomBg.CODE_MAX + ' chars: the body of function (canvas, ctx, assets) that defines function draw(ctx, t, w, h, assets); t = seconds',
-        name: 'string, 60 chars', assets: '{name: "data:image/..."} at most ' + CustomBg.ASSET_MAX_COUNT + ', each max ' + CustomBg.ASSET_MAX_CHARS + ' chars',
+        name: 'string, 60 chars', assets: '{name: "data:image/..."} at most ' + CustomBg.ASSET_MAX_COUNT + ', each max ' + CustomBg.ASSET_MAX_CHARS + ' chars, ' + CustomBg.ASSETS_TOTAL_MAX + ' together; loaded Image objects in draw',
         fps: 'number ' + CustomBg.FPS_MIN + '-' + CustomBg.FPS_MAX + ' (default ' + CustomBg.FPS_DEFAULT + ')',
       },
+      notes: ['w, h are the screen in CSS pixels, any shape (a 2560x720 bar, 16:9, 16:10, a phone); Xenon already scales the canvas for sharp screens. Never assume one size: place things as fractions of w and h.',
+        'A photo fills every screen with cover: s = Math.max(w / img.width, h / img.height), drawn centred at img.width * s by img.height * s. Math.min leaves bars on other shapes.'],
       example: { name: 'Slow tide', fps: 30, code: 'function draw(ctx, t, w, h) { ctx.fillStyle = "#05060a"; ctx.fillRect(0, 0, w, h); ctx.fillStyle = "rgba(124,92,255,.35)"; ctx.beginPath(); ctx.arc(w / 2 + Math.sin(t / 3) * w / 4, h / 2, h / 3, 0, Math.PI * 2); ctx.fill(); }' },
     };
   },

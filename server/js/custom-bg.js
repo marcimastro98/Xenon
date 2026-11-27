@@ -57,8 +57,8 @@
   const ASSET_KEY_RE = /^[a-z][a-z0-9_]{0,23}$/;
   const ASSET_DATA_RE = /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/;
   const ASSET_MAX_COUNT = 6;
-  const ASSET_MAX_CHARS = 400000;      // per asset (~300 KB image)
-  const ASSETS_TOTAL_MAX = 900000;     // whole set (~660 KB of images)
+  const ASSET_MAX_CHARS = 1000000;     // per asset (~730 KB: a screen-sized JPEG photo)
+  const ASSETS_TOTAL_MAX = 1400000;    // whole set (~1 MB, like the tile picture cap)
 
   // Rebuild {name → data URI} keeping only well-formed entries within the caps.
   // Explicit known-shape rebuild (never a spread of untrusted input). This is the

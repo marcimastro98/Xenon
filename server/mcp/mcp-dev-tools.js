@@ -19,8 +19,8 @@ const { WIDGET_ID_RE } = require('../widget-sdk/package-names.js');
 const { TILE_SIZES: SIZES } = require('../widget-sdk/manifest-limits.js');
 const { ROUND_ROOT_CSS, STYLE_JS, pumpManifest, pumpOf } = require('./mcp-dev-pump.js');
 const { bitFiles, bitOf } = require('./mcp-dev-bit.js');
+const { LOOK_OPS } = require('./mcp-dev-looks.js');
 const TEXT_RE = /\.(html?|m?js|css)$/i;
-
 const b64 = (s) => Buffer.from(String(s), 'utf8').toString('base64');
 const fromB64 = (s) => { try { return Buffer.from(String(s || ''), 'base64').toString('utf8'); } catch { return ''; } };
 
@@ -235,7 +235,7 @@ async function opShot(args, deps) {
   const where = await deps.ask('where', { id });
   if (!where) return { ok: false, error: 'no_dashboard' };
   if (where.found !== true || !where.rect) return { ok: false, error: 'not_on_screen', hint: 'The widget is not on the page the dashboard shows. Install it again to place it, or ask the person to open its page.' };
-  const shot = await deps.captureRect(where.rect);
+  const shot = await deps.captureRect(where);
   if (!shot || !shot.ok) return { ok: false, error: (shot && shot.error) || 'capture_failed' };
   return { ok: true, id, ...(where.bar === true ? { note: 'It lives in the top bar ("tile": false): this is the bar.' } : {}), image: { mimeType: 'image/jpeg', data: shot.data }, size: { width: shot.width, height: shot.height } };
 }
@@ -288,7 +288,7 @@ const OPS = Object.freeze({
   widget_issues: opIssues,
   widget_shot: opShot,
   my_widgets: opMine,
-  share_widget: opShare,
+  share_widget: opShare, ...LOOK_OPS,
 });
 
 async function runOp(op, args, deps) {

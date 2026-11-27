@@ -37,4 +37,24 @@ function critiqueTileFit(text) {
     'size type and scale from the shorter side: cqmin, or min(Ncqh, Mcqw), and let the layout switch with @container queries when the shape changes')];
 }
 
-module.exports = { critiqueTileFit, oneAxisSizes };
+// An animated background runs on every screen shape: a 2560x720 bar, 16:9, 16:10, a phone.
+// Scaled with the smaller ratio of draw's w and h (Math.min(w / W, h / H)), a scene drawn
+// for one size shows bars on every other one; the larger ratio fills the screen.
+const DRAW_SIZE = /function\s+draw\s*\(\s*\w+\s*,\s*\w+\s*,\s*(\w+)\s*,\s*(\w+)/;
+const SMALLER_RATIO = /Math\.min\(\s*(\w+)\s*\/\s*[\w.]+\s*,\s*(\w+)\s*\/\s*[\w.]+\s*\)/g;
+
+function critiqueBgFit(code, where) {
+  const text = String(code || '');
+  const size = DRAW_SIZE.exec(text);
+  if (!size) return [];
+  const sides = new Set([size[1], size[2]]);
+  for (const [, a, b] of text.matchAll(SMALLER_RATIO)) {
+    if (a !== b && sides.has(a) && sides.has(b)) {
+      return [finding('consider', where, 'scales the scene with Math.min of the screen ratios, so on any screen of another shape it leaves empty bars (a 2560x720 picture on a 1920x1080 screen fills 1920x540)',
+        'fill the screen with Math.max(w / W, h / H) and centre it, keeping what matters near the middle; for a photo, use one tall enough for 16:9')];
+    }
+  }
+  return [];
+}
+
+module.exports = { critiqueTileFit, critiqueBgFit, oneAxisSizes };

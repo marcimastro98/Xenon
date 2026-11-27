@@ -1,8 +1,10 @@
 # xenon-mcp
 
-Build widgets for [Xenon](https://xenon-app.com), the dashboard for any spare screen, from Claude Code, Codex or any
-other MCP client. Your assistant reads the Widget SDK, writes the widget in a folder, installs it, puts it on your
-dashboard, reads the errors it hits while it runs and looks at a picture of its tile, then fixes what is wrong.
+Build widgets, themes and animated backgrounds for [Xenon](https://xenon-app.com), the dashboard for any spare
+screen, from Claude Code, Codex or any other MCP client. Your assistant reads the Widget SDK, writes the widget in a
+folder, installs it, puts it on your dashboard, reads the errors it hits while it runs and looks at a picture of its
+tile, then fixes what is wrong. For a theme or a background it checks it with Xenon's own rules and opens it in
+Xenon's import window, where you confirm it.
 
 It talks only to the Xenon running on your own computer. Nothing goes to the internet.
 
@@ -22,7 +24,7 @@ codex mcp add xenon-widgets -- npx -y xenon-mcp
 Any other MCP client: run `npx -y xenon-mcp` as a stdio server. It needs Node.js 18 or newer.
 
 In Claude Code you can install it as a plugin instead, which adds a `build-widget` skill that knows the loop
-(read the SDK, write, install, look, fix):
+(read the SDK, write, install, look, fix) and a `build-look` skill for themes and backgrounds:
 
 ```text
 /plugin install xenon-widgets --marketplace marcimastro98/Xenon
@@ -34,6 +36,8 @@ The connection is remembered in `~/.xenon/mcp.json` and listed in that same Sett
 ## Then ask
 
 > Make me a Xenon widget that shows my GPU temperature as a big number, in a folder called gpu-temp.
+
+> Make me a dark synthwave theme for Xenon with a slow animated grid in the background.
 
 ## Tools
 
@@ -51,11 +55,23 @@ The connection is remembered in `~/.xenon/mcp.json` and listed in that same Sett
 
 The folder's name is the widget id unless you pass `id` (a-z, 0-9 and dashes).
 
+Themes, backgrounds and the other share codes (Xenon 5.3 or newer):
+
+| Tool | What it does |
+|---|---|
+| `preset_reference` | The exact rules of a theme, background, package, page, Deck profile, top bar, icon pack or native Ambient scene, with an example |
+| `check_preset` | The checks the import runs, design and performance notes, and the share code |
+| `import_preset` | Opens it in Xenon's import window on the dashboard, where you confirm it |
+| `dashboard_screenshot` | A picture of the whole dashboard as it is on screen now |
+
+A background's code can sit in its own `.js` file, passed as `codeFile`.
+
 ## What it can and cannot do
 
 - It never approves a widget's permissions. A widget that reads data or runs actions waits for you to allow it on
   the dashboard, as any widget does.
 - It can read, change and share only widgets you made, never ones from the Store or from someone's share code.
+- It never applies a theme or background by itself: you confirm it in the import window, as with a code you paste.
 - It works only from this computer: a paired phone or tablet cannot reach it.
 - Errors thrown in widget code arrive as "Script error." because widgets run in a sandbox on another origin. Wrap
   code in `try`/`catch` and `console.error` the message: those arrive in full.

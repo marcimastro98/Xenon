@@ -19,7 +19,7 @@ const { BODY_TEXT, LARGE_TEXT, finding, contrastFinding } = require('./ai-preset
 const { critiquePage, critiqueScene } = require('./ai-preset-critique-layout.js');
 const { critiqueDeck } = require('./ai-preset-critique-deck.js');
 const { critiqueStoreRules } = require('./ai-preset-critique-store.js');
-const { critiqueTileFit } = require('./ai-preset-critique-fit.js');
+const { critiqueTileFit, critiqueBgFit } = require('./ai-preset-critique-fit.js');
 const { critiqueTileSwipe } = require('./ai-preset-critique-swipe.js');
 const { critiqueBgFrame, critiquePackageFrames } = require('./ai-preset-critique-perf.js');
 const { SDK_STREAMS } = require('../sdk-widgets.js');
@@ -83,7 +83,7 @@ function critiqueTheme(data, deps) {
 // ── animated background, top bar ──────────────────────────────────────────
 
 function critiqueBgCode(code, where) {
-  const out = critiqueBgFrame(code, where);
+  const out = [...critiqueBgFrame(code, where), ...critiqueBgFit(code, where)];
   const size = String(code || '').length;
   if (size >= CustomBg.CODE_MAX * BG_NEAR_LIMIT) out.push(finding('consider', where, size + ' of ' + CustomBg.CODE_MAX + ' characters: the next edit may not fit', 'shorten the code (shared helpers, fewer literals)'));
   return out;

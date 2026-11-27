@@ -181,6 +181,16 @@ test('widget_shot: needs the tile on screen, returns a jpeg', async () => {
   assert.equal((await T.runOp('widget_shot', { id: 'clock' }, broke.d)).error, 'capture_failed');
 });
 
+// The capture (mcp/dev-capture.js) reads the screen box with screenRect, which wants the whole answer: given only
+// the box it found no rect and every widget_screenshot came back "not_on_screen".
+test('widget_shot: the capture gets what screenRect reads, scale included', async () => {
+  const where = { found: true, rect: { left: 10, top: 20, width: 300, height: 200, screenX: 100, screenY: 50 }, dpr: 2 };
+  let rect = null;
+  const on = deps({ isInstalled: async () => true, ask: async () => where, captureRect: async (w) => { rect = T.screenRect('win32', w); return { ok: true, data: 'B', width: 1, height: 1 }; } });
+  assert.equal((await T.runOp('widget_shot', { id: 'clock' }, on.d)).ok, true);
+  assert.deepEqual(rect, { x: 220, y: 140, width: 600, height: 400 });
+});
+
 test('my_widgets and share_widget: own work only', async () => {
   const { d } = deps();
   assert.deepEqual((await T.runOp('my_widgets', {}, d)).widgets, [{ id: 'clock' }]);

@@ -173,6 +173,24 @@ test('ask place: only the first dashboard is told to act', async () => {
   assert.deepEqual(await p, { placed: true });
 });
 
+test('ask import: the code reaches only the dashboard that takes it, never the broadcast', async () => {
+  const { dev, events } = setup();
+  const p = dev.ask('import', { id: '', kind: 'bg' }, 2500, { code: 'XP1-secret-size' });
+  const [, q] = events.at(-1);
+  assert.ok(!JSON.stringify(q).includes('XP1-secret-size'), 'paired phones hear the broadcast');
+  assert.deepEqual(dev.report(q.reqId, { ready: true }), { payload: { code: 'XP1-secret-size' } });
+  assert.equal(dev.report(q.reqId, { ready: true }), false, 'a second window does not open it too');
+  assert.deepEqual(await p, { placed: true });
+});
+
+test('ask screen: the dashboard\'s box is cleaned like a tile\'s', async () => {
+  const { dev, events } = setup();
+  const p = dev.ask('screen', { id: '' });
+  const [, q] = events.at(-1);
+  dev.report(q.reqId, { found: true, rect: { left: 0, top: 0, width: 800, height: 480, screenX: 5, screenY: 6, extra: 1 }, dpr: 1.5 });
+  assert.deepEqual(await p, { found: true, rect: { left: 0, top: 0, width: 800, height: 480, screenX: 5, screenY: 6 }, dpr: 1.5 });
+});
+
 test('close: pending questions resolve, pairings go', async () => {
   const { dev } = setup();
   const p = dev.ask('where', { id: 'clock' }, 10000);

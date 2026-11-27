@@ -4,7 +4,8 @@
 // this page is where the person says yes to a pairing, and where the tools
 // learn what only the dashboard knows: is the widget on screen and where, what
 // the sandbox refused, what went wrong while it ran. It also places a widget
-// the tools just installed, exactly as Bit's create_widget does.
+// the tools just installed, exactly as Bit's create_widget does, and opens the
+// import window for a theme or background they made, as Bit's create_preset does.
 //
 // Only a dashboard on THIS machine takes part: a paired phone neither approves
 // a pairing nor answers (the server refuses its requests to these paths too).
@@ -107,7 +108,26 @@
     return { found: true, bar: true, approved: at.approved, rect, dpr: window.devicePixelRatio || 1 };
   }
 
+  // A theme, background or other share code from the tools: the visible dashboard opens the normal import window
+  // (a newer code replaces an open draft, as with Bit) and the person confirms it there. The code comes in the
+  // answer to the report, never in the broadcast.
+  async function importCode(q) {
+    if (document.visibilityState !== 'visible' || !window.PresetShare?.openImport) return;
+    const r = await post('report', { reqId: q.reqId, data: { ready: true } });
+    const code = r?.accepted && r.payload && typeof r.payload.code === 'string' ? r.payload.code : '';
+    if (code) window.PresetShare.openImport(code, { draft: true });
+  }
+
+  // The whole dashboard, for a picture of a theme or background: only a window on screen counts.
+  function screen() {
+    if (document.visibilityState !== 'visible') return { found: false };
+    const rect = { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, screenX: window.screenX, screenY: window.screenY };
+    return { found: true, rect, dpr: window.devicePixelRatio || 1 };
+  }
+
   function answer(q) {
+    if (q && typeof q.reqId === 'string' && q.kind === 'import') { importCode(q); return; }
+    if (q && typeof q.reqId === 'string' && q.kind === 'screen') { post('report', { reqId: q.reqId, data: screen() }); return; }
     const CW = window.CustomWidget;
     if (!q || typeof q.reqId !== 'string' || typeof q.id !== 'string' || !CW) return;
     if (q.kind === 'place') { place(q, CW); return; }

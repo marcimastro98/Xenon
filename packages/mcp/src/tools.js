@@ -1,9 +1,11 @@
 'use strict';
 // The tools a coding assistant sees, and what each one does. The list is
 // fixed here (an assistant reads it before Xenon may even be running); each
-// call becomes one op on Xenon (server/mcp-dev-tools.js), with the widget
-// folder read or written on this side, so Xenon never takes a path.
+// call becomes one op on Xenon (server/mcp/mcp-dev-tools.js), with the widget
+// folder read or written on this side, so Xenon never takes a path. Themes,
+// backgrounds and the other share codes: looks.js.
 const { readWidgetFolder, writeWidgetFolder, widgetId } = require('./folder.js');
+const looks = require('./looks.js');
 
 const SIZES = ['small', 'medium', 'wide', 'tall', 'large'];
 const folderProp = { type: 'string', description: 'Absolute path of the widget folder (the one holding manifest.json). Its name is the widget id unless `id` is given.' };
@@ -75,6 +77,7 @@ const TOOLS = [
     description: 'A share code for one of the person\'s own widgets, which anyone can paste into Xenon, plus the Store review notes. To put it in the Store the person sends it from xenon-app.com/submit.',
     inputSchema: { type: 'object', required: ['id'], properties: { id: idProp } },
   },
+  ...looks.TOOLS,
 ];
 
 const text = (obj) => ({ content: [{ type: 'text', text: typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2) }] });
@@ -135,6 +138,7 @@ const HANDLERS = {
   widget_screenshot: screenshot,
   my_widgets: myWidgets,
   share_widget: (a, c) => c.call('share_widget', { id: a.id }).then(answer),
+  ...looks.makeHandlers({ answer, failed }),
 };
 
 async function callTool(name, args, client) {

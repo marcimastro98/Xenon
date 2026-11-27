@@ -29,7 +29,9 @@ const PAIR_COLLECT_MS = 60 * 1000;
 const NAME_MAX = 40;
 const TOKEN_PREFIX = 'xmcp_';
 const ID_RE = /^[a-f0-9]{16}$/;
-const QUERY_KINDS = new Set(['where', 'issues', 'place']);
+const QUERY_KINDS = new Set(['where', 'issues', 'place', 'import', 'screen']);
+// The first dashboard to answer acts, alone: places the widget, opens the import window.
+const ACTS = new Set(['place', 'import']);
 const MAX_QUERIES = 8;
 
 const OTHERS_WAIT_MS = 400;
@@ -73,7 +75,7 @@ function cleanFit(f) {
 }
 function cleanReport(kind, data) {
   const found = data.found === true;
-  if (kind === 'where') {
+  if (kind === 'where' || kind === 'screen') {
     const r = data.rect && typeof data.rect === 'object' ? data.rect : null;
     const rect = r ? { left: num(r.left), top: num(r.top), width: num(r.width), height: num(r.height), screenX: num(r.screenX), screenY: num(r.screenY) } : null;
     const ok = rect && Object.values(rect).every((v) => v !== null);
@@ -231,14 +233,16 @@ function createMcpDev({ file, broadcast = () => {}, now = Date.now, randomBytes 
 
   // ── Questions to the open dashboard ──
   // Every loopback dashboard hears the question; the first useful answer wins.
-  // For 'place' the first dashboard to answer is the only one told to act, so
-  // two open windows never put the same widget on the page twice.
-  function ask(kind, args, timeoutMs = 2500) {
+  // For 'place' and 'import' the first dashboard to answer is the only one told
+  // to act, so two open windows never put the same widget on the page twice.
+  // `payload` never rides the broadcast (paired phones hear it too): only the
+  // dashboard that takes the question gets it, in the answer to its report.
+  function ask(kind, args, timeoutMs = 2500, payload = null) {
     if (!QUERY_KINDS.has(kind)) return Promise.resolve(null);
     if (queries.size >= MAX_QUERIES) return Promise.resolve(null);
     const reqId = newId();
     return new Promise((resolve) => {
-      const q = { kind, resolve, best: null, timer: null };
+      const q = { kind, resolve, best: null, timer: null, payload };
       q.timer = setTimeout(() => finish(reqId), Math.max(200, Math.min(10000, timeoutMs)));
       if (q.timer.unref) q.timer.unref();
       queries.set(reqId, q);
@@ -254,16 +258,17 @@ function createMcpDev({ file, broadcast = () => {}, now = Date.now, randomBytes 
     q.resolve(q.best);
   }
 
-  // One dashboard's answer. Returns whether it was taken (for 'place', whether
-  // THIS dashboard should act).
+  // One dashboard's answer. Returns whether it was taken (for 'place' and
+  // 'import', whether THIS dashboard should act): `{ payload }` when the
+  // question carried one, else true.
   function report(reqId, data) {
     const key = String(reqId || '');
     const q = queries.get(key);
     if (!q || !data || typeof data !== 'object') return false;
-    if (q.kind === 'place') {
+    if (ACTS.has(q.kind)) {
       q.best = { placed: true };
       finish(key);
-      return true;
+      return q.payload ? { payload: q.payload } : true;
     }
     // 'where' and 'issues': a dashboard that has the tile on screen beats one
     // that does not; the first that does ends the wait. One that does not gives

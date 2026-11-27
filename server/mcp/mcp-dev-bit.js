@@ -38,11 +38,21 @@ button { min-height: 44px; padding: 0 16px; border-radius: 12px; border: 1px sol
 
 const JS = `'use strict';
 // Your own Bit, from the \`bit\` stream: the Bit kit (bit-kit.js) draws it, egg included.
+// The stream is pulled: asked for once a second while the widget is on screen.
 // The button asks for a move (action category \`bit\`); every Bit on the dashboard does it too.
 const bit = XenonBit.mount(document.getElementById('bit'), { label: 'Bit' });
 const name = document.getElementById('name');
 let light = false;
 let last = null;
+let pulling = 0;
+function pull(on) {
+  clearInterval(pulling);
+  pulling = 0;
+  if (!on) return;
+  const ask = () => window.parent.postMessage({ xenonSdk: 1, type: 'refresh', id: Date.now(), stream: 'bit' }, '*');
+  ask();
+  pulling = setInterval(ask, 1000);
+}
 function applyTheme(theme) {
   if (!theme) return;
   light = theme.appearance === 'light';
@@ -57,6 +67,8 @@ window.addEventListener('message', (e) => {
   const m = e.data;
   if (!m || m.xenonSdk !== 1) return;
   if (m.type === 'init' || m.type === 'theme') applyTheme(m.theme);
+  if (m.type === 'init') pull(true);
+  if (m.type === 'visibility') pull(m.visible !== false);
   if (m.type !== 'data' || m.stream !== 'bit' || !m.data) return;
   last = m.data;
   bit.set(last, { light });
