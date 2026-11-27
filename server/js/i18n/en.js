@@ -8218,6 +8218,8 @@ module.exports = {
   mybit_doing_idle_1: 'Keeping an eye on your PC. All quiet.',
   mybit_doing_idle_2: 'Nothing new. Just enjoying the view.',
   mybit_doing_idle_3: 'All calm here. Want me to do something?',
+  mybit_doing_game_1: 'Gaming with you. I\'m on your team.',
+  mybit_doing_game_2: 'Playing along. Don\'t look at my score.',
   mybit_pocket_ask: 'Ask Bit',
   mybit_pocket_room: 'Its room',
   mybit_pocket_edit: 'Change keys',
