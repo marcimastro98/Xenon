@@ -20,7 +20,7 @@ const BIT_ENGINE = require('./fixtures/bit-engine.json');
 const src = (p) => readFileSync(join(SERVER, p), 'utf8');
 const FILES = [...BIT_ENGINE, 'shared/src/bit-clips-move.js', 'js/dialog-focus.js', 'js/ai/bit-app.js', 'js/bit-companion/wardrobe-keep.js', 'js/bit-companion/wardrobe-tabs.js', 'js/bit-companion/wardrobe.js',
   'js/bit-companion/card-dna.js', 'js/bit-companion/card.js', 'js/bit-companion/recap.js', 'js/bit-companion/clip.js', 'js/bit-companion/room-scenery.js',
-  'js/bit-companion/room-panels.js', 'js/bit-companion/room.js', 'js/bit-companion/sheet.js', 'js/bit-companion/companion.js', 'js/bit-companion/tile.js', 'js/bit-companion/moments.js', 'js/bit-companion/warp.js', 'js/bit-companion/stroll.js'];
+  'js/bit-companion/room-panels.js', 'js/bit-companion/room-desk.js', 'js/bit-companion/room.js', 'js/bit-companion/sheet.js', 'js/bit-companion/companion.js', 'js/bit-companion/tile.js', 'js/bit-companion/moments.js', 'js/bit-companion/warp.js', 'js/bit-companion/stroll.js'];
 
 // The supporters' items come with the view, as the hub made them (server/bit/items.js).
 const HUB_ITEMS = require('./fixtures/bit-hub-items.json').map((it) => ({ ...it, offered: true }));
@@ -687,7 +687,7 @@ test('a closed month is told once, as a message of Bit with its card; a new mont
 
 // ── room-setup.js: where to see it, how it moves, what it can do; until it is done ──
 // Loaded on every page with a companion: its signs, and the pocket's styles (a link, no src).
-const ALWAYS = ['shared/src/bit-signs.js', 'js/bit-companion/signals.js', 'js/bit-companion/signs.js', 'js/bit-companion/perks.js'];
+const ALWAYS = ['shared/src/bit-signs.js', 'js/bit-companion/signals.js', 'js/bit-companion/signs.js', 'js/bit-companion/perks.js', 'js/bit-companion/room-desk.js'];
 const loaded = (head) => head.children.filter((n) => n.tag === 'script' && !ALWAYS.includes(n.src)).map((n) => n.src);
 
 test('the guided setup is fetched only while it is due', () => {
@@ -992,14 +992,39 @@ test('on the desktop: chosen in its room only where the shell draws it, said wha
   assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { desk: 'off' } });
   assert.equal(btn('mybit_desk_reset'), undefined, 'off: no place to go back to');
   assert.equal(btn('mybit_desk_all'), undefined, 'one screen to go to: no every-screen choice');
-  r.ctx.BitSheet.close?.();
-  r.ctx.BitDesk = { screens: () => ['a', 'b'] };
-  r.tell(born({ desk: 'main' }));
-  r.ctx.BitSheet.open();
-  openAbout(r);
+  // Two screens besides the dashboard's: travelling, and which screens, by their names.
+  const two = { displays: [{ id: 'b', x: 1920, y: 0, label: 'B' }, { id: 'a', x: 0, y: 0, primary: true, label: 'A' }, { id: 'd', x: 0, y: 1080, label: 'Dash' }], active: 'd' };
+  const shows = (prefs) => { r.ctx.BitSheet.close?.(); r.tell(born(prefs)); r.ctx.BitSheet.open(); openAbout(r); };
+  r.ctx.XenonNative = { displayState: () => two };
+  shows({ desk: 'main' });
+  assert.equal(btn('Dash'), undefined, 'never the screen of the dashboard');
+  assert.equal(btn('A · surface_primary').getAttribute('aria-pressed'), 'true', 'one screen: the main one by default');
+  btn('B').click();
+  await settle();
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { deskScreen: 'b', deskX: null, deskY: null } }, 'another screen, at its usual spot there');
   btn('mybit_desk_all').click();
   await settle();
   assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { desk: 'all' } });
+  shows({ desk: 'all' });
+  assert.ok(['A · surface_primary', 'B'].every((t) => btn(t).getAttribute('aria-pressed') === 'true'), 'travelling: every screen at first');
+  btn('B').click();
+  await settle();
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { deskScreens: ['a'] } }, 'one taken off');
+  shows({ desk: 'all', deskScreens: ['a'] });
+  const before = r.posts.length;
+  btn('A · surface_primary').click();
+  await settle();
+  assert.equal(r.posts.length, before, 'the last screen stays on');
+  btn('B').click();
+  await settle();
+  assert.deepEqual(r.posts.at(-1), { url: '/api/bit/prefs', body: { deskScreens: [] } }, 'all of them again: every screen');
+  // The Xenon menu's window has no display state: the shell hands it the screens.
+  r.ctx.XenonNative = { displayState: () => ({ displays: [] }) };
+  r.ctx.__XENON_BIT_SCREENS__ = two;
+  shows({ desk: 'all' });
+  assert.ok(btn('B') && btn('A · surface_primary'), 'the same screens in the menu');
+  delete r.ctx.__XENON_BIT_SCREENS__;
+  r.ctx.XenonNative = { displayState: () => two };
 
   // Kept for supporters (perks.js): the heart on the choice, and the server's 'locked' opens the extra, not an error.
   const offered = [];

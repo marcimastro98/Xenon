@@ -113,4 +113,11 @@ pub fn push_display_state(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else { return };
     let state = display_state(&window);
     let _ = window.eval(&crate::display_state_js(&state));
+    // The menu's window, open or kept, hears them too (its room chooses Bit's screens).
+    let screens = super::bit_screens_js(&window);
+    for (label, w) in app.webview_windows() {
+        if label.starts_with("layer-") {
+            let _ = w.eval(&screens);
+        }
+    }
 }

@@ -56,7 +56,13 @@
   const clamp01 = (n) => Math.min(1, Math.max(0, n));
   const screens = () => window.BitDeskScreens;
   const spots = () => window.BitDeskSpot;
-  const here = () => (prefs().desk === 'all' ? monitor : spots().own());
+  // With 'all', a screen among those it goes to: one taken off the list sends it to the first left.
+  function travelling() {
+    const ids = screens()?.list() || [];
+    if (ids.length && !ids.some((id) => screens().same(id, monitor))) monitor = ids[0];
+    return monitor;
+  }
+  const here = () => (prefs().desk === 'all' ? travelling() : spots().own());
   const spot = () => spots().place(here(), frames().COLS, spots().cell());
   const still = () => spot().y !== null; // left away from the bar: it stays put
   const wanted = () => supported() && !!state()?.hatched && prefs().desk !== 'off' && !!app()?.personal();

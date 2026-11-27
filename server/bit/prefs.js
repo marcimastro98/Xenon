@@ -16,7 +16,7 @@ const PLACES = Object.freeze(['corner', 'topbar', 'both', 'off']);
 const REACTIONS = Object.freeze({ normal: 6, few: 2, off: 0 });
 const DEFAULT_PREFS = Object.freeze({
   place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null,
-  desk: 'main', deskX: null, deskY: null, deskScreen: '', deskSize: 'medium', tap: 'pocket', keys: [], setup: false,
+  desk: 'main', deskX: null, deskY: null, deskScreen: '', deskScreens: [], deskSize: 'medium', tap: 'pocket', keys: [], setup: false,
 });
 // In the corner it strolls along the bottom now and then, sometimes teleporting (mix), only on foot, or
 // stays where it stands; warp: how it teleports (js/bit-companion/warp.js), 'any' a different way each
@@ -27,16 +27,18 @@ const WARPS = Object.freeze(['any', 'crumble', 'beam', 'packet', 'glitch']);
 // On the desktop (the shell's own window on the taskbar, layers/bit_desk.rs): on one screen, one Bit that
 // travels across every screen now and then, or not at all. Where the person dropped it: deskX along the bar
 // (0 left, 1 right; null its usual place), deskY how high when dropped away from the bar (0 top, 1 bottom of
-// the desktop; null on the bar), deskScreen the screen (the shell's display id; '' the main one).
+// the desktop; null on the bar), deskScreen the screen (the shell's display id; '' the main one). deskScreens:
+// the screens it travels across with 'all' ([] every one; ids no longer there are skipped).
 const DESKS = Object.freeze(['main', 'all', 'off']);
 // How big it stands there (js/bit-companion/desk-spot.js: 2, 3 or 4 logical px a cell); the mouse wheel over it
 // changes it too.
+const SCREENS_MAX = 8;
 const DESK_SIZES = Object.freeze(['small', 'medium', 'large']);
 // A tap on it opens its pocket (js/bit-companion/pocket.js), the chat or its room. keys: the pocket's
 // quick keys (pocket.js here), [] for the usual ones.
 const TAPS = Object.freeze(['pocket', 'chat', 'room']);
-// The ground of its card: plain ink, or its theatre (room-scenery.js).
-const CARDS = Object.freeze(['plain', 'stage']);
+// The ground of its card: plain ink, its theatre (room-scenery.js), or its home (the worn 'home' item).
+const CARDS = Object.freeze(['plain', 'stage', 'home']);
 // The pose its card and video end on: '' is its own (its favourite fidget, from the DNA), or one of
 // the fidgets or the classic photo pose, chosen in the sheet.
 const POSES = Object.freeze([...GeneTables.QUIRKS.map((q) => q.id), 'pose']);
@@ -52,6 +54,11 @@ function normalizeSpot(raw) {
 function normalizeFraction(raw) {
   const n = typeof raw === 'number' ? raw : NaN;
   return Number.isFinite(n) && n >= 0 && n <= 1 ? Math.round(n * 1000) / 1000 : null;
+}
+
+function normalizeScreens(raw) {
+  const ids = Array.isArray(raw) ? raw.filter((id) => typeof id === 'string' && SCREEN_ID.test(id)) : [];
+  return [...new Set(ids)].slice(0, SCREENS_MAX);
 }
 
 function normalizePrefs(raw) {
@@ -70,6 +77,7 @@ function normalizePrefs(raw) {
     deskX: normalizeFraction(p.deskX),
     deskY: normalizeFraction(p.deskY),
     deskScreen: typeof p.deskScreen === 'string' && SCREEN_ID.test(p.deskScreen) ? p.deskScreen : '',
+    deskScreens: normalizeScreens(p.deskScreens),
     deskSize: DESK_SIZES.includes(p.deskSize) ? p.deskSize : DEFAULT_PREFS.deskSize,
     tap: TAPS.includes(p.tap) ? p.tap : DEFAULT_PREFS.tap,
     keys: Pocket.normalizeKeys(p.keys),

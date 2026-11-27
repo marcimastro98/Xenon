@@ -82,7 +82,7 @@ test('the site choice: a switch that asks the server, a line on what is shown, t
 
 test('the room\'s sharing drawer offers the card, the page loads it, and the QR helpers it borrows exist', () => {
   const panels = read('js/bit-companion/room-panels.js');
-  assert.match(panels, /tools\.append\(\.\.\.\[choice\(h\.say\('mybit_ground'\), 'card', GROUNDS,[^\n]*pose\(bit, h\)\]\.filter\(Boolean\)\)/, 'its ground and pose in one row');
+  assert.match(panels, /tools\.append\(\.\.\.\[choice\(h\.say\('mybit_ground'\), 'card', GROUNDS\.filter\([^\n]*pose\(bit, h\)\]\.filter\(Boolean\)\)/, 'its ground and pose in one row');
   assert.match(panels, /window\.BitCard\?\.section\(bit, h, \[tools\]\)/, 'under its card');
   assert.match(panels, /if \(window\.ShareCard\) tabs\.push\(\['setup', 'mybit_share_setup'\]\)/, 'the setup card is one of the choices');
   assert.match(panels, /\[nameField\(bit, h\), facts, traits\(bit, h\), prefs\(bit, h\), site\(bit, h\)\]/, 'the site choice sits with its settings');

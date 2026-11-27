@@ -77,6 +77,10 @@ pub(super) fn open(app: &AppHandle, s: &Surface) -> Option<Live> {
         Some(caps) => builder.initialization_script(caps),
         None => builder,
     };
+    let builder = match app.get_webview_window("main").filter(|_| kind == Kind::Menu) {
+        Some(main) => builder.initialization_script(crate::monitor::bit_screens_js(&main)),
+        None => builder,
+    };
     // Same arguments as the main webview when they share a profile (see
     // `crate::browser_args`); without the GPU pin when they do not.
     #[cfg(windows)]

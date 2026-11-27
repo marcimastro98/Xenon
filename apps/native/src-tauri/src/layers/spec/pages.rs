@@ -67,7 +67,7 @@ pub fn dashboard_page(path: &str, open: Option<&str>, cat: Option<&str>, menu: b
 /// the Xenon menu's window (js/ai/sheet-page.js). Facts only: the switches of the
 /// main window (see-through, display, zoom) stay out, because this window takes
 /// none of their signals.
-const MENU_CAPS: [&str; 12] = [
+const MENU_CAPS: [&str; 13] = [
     "shellVersion",
     "shellSelfUpdate",
     "layers",
@@ -80,6 +80,9 @@ const MENU_CAPS: [&str; 12] = [
     "anchor",
     "desks",
     "pad",
+    // Its room there shows Bit's desktop choices (js/bit-companion/room-desk.js); the
+    // desktop Bit itself is drawn from the main window only.
+    "bitDesk",
 ];
 
 /// The script that gives the menu's window those facts, out of the main window's.

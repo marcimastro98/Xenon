@@ -1,6 +1,6 @@
 'use strict';
 // The card of the person's own Bit, to post: their Bit big in its own pose, on its own colour or in
-// its theatre (prefs.card, room-scenery.js), its number and name, its DNA with the true odds
+// its theatre (prefs.card, room-scenery.js) or in its home (the worn 'home' item), its number and name, its DNA with the true odds
 // (card-dna.js) and a QR to the site, or to its own page there once shown (server/bit/publish.js).
 // Drawn from the engine's picture and the server's view of the Bit, never a capture of the page, so
 // nothing else on screen ends up in it; it shows only what the Bit owns, never a try-on.
@@ -20,7 +20,8 @@
     plain: { bit: { x: 250, y: 120, w: 580 }, big: 770, small: 826, about: 884, strip: 946 },
     stage: { stage: 720, mark: { x: 128, y: 80 }, big: 812, small: 864, about: 918, strip: 962 },
   });
-  const groundOf = (bit) => (bit?.prefs?.card === 'stage' && window.BitScenery ? 'stage' : 'plain');
+  const hasHome = (bit) => !!window.Xenon?.bitWardrobe?.outfit(bit?.worn || []).some((it) => it.slot === 'home');
+  const groundOf = (bit) => ({ stage: !!window.BitScenery, home: hasHome(bit) }[bit?.prefs?.card] ? bit.prefs.card : 'plain');
   const toneOf = (bit) => window.BitDna?.colors(bit) || PLAIN;
 
   // The card last made, kept while the Bit it shows stays the same: the sheet draws itself again
@@ -78,14 +79,14 @@
     });
   }
 
-  // The Bit in its own pose (card-dna.js), drawn crisp at `size` pixels on the ground `ink`.
-  async function bitPicture(bit, size, ink = PLAIN.ink) {
+  // The Bit in its own pose (card-dna.js), drawn crisp at `size` pixels on the ground `ink`; in its doorway with `home`.
+  async function bitPicture(bit, size, ink = PLAIN.ink, home = false) {
     const X = window.Xenon;
     if (!X?.bit || !X.bitLook || !X.bitWardrobe || !bit.genes) return null;
     const look = X.bitLook.lookOf(bit.genes, { worn: X.bitWardrobe.outfit(bit.worn || []), background: ink });
     const D = window.BitDna;
     const shot = D?.pose(D.poseOf(bit)) || { clip: X.bit.clip('idle'), frame: 0 };
-    const svg = X.bit.frameSvg(shot.clip, shot.frame, { size, look, clipId: 'bitcard' });
+    const svg = X.bit.frameSvg(shot.clip, shot.frame, { size, look, clipId: 'bitcard', home });
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
     try { return await image(url); } finally { URL.revokeObjectURL(url); }
   }
@@ -194,8 +195,8 @@
   async function draw(bit, say, num, date) {
     const said = words(bit, say, num, date, typeof lang === 'string' ? lang : 'en');
     const tone = toneOf(bit);
-    const L = LAYOUT[groundOf(bit)];
-    const [{ canvas, ctx, logo }, picture] = await Promise.all([ground(said.tagline, pageOf(bit) || SITE, tone), bitPicture(bit, 580, tone.ink)]);
+    const L = LAYOUT[groundOf(bit) === 'stage' ? 'stage' : 'plain'];
+    const [{ canvas, ctx, logo }, picture] = await Promise.all([ground(said.tagline, pageOf(bit) || SITE, tone), bitPicture(bit, 580, tone.ink, groundOf(bit) === 'home')]);
     const spot = L.stage ? await stage(ctx, bit, logo, tone) : L.bit;
     if (picture) ctx.drawImage(picture, spot.x, spot.y, spot.w, picture.height * (spot.w / picture.width));
     ctx.fillStyle = tone.text;
@@ -295,5 +296,5 @@
 
   // What recap.js and clip.js draw with: the same ground, mark, Bit, type and buttons.
   const paint = Object.freeze({ W, H, PLAIN, FONT, SITE, toneOf, pageOf, brand, ground, bitPicture, fitLines, actions });
-  window.BitCard = { section, words, rareLine, aboutLine, paint, reset: () => { made = null; pending = null; } };
+  window.BitCard = { section, words, rareLine, aboutLine, paint, hasHome, reset: () => { made = null; pending = null; } };
 })();

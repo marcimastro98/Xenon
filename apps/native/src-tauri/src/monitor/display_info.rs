@@ -156,6 +156,16 @@ fn display_json(d: &DisplayInfo) -> serde_json::Value {
     })
 }
 
+/// The screens Bit on the desktop may go to, for the room in the Xenon menu's
+/// window (js/bit-companion/room-desk.js), which has no display state of its
+/// own: the list and the dashboard's screen, facts only.
+pub fn bit_screens_js(window: &WebviewWindow) -> String {
+    let list: Vec<serde_json::Value> = displays(window).iter().map(display_json).collect();
+    let active = current_of(window).and_then(|m| id_of(window, &m));
+    let state = serde_json::json!({ "displays": list, "active": active });
+    format!("try{{window.__XENON_BIT_SCREENS__={state};}}catch(e){{}}")
+}
+
 /// The whole display state, as the dashboard consumes it. `active` is the screen
 /// the window is really on — the page shows the truth, not the intent.
 pub fn display_state(window: &WebviewWindow) -> serde_json::Value {

@@ -13,10 +13,8 @@
   const REACTIONS = ['normal', 'few', 'off'];
   const ROAMS = ['mix', 'walk', 'stay'];
   const WARPS = ['any', 'crumble', 'beam', 'packet', 'glitch']; // bit-companion/warp.js
-  const DESKS = ['main', 'all', 'off']; // bit-companion/desk.js
-  const DESK_SIZES = ['small', 'medium', 'large']; // bit-companion/desk-spot.js; the mouse wheel over it too
   const TAPS = ['pocket', 'chat', 'room']; // companion.js tap()
-  const GROUNDS = ['plain', 'stage'];
+  const GROUNDS = ['plain', 'stage', 'home']; // home: only with a home on (card.js)
   const NAME_MAX = 24;
   let shareTab = 'card'; // what the share drawer shows; the room's buttons choose it before opening
 
@@ -110,46 +108,20 @@
   // How it teleports: on a stroll with roam 'mix', and on its way to a place set here or elsewhere.
   const warpChoice = (p, h) => choice(h.say('mybit_warp'), 'warp', WARPS, p.warp || 'any', (v) => h.say(`mybit_warp_${v}`), h);
 
-  // On the taskbar, only where the shell can draw it; every screen in turn only with two to go to
-  // besides the dashboard's (or when already chosen); dragged anywhere, a way back to its usual spot.
-  function desk(p, h) {
-    const screens = window.BitDesk?.screens?.().length || 1;
-    const options = DESKS.filter((v) => v !== 'all' || screens > 1 || p.desk === 'all');
-    const box = choice(h.say('mybit_desk'), 'desk', options, p.desk || 'main', (v) => h.say(`mybit_desk_${v}`), h);
-    if (p.desk !== 'all') window.BitPerks?.mark(box.querySelector('[data-value="all"]'), 'allScreens'); // kept if it had it
-    const moved = typeof p.deskX === 'number' || typeof p.deskY === 'number' || !!p.deskScreen;
-    if (!moved || p.desk === 'off') return box;
-    const back = makeEl('button', 'bitc-seg-btn bitc-spot-back', h.say('mybit_desk_reset'));
-    back.type = 'button';
-    back.addEventListener('click', () => setPref({ deskX: null, deskY: null, deskScreen: '' }, h), { signal: h.signal });
-    box.append(back);
-    return box;
-  }
-  const deskShown = () => window.__XENON_NATIVE__ === true && window.__XENON_NATIVE_CAPS__?.bitDesk === true;
+  // Bit on the desktop, its own file (room-desk.js), under its own title.
+  const deskParts = (p, h) => window.BitRoomDesk?.parts(p, h, { choice, setPref }) || [];
+  const title = (h, key) => makeEl('h3', 'bitc-part-title', h.say(key));
 
-  // The desktop as a choice with what it is, where the shell draws it (on macOS and Linux a Beta, which says how
-  // it differs there). A Windows app from before Bit on the desktop (its caps never name bitDesk) says what it
-  // takes; a browser, a phone or a PC that cannot draw it, nothing.
-  function deskParts(p, h) {
-    const line = (key) => makeEl('p', 'bitc-line', h.say(key));
-    const ua = String(window.navigator?.userAgent);
-    const windows = /Windows/.test(ua);
-    if (deskShown()) {
-      const beta = windows ? null : /Macintosh|Mac OS X/.test(ua) ? 'mybit_desk_beta_mac' : 'mybit_desk_beta_linux';
-      const size = p.desk === 'off' ? [] : [choice(h.say('mybit_desk_size'), 'deskSize', DESK_SIZES, p.deskSize || 'medium', (v) => h.say(`mybit_desk_size_${v}`), h)];
-      return [desk(p, h), ...size, line('mybit_guide_desk_line'), ...(beta ? [line(beta)] : [])];
-    }
-    const caps = window.__XENON_NATIVE__ === true ? window.__XENON_NATIVE_CAPS__ || {} : null;
-    return caps && windows && !('bitDesk' in caps) ? [line('mybit_desk_needs_app')] : [];
-  }
-
+  // Three parts, each under its title: how it behaves, in the dashboard, on the desktop.
   function prefs(bit, h) {
     const p = bit.prefs || {};
     const box = makeEl('section', 'bitc-part bitc-prefs');
-    box.append(choice(h.say('mybit_place'), 'place', PLACES, p.place, (v) => h.say(`mybit_place_${v}`), h));
-    if (!bit.hatched) return box;
+    const place = choice(h.say('mybit_place'), 'place', PLACES, p.place, (v) => h.say(`mybit_place_${v}`), h);
+    if (!bit.hatched) { box.append(place); return box; }
+    box.append(title(h, 'mybit_behaviour'));
     box.append(choice(h.say('mybit_reactions'), 'reactions', REACTIONS, p.reactions, (v) => h.say(`mybit_react_${v}`), h));
     box.append(choice(h.say('mybit_tap'), 'tap', TAPS, p.tap || 'pocket', (v) => h.say(`mybit_tap_${v}`), h));
+    box.append(title(h, 'mybit_in_dashboard'), place);
     if (p.place === 'corner' || p.place === 'both') box.append(roam(p, h), warpChoice(p, h));
     box.append(...deskParts(p, h));
     const label = makeEl('label', 'bitc-switch');
@@ -236,7 +208,7 @@
     if (id === 'setup') return setup(h);
     if (id === 'recap') return window.BitRecap.section(bit, h);
     const tools = makeEl('div', 'bitc-tools');
-    tools.append(...[choice(h.say('mybit_ground'), 'card', GROUNDS, bit.prefs?.card || 'plain', (v) => h.say(`mybit_ground_${v}`), h), pose(bit, h)].filter(Boolean));
+    tools.append(...[choice(h.say('mybit_ground'), 'card', GROUNDS.filter((g) => g !== 'home' || window.BitCard?.hasHome(bit)), bit.prefs?.card || 'plain', (v) => h.say(`mybit_ground_${v}`), h), pose(bit, h)].filter(Boolean));
     return window.BitCard?.section(bit, h, [tools]) || null;
   }
 

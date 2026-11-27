@@ -52,7 +52,7 @@ pub(crate) use target::{in_home_mode, owns_its_screen};
 pub use target::place_now;
 pub use watchdog::start_watchdog;
 
-pub use display_info::{display_list_json, display_state, displays};
+pub use display_info::{bit_screens_js, display_list_json, display_state, displays};
 use display_info::game_mode;
 use edge::{find_edge, is_edge_panel, is_edge_size, kiosk_off_screen, minimized, window_is_on};
 pub use edge::edge_present;

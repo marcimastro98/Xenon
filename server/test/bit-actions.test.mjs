@@ -165,3 +165,11 @@ test('a new name from the chat goes to its public page; a place on the screen do
     assert.equal(refreshed, 1, 'the same name again sends nothing');
   } finally { t.done(); }
 });
+
+test('the screens it travels across are kept as ids, once each, at most eight; a card in its home is a ground', () => {
+  const p = Prefs.normalizePrefs({ deskScreens: ['b', 'a', 'b', 7, '', 'x'.repeat(65), ...'cdefghij'] });
+  assert.deepEqual(p.deskScreens, ['b', 'a', 'c', 'd', 'e', 'f', 'g', 'h']);
+  assert.deepEqual(Prefs.normalizePrefs({}).deskScreens, [], 'every screen by default');
+  assert.deepEqual(Prefs.merge(Prefs.DEFAULT_PREFS, { deskScreens: ['a', 'a'] }), { error: 'bad_value' }, 'a list not as sent is refused, never kept changed');
+  assert.ok(Prefs.CARDS.includes('home'));
+});

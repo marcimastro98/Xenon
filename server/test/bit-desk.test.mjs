@@ -524,3 +524,20 @@ test('its size: medium as today, small and large from its prefs, the wheel one s
   off.desk.resize(1);
   assert.equal(off.posts.length, 0, 'not out: the wheel does nothing');
 });
+
+test('travelling only across the screens the person chose: one taken off is never visited, one left alone keeps it there', () => {
+  const displays = [{ id: 'a', x: 0, y: 0, primary: true }, { id: 'b', x: 1920, y: 0, primary: false }, { id: 'c', x: 3840, y: 0, primary: false }];
+  const r = rig({ warp: true, displays, bit: born({ desk: 'all', roam: 'stay', deskScreens: ['b', 'c'] }) });
+  assert.deepEqual([...r.desk.screens()], ['b', 'c'], 'the chosen ones, left to right');
+  r.advance(100);
+  assert.equal(r.last().monitor, 'b', 'the main screen is not chosen: it starts on the first one that is');
+  r.advance(3 * 31 * 60000);
+  assert.ok(r.messages().some((m) => m.monitor === 'c'), 'it goes to the other chosen one');
+  assert.ok(r.messages().filter((m) => m.on).every((m) => m.monitor !== 'a' && m.monitor !== ''), 'never to the main one');
+  const gone = rig({ warp: true, displays, bit: born({ desk: 'all', roam: 'stay', deskScreens: ['z'] }) });
+  assert.deepEqual([...gone.desk.screens()], ['a', 'b', 'c'], 'chosen screens no longer there: every screen');
+  const lone = rig({ warp: true, displays, bit: born({ desk: 'all', roam: 'stay', deskScreens: ['c'] }) });
+  lone.advance(31 * 60000);
+  assert.equal(lone.desk.hop(), false, 'one chosen: it stays there');
+  assert.ok(lone.messages().filter((m) => m.on).every((m) => m.monitor === 'c'));
+});

@@ -277,7 +277,7 @@ test("prefs: what a tap opens, and the pocket's own keys (known ones, once each,
 test('the Vitals Bit becomes the companion where it lived', async (t) => {
   const h = harness(t, { settings: { vitals: { pet: { enabled: true, position: 'topbar', sounds: true } } } });
   const r = await h.call('GET /api/bit');
-  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null, desk: 'main', deskX: null, deskY: null, deskScreen: '', deskSize: 'medium', tap: 'pocket', keys: [], setup: false });
+  assert.deepEqual(r.bit.prefs, { place: 'topbar', reactions: 'normal', sounds: true, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null, desk: 'main', deskX: null, deskY: null, deskScreen: '', deskScreens: [], deskSize: 'medium', tap: 'pocket', keys: [], setup: false });
   const { prefsFromVitals } = require('../bit/handlers.js');
   assert.equal(prefsFromVitals({ vitals: { pet: { enabled: false, position: 'topbar' } } }).place, 'corner');
 });

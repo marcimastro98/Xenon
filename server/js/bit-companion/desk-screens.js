@@ -10,11 +10,21 @@
   const all = (state) => (Array.isArray(state.displays) ? state.displays : []);
   const find = (id, state) => all(state).find((d) => String(d.id) === id);
 
-  /** The screens it can go to, left to right: never the dashboard's own, which has its Bit already
+  // The screens the person chose for it (prefs.deskScreens, [] every one).
+  const chosen = () => window.BitApp?.state()?.prefs?.deskScreens || [];
+
+  /** Every screen it may stand on, left to right: never the dashboard's own, which has its Bit already
    *  (and a kiosk filling it would hide this one). */
-  function list(state = read()) {
+  function usableIds(state = read()) {
     const dashboard = String(state.active || '');
     return all(state).slice().sort((a, b) => a.x - b.x || a.y - b.y).map((d) => String(d.id)).filter((id) => id !== dashboard);
+  }
+
+  /** The screens it goes to: those chosen that are still there, or all of them when none is. */
+  function list(state = read(), pick = chosen()) {
+    const ids = usableIds(state);
+    const kept = ids.filter((id) => pick.includes(id));
+    return kept.length ? kept : ids;
   }
 
   /** The screen after `here` ('' = the main one), or '' when fewer than two are left to go to. */
