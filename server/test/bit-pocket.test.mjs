@@ -384,3 +384,39 @@ test('eight keys with the extra; kept for supporters, a fifth wears the heart an
   open.btnNamed('mybit_pocket_edit').click();
   assert.ok(open.all('.bitp-key').every((b) => !b.disabled), 'eight: room for more');
 });
+
+test('Claude Code done: the flag comes down once the session works again; a pause for its sub-agents or a closed session is not done', () => {
+  const r = signalsRig();
+  const two = (a, b) => ({ live: { sessions: [{ id: 'a', state: a }, { id: 'b', state: b }] } });
+  r.S.heard('claude', two('running', 'running'));
+  r.S.heard('claude', two('idle', 'running'));
+  assert.equal(r.kinds(), 'done', 'a finished');
+  r.S.heard('claude', two('idle', 'idle'));
+  r.S.heard('claude', two('running', 'idle'));
+  assert.equal(r.kinds(), 'done', 'b finished and still waits');
+  r.S.heard('claude', two('running', 'running'));
+  assert.equal(r.kinds(), '', 'both back at work: nothing finished any more');
+  const helped = signalsRig();
+  helped.S.heard('claude', helped.session('a', 'running'));
+  helped.S.heard('claude', helped.session('a', 'idle', { subagents: [{ id: 'x', status: 'running' }] }));
+  assert.equal(helped.kinds(), '', 'paused for its sub-agents: not finished');
+  const closed = signalsRig();
+  closed.S.heard('claude', closed.session('a', 'running'));
+  closed.S.heard('claude', closed.session('a', 'idle', { ended: true, endedReason: 'clear' }));
+  assert.equal(closed.kinds(), '', 'closed: not finished');
+});
+
+test('a page opened after the flag went up keeps it while a session rests, and takes it down when they all work', () => {
+  const stored = JSON.stringify([{ kind: 'done', at: Date.UTC(2026, 10, 26, 9, 50), vars: { who: 'Claude Code' } }]);
+  const r = signalsRig({ stored });
+  r.S.heard('codex', r.session('c', 'running'));
+  assert.equal(r.kinds(), 'done', 'Codex heard first: says nothing about Claude Code');
+  r.S.heard('claude', r.session('a', 'idle'));
+  assert.equal(r.kinds(), 'done', 'a session resting: it may be the one');
+  r.S.heard('claude', r.session('a', 'running'));
+  assert.equal(r.kinds(), '');
+  const busy = signalsRig({ stored });
+  busy.S.heard('claude', busy.session('a', 'running'));
+  busy.S.heard('claude', busy.session('a', 'running'));
+  assert.equal(busy.kinds(), '', 'every session at work: the old flag comes down');
+});

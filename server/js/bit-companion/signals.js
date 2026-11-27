@@ -19,6 +19,7 @@
   const TEXT_MAX = 80;
   const agents = { claude: null, codex: null };   // source -> Map(session id -> 'running' | 'idle' | 'asks')
   const asking = { claude: false, codex: false };
+  const waiting = { claude: new Set(), codex: new Set() };   // sessions that finished and still wait for the person
 
   const text = (v) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX);
   const store = () => { try { return window.localStorage; } catch { return null; } };
@@ -73,9 +74,18 @@
     return list.filter((s) => fresh(s, now)).sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
   }
 
-  // Claude Code and Codex, read as moments.js reads them: a session that went from running to idle
-  // finished (one killed did not); any session waiting asks.
+  // Claude Code and Codex, read as moments.js reads them: any session waiting asks; a session that went
+  // from running to idle finished, unless it was closed or its sub-agents still work (the turn paused for
+  // them). The flag stays only while a session that finished still waits: back at work, it comes down.
   const agentState = (s) => (s.waitFor || s.state === 'waiting' ? 'asks' : s.state === 'running' ? 'running' : 'idle');
+  const helping = (s) => Array.isArray(s.subagents) && s.subagents.some((a) => a && a.status === 'running');
+  const resting = (s) => agentState(s) === 'idle' && !s.ended && !helping(s);
+  // Whether the source that raised the flag has been heard by this page (Codex may never be linked).
+  const heardWho = () => {
+    const who = list.find((s) => s.kind === 'done')?.vars.who;
+    const source = Object.keys(WHO).find((k) => WHO[k] === who);
+    return !source || agents[source] !== null;
+  };
   function agent(source, d) {
     const sessions = Array.isArray(d.live?.sessions) ? d.live.sessions.filter((s) => s && s.id != null) : null;
     if (!sessions) return;
@@ -84,9 +94,14 @@
     asking[source] = sessions.some((s) => agentState(s) === 'asks');
     if (asking[source] && !list.some((s) => s.kind === 'ask')) put('ask', { who: WHO[source] });
     else if (!asking.claude && !asking.codex) drop(['ask']);
-    const finished = before && sessions.some((s) => before.get(String(s.id)) === 'running' && agentState(s) === 'idle'
-      && !(s.ended && s.endedReason === 'gone'));
-    if (finished) put('done', { who: WHO[source] });
+    const finished = before ? sessions.filter((s) => before.get(String(s.id)) === 'running' && resting(s)) : [];
+    // A page opened after the flag went up does not know which session raised it: the ones resting now.
+    const known = before ? waiting[source] : new Set(list.some((s) => s.kind === 'done') ? sessions.filter(resting).map((s) => String(s.id)) : []);
+    const still = new Set(sessions.filter((s) => resting(s) && known.has(String(s.id))).map((s) => String(s.id)));
+    for (const s of finished) still.add(String(s.id));
+    waiting[source] = still;
+    if (finished.length) put('done', { who: WHO[source] });
+    else if (!waiting.claude.size && !waiting.codex.size && heardWho()) drop(['done']);
   }
 
   // A disk this full is told once a day, the fullest one.
