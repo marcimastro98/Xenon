@@ -12,7 +12,7 @@ import { loadPlaywright } from '../toast-gallery/shoot.mjs';
 export const PAGES = [
   '/', '/download.html', '/faq.html', '/widgets.html', '/claude-code.html', '/codex.html', '/deck.html',
   '/fps-overlay.html', '/linux.html', '/mac.html', '/phone.html', '/privacy.html', '/releases.html',
-  '/screen-recorder.html', '/sensor-panel.html', '/single-screen.html', '/tablet-dashboard.html', '/thanks.html',
+  '/screen-recorder.html', '/fan-control.html', '/aio-lcd-screen.html', '/sensor-panel.html', '/single-screen.html', '/tablet-dashboard.html', '/thanks.html',
   '/xeneon-edge-widgets.html', '/xenon-exe.html', '/404.html', '/catalog/', '/create/', '/get/', '/submit/',
 ];
 const PHONE_BELOW = 700;

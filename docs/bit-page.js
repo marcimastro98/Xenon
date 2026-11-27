@@ -186,6 +186,7 @@
     return;
   }
   window.addEventListener('hashchange', () => {
+    if (location.hash && !HASH.test(location.hash)) return; // an anchor on the page (#wardrobe): the browser scrolls there
     route();
     const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' });

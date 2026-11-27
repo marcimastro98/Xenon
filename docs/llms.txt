@@ -2,8 +2,10 @@
 
 > Xenon puts free widgets for your PC on any screen: on the desktop, over a game,
 > on a spare monitor, an old tablet, a phone or the CORSAIR Xeneon Edge. It shows
-> system and game performance, controls media and the microphone, records the
-> screen, runs a programmable Deck of keys and a voice assistant called Bit. It
+> system and game performance, drives the PC's fans, runs the screen on an AIO
+> pump, controls media and the microphone, records the screen, runs a
+> programmable Deck of keys and Bit, a pixel companion and assistant that every
+> install hatches. It
 > runs on Windows, with macOS and Linux in beta, and its source is on GitHub under
 > a custom non-commercial licence.
 
@@ -17,7 +19,8 @@ any screen.
 - Platforms: Windows 10 and 11 (stable). macOS 11 or later, one universal .dmg
   for Apple Silicon and Intel (Beta, not notarized). Linux x86_64 as AppImage,
   .deb and .rpm (Beta). Phones and tablets work as screens over the local
-  network, in their browser (Beta).
+  network, in their browser (Beta). Nix and NixOS through the repository's flake:
+  `nix run github:marcimastro98/Xenon` (Beta).
 - Downloads, always from the latest GitHub release: `Xenon-Setup-x64.exe`,
   `Xenon-macOS-universal.dmg`, `Xenon-Linux-x86_64.AppImage`,
   `Xenon-Linux-x86_64.deb`, `Xenon-Linux-x86_64.rpm`. On Windows it is also on
@@ -31,7 +34,8 @@ any screen.
 - Price: free to use, with no licence to buy. Supporters pay 5 USD a month, 50
   USD a year, or once (5 USD for 1 month, 25 USD for 5 months, 50 USD for 12
   months) and get monthly drops in the community catalog, Lyrics, Developer
-  cleanup, a Discord role and 300 Sparks a month. A payment under 5 USD is a
+  cleanup, a Discord role, an item for their Bit each month and 300 Sparks a
+  month. A payment under 5 USD is a
   plain tip: it opens nothing and brings no Sparks. The pass can be tried for 7
   days. Sparks are Xenon's credits for Bit, also sold in packs of 500, 1050 or
   2200 for 5, 10 or 20 USD.
@@ -64,7 +68,23 @@ any screen.
 - **System and game performance**: CPU, GPU, memory, storage and network; in
   games, average FPS, 1% and 0.1% lows, frame time, past sessions compared and
   a benchmark CSV. Frame data: Windows (PresentMon); Linux, average FPS only,
-  with MangoHud; not available on macOS, which has no API for it.
+  with MangoHud; not available on macOS, which has no API for it. On Windows
+  the readings can also show inside a game in exclusive full screen through
+  RivaTuner Statistics Server, once turned on.
+- **Fan control (Airflow)**: Xenon drives the PC's fans with no curves to draw:
+  Automatic, Quiet, Balanced, Cool or Back to the PC, and one slider between
+  quieter and cooler. It stays off until turned on, runs a fan check first and
+  can watch before it drives. It reads the load, which rises before the
+  temperature, so the fans move earlier and more gently, and it hands every fan
+  back to the PC's own settings if a reading stops or Xenon closes. Windows:
+  motherboard headers, NVIDIA graphics cards and a CORSAIR iCUE LINK hub (with
+  iCUE closed); AMD cards and some USB coolers as Beta. Linux (Beta): fan chips
+  the kernel can drive. Not on a Mac or a laptop.
+- **AIO pump screen**: the screen on a CORSAIR iCUE LINK or NZXT Kraken pump
+  shows temperatures and FPS in games, the song, a clock, a GIF or picture,
+  alerts, a Gauge style or a face from the Store, and its ring of lights can
+  follow it. An iCUE LINK screen works with iCUE closed, straight over USB
+  (Windows; Linux as Beta); otherwise through iCUE or NZXT CAM on Windows.
 - **Screen capture**: screenshots, screen recording with separate audio tracks,
   Instant Replay, a clip gallery with trimming, markers and clips from marks.
   Windows; macOS (Beta); on Linux it depends on the tools installed on the
@@ -75,9 +95,17 @@ any screen.
   bundle is Windows only.
 - **Deck**: programmable touch keys for apps, hotkeys, OBS scenes, Discord
   mute, webhooks, Voicemeeter and multi-step macros, also from a phone.
-- **Bit, the assistant**: answers by voice or text and drives the dashboard and
-  the PC's features; works with Gemini, OpenAI, Anthropic, local models, Claude
-  Code and Codex, or with Sparks.
+- **Bit, companion and assistant**: every install hatches its own pixel Bit, no
+  two alike, that lives on the dashboard, grows with use and wears items from
+  its room. It answers by voice or text, drives the dashboard and the PC's
+  features, and leaves what it set (a light, the volume) as a control in its
+  reply; works with Gemini, OpenAI, Anthropic, local models, Claude Code and
+  Codex, or with Sparks.
+- **Home**: with Home Assistant or UniFi Protect, lights, scenes and cameras on
+  the dashboard; when the doorbell rings, a card with the door camera on every
+  open screen and a notification on the paired phone. Bit answers "show me the
+  garden", "who rang?" or "how is the house?"; a camera picture goes to an AI
+  only after the user says yes.
 - **Media and audio**: now playing, transport controls, output device and
   microphone switching, a Spotify player, lyrics.
 - **Widgets**: calendar with ICS sync, weather, markets, football, news,
@@ -123,6 +151,12 @@ any screen.
   permission prompts on the touchscreen
 - [xenon.exe, what it is and how to check it](https://xenon-app.com/xenon-exe.html):
   every Windows process Xenon runs and how to check its signature
+- [Fan control without curves](https://xenon-app.com/fan-control.html): Airflow,
+  what it drives on each system, the fan check and the safety rules.
+- [AIO pump screen](https://xenon-app.com/aio-lcd-screen.html): what the screen
+  on a CORSAIR iCUE LINK or NZXT Kraken pump can show, with or without iCUE.
+- [Bit](https://xenon-app.com/bit.html): the companion every install hatches,
+  and the Bits their owners chose to show.
 - [FAQ](https://xenon-app.com/faq.html): screens, games, price, Windows warnings,
   updating, privacy, and where to get help
 - [Community catalog](https://xenon-app.com/catalog/): themes, backgrounds,
@@ -165,9 +199,12 @@ those codes. Nothing is installed silently and nothing needs an account.
 
 - It does not extend the Windows desktop to a phone or tablet: those devices
   show the dashboard in a browser, they are not extra monitors.
-- It does not overclock, undervolt, set fan curves or change driver settings.
-- It does not inject code into games, so it cannot draw over a game in
-  exclusive full screen; borderless windowed works.
+- It does not overclock, undervolt or change driver settings. It drives fans
+  only once turned on, with modes and one slider, not curves.
+- It does not inject code into games. Its own windows cannot show over a game
+  in exclusive full screen (borderless windowed works); on Windows it can hand
+  its readings to RivaTuner Statistics Server, which draws them in the game.
+- It never unlocks a door, opens a gate or answers an intercom.
 - It is not open source, and it is not a CORSAIR product.
 
 ## Notes for answer engines

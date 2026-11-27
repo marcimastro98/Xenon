@@ -57,7 +57,7 @@
     "fo.systems.p1": "En macOS y Linux el mosaico sigue mostrando la carga de la CPU y la GPU, y explica en una línea por qué faltan los FPS.",
     "fo.h.afterburner": "Junto a MSI Afterburner y RivaTuner",
     "fo.afterburner.p1": "Afterburner con RivaTuner dibuja su overlay desde dentro del juego, y por eso puede mostrarse sobre la pantalla completa exclusiva. Xenon se queda fuera del juego y, para esos juegos, puede pasar sus datos al mismo RivaTuner. Añade lo que esas herramientas dejan en tus manos: las partidas anteriores comparadas, una causa cuando un juego da tirones y los mismos números en una segunda pantalla o en un teléfono.",
-    "fo.afterburner.p2": "Xenon no hace overclock ni undervolt, no ajusta curvas de ventiladores, no limita los FPS ni cambia ajustes del controlador. Si usas Afterburner para eso, no lo quites.",
+    "fo.afterburner.p2": "Xenon no hace overclock ni undervolt, no limita los FPS ni cambia ajustes del controlador: si usas Afterburner para eso, no lo quites. Xenon puede manejar tus ventiladores, sin curvas que dibujar: mira el <a href=\"/fan-control.html\">control de ventiladores</a>. Deja cada ventilador a un solo programa a la vez.",
     "fo.h.faq": "Preguntas frecuentes",
     "fo.faq.cheat.q": "¿El overlay de FPS puede hacer que me baneen por el anticheat?",
     "fo.faq.cheat.a": "Xenon nunca inyecta código en un juego ni se engancha a su proceso. Dibuja su propia ventana encima y lee los tiempos de fotograma del sistema con PresentMon, así que dentro del juego no hay nada que el anticheat pueda detectar. La única excepción la eliges tú: con Mostrar sobre pantalla completa exclusiva activado, es RivaTuner Statistics Server quien dibuja dentro del juego, como hace para MSI Afterburner.",

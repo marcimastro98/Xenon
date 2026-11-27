@@ -534,12 +534,14 @@ html:not(.js) .ask, html:not(.js) .pz { display: none; }
 /* The Sparks every plan brings, with the app's own spark (tools/brand/build.mjs). */
 .sup-all { margin: 18px 0 0; font-size: 18px; font-weight: 600; }
 .sup-all img { display: inline-block; width: 20px; height: 20px; margin-right: 8px; vertical-align: -4px; image-rendering: pixelated; }
+.sup-all.sup-bit { margin-top: 8px; }
+.sup-all.sup-bit img { width: 15px; margin-inline: 2px 10px; }
 /* The free way in and the one payment: lines, so the three plans stay the choice. */
 .sup-try, .sup-once { margin: 6px 0 0; line-height: 1.5; }
 .sup-try { font-size: 18px; font-weight: 600; }
 .sup-once { font-size: 16px; }
-.sup-try a, .sup-once a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
-.sup-try a:hover, .sup-once a:hover { text-decoration-thickness: 2px; }
+.sup-try a, .sup-once a, .sup-bit a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
+.sup-try a:hover, .sup-once a:hover, .sup-bit a:hover { text-decoration-thickness: 2px; }
 .sup-more { margin-top: 8px; font-size: 16px; }
 .sup-more summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
 .sup-more p { margin: 6px 0 0; max-width: 72ch; line-height: 1.5; }
@@ -989,7 +991,7 @@ html[data-mobile] .onphone { display: block; }
         <figure class="scr-tab"><img src="/images/home/screen-tablet.webp" width="760" height="528" loading="lazy" decoding="async" alt="横向きのタブレットに表示した Xenon" data-i18n-alt="screens.tab.alt"><figcaption><span data-i18n="screens.cap.tab">タブレット</span><span class="beta" data-i18n="beta">ベータ</span></figcaption></figure>
         <figure class="scr-ph"><img src="/images/home/screen-phone.webp" width="320" height="693" loading="lazy" decoding="async" alt="スマホに表示した Xenon" data-i18n-alt="screens.ph.alt"><figcaption><span data-i18n="screens.cap.ph">スマホ</span><span class="beta" data-i18n="beta">ベータ</span></figcaption></figure>
       </div>
-      <p class="links"><a href="/ja/xeneon-edge-widgets.html" data-i18n="screens.l.edge">Xeneon Edge で使う</a><a href="/ja/tablet-dashboard.html" data-i18n="screens.l.tab">タブレットの設定</a><a href="/ja/phone.html" data-i18n="screens.l.ph">スマホの設定</a></p>
+      <p class="links"><a href="/ja/xeneon-edge-widgets.html" data-i18n="screens.l.edge">Xeneon Edge で使う</a><a href="/ja/tablet-dashboard.html" data-i18n="screens.l.tab">タブレットの設定</a><a href="/ja/phone.html" data-i18n="screens.l.ph">スマホの設定</a><a href="/ja/aio-lcd-screen.html" data-i18n="screens.l.pump">AIO ポンプの画面</a></p>
 
       <article class="one">
         <div class="one-tx">
@@ -1105,6 +1107,7 @@ html[data-mobile] .onphone { display: block; }
         </a>
       </div>
       <p class="sup-all"><img src="/images/brand/spark.svg" width="20" height="20" alt=""><span data-i18n="sup.all">どのプランでも毎月 300 スパーク。Xenon のクレジットです。</span></p>
+      <p class="sup-all sup-bit"><img src="/images/brand/bit-mono.svg" width="15" height="20" alt=""><span data-i18n-html="sup.bit">どのプランでも、毎月 Bit の新しいアイテムが 1 つ。ずっとあなたのものです。<a href="/ja/bit.html#wardrobe">ワードローブを見る</a></span></p>
       <p class="sup-try" data-i18n-html="sup.trial"><a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial?lang=ja' target='_blank' rel='noopener' data-track='trial_click' data-track-location='home_support'>サポーターの配布を 7 日間無料で試す</a>。PC ごとに 1 回、カードは不要です。</p>
       <p class="sup-once" data-i18n-html="sup.once">1 か月だけなら <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener' data-track='coffee_click' data-track-location='tier_coffee'>5 USD を 1 回</a>。解約の手続きはありません。</p>
       <details class="sup-more">
@@ -1203,6 +1206,8 @@ html[data-mobile] .onphone { display: block; }
       <li><a href="/ja/single-screen.html" data-i18n="ft.onescreen">1台の画面でXenonを使う</a></li>
       <li><a href="/ja/fps-overlay.html" data-i18n="ft.fps">FPSオーバーレイ</a></li>
       <li><a href="/ja/screen-recorder.html" data-i18n="ft.recorder">画面録画</a></li>
+      <li><a href="/ja/fan-control.html" data-i18n="ft.fans">ファン制御</a></li>
+      <li><a href="/ja/aio-lcd-screen.html" data-i18n="ft.pump">AIO ポンプの画面</a></li>
       <li><a href="/ja/mac.html" data-i18n="ft.mac">MacでのXenon</a></li>
       <li><a href="/ja/linux.html" data-i18n="ft.linux">LinuxでのXenon</a></li>
       <li><a href="/ja/widgets.html" data-i18n="ft.widgets">すべてのウィジェット</a></li>
@@ -1278,7 +1283,7 @@ html[data-mobile] .onphone { display: block; }
       "applicationCategory": "UtilitiesApplication",
       "applicationSubCategory": "PC widgets and system monitor",
       "operatingSystem": "Windows 10, Windows 11, macOS 11 or later (Beta), Linux (Beta)",
-      "description": "Xenon puts PC widgets on any screen: on the desktop, over a game, or as a touch dashboard on a spare monitor, a tablet, a phone or a CORSAIR Xeneon Edge. They cover system and game performance, media and microphone control, a Deck of programmable keys, screen recording, a voice assistant and file transfer.",
+      "description": "Xenon puts PC widgets on any screen: on the desktop, over a game, or as a touch dashboard on a spare monitor, a tablet, a phone or a CORSAIR Xeneon Edge. They cover system and game performance, media and microphone control, a Deck of programmable keys, screen recording, fan control, the screen on an AIO pump, a voice assistant and file transfer.",
       "downloadUrl": [
         "https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe",
         "https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg",
@@ -1336,9 +1341,13 @@ html[data-mobile] .onphone { display: block; }
         "Widgets on the desktop, over games or attached to an app window, on a single screen",
         "Screenshots, screen recording, Instant Replay and a clip gallery",
         "Copy text from the screen, colour picker and on-screen ruler",
+        "Fan control with no curves to draw: pick a mode and how quiet, and Xenon learns the PC",
+        "The screen on a CORSAIR iCUE LINK or NZXT Kraken AIO pump: temperatures, FPS, the song, a clock or your own GIF",
         "Media controls, audio output switching and microphone mute",
         "A Deck of programmable keys for apps, OBS, hotkeys, webhooks, Discord and Voicemeeter",
+        "Bit, a pixel companion that hatches unique on every install, with a wardrobe and its own page",
         "A voice assistant with Gemini, OpenAI, Anthropic, local models, Claude Code and Codex",
+        "Home Assistant and UniFi Protect: lights, cameras and the doorbell on the dashboard and in the chat",
         "File transfer between the PC and a paired phone or tablet",
         "Themes, animated backgrounds, Ambient scenes, a community catalog, Xenon Maker and a widget SDK",
         "Runs on a spare monitor, a tablet, a phone or a CORSAIR Xeneon Edge"
@@ -1594,14 +1603,14 @@ html[data-mobile] .onphone { display: block; }
     "w.discord.fact": "Voice channel, who is talking, mute, soundboard, direct messages and mentions.",
     "w.spotify.fact": "Track, queue, playlists and Connect devices. Controlling playback needs Premium.",
     "w.weather.fact": "Hourly and daily forecasts and air quality, with no account.",
-    "w.system.fact": "Load and temperatures, memory, disks, network, ping and frame rate.",
+    "w.system.fact": "Load and temperatures, memory, disks, network, ping and frame rate. Xenon can drive your fans too.",
     "w.football.fact": "Matches, scores and tables, with no keys to set up.",
     "w.youtube.fact": "Likes, playlists, subscriptions, search and queue.",
     "w.steam.fact": "TGK Steam by The.GothamKnight, free: launch recent games, see play time and the Steam Controller battery.",
     "w.twitch.fact": "Player, followed channels and chat. With Twitch Live, also title, clips and markers.",
     "w.calendar.fact": "Month view and events from Google, Outlook or an .ics link.",
     "w.deck.fact": "Touch keys for apps, shortcuts, media, OBS, Discord, Home Assistant and macros.",
-    "w.smarthome.fact": "Your devices room by room: lights, scenes and sensors.",
+    "w.smarthome.fact": "Your devices room by room: lights, scenes and sensors. Ask Bit to switch them, and a card shows up on screen when the doorbell rings.",
     "w.news.fact": "One list from newspapers, topics and RSS feeds.",
     "w.stocks.fact": "Stocks, indexes, crypto and currencies, with a chart for each symbol.",
     "w.obs.fact": "Preview, stream, recording, scenes and audio.",
@@ -1617,6 +1626,7 @@ html[data-mobile] .onphone { display: block; }
     "games.saved": "Replay saved",
     "make.alt": "Xenon Maker building a widget",
     "sup.all": "300 Sparks a month, Xenon's credits, in every plan.",
+    "sup.bit": "A new item for your Bit every month, in every plan, and it stays yours. <a href=\"/ja/bit.html#wardrobe\">See the wardrobe</a>",
     "sup.trial": "<a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial' target='_blank' rel='noopener' data-track='trial_click' data-track-location='home_support'>Try the supporter drops free for 7 days</a>, once per PC, with no card.",
     "sup.once": "Only one month? <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener' data-track='coffee_click' data-track-location='tier_coffee'>5 USD once</a>, with nothing to cancel.",
     "sup.more": "What they unlock and how Sparks work",
@@ -1635,6 +1645,9 @@ html[data-mobile] .onphone { display: block; }
     "film.link": "Watch the video",
     "film.sound": "Watch with sound",
     "film.alt": "The Xenon video: widgets on the desktop, over games and on any screen, with Bit",
+    "screens.l.pump": "Your AIO pump's screen",
+    "ft.fans": "Fan control",
+    "ft.pump": "AIO pump screen",
   };
 
   I18N.fr = {
@@ -1829,14 +1842,14 @@ html[data-mobile] .onphone { display: block; }
     "w.discord.fact": "Salon vocal, qui parle, micro coupé, soundboard, messages privés et mentions.",
     "w.spotify.fact": "Titre, file d'attente, playlists et appareils Connect. Pour piloter la lecture, il faut Premium.",
     "w.weather.fact": "Prévisions par heure et par jour et qualité de l'air, sans compte.",
-    "w.system.fact": "Charge et températures, mémoire, disques, réseau, ping et fréquence d'images.",
+    "w.system.fact": "Charge et températures, mémoire, disques, réseau, ping et fréquence d'images. Xenon peut aussi piloter tes ventilateurs.",
     "w.football.fact": "Matchs, résultats et classements, sans clé à configurer.",
     "w.youtube.fact": "J'aime, playlists, abonnements, recherche et file d'attente.",
     "w.steam.fact": "TGK Steam de The.GothamKnight, gratuit : lance les jeux récents, temps de jeu et batterie de la Steam Controller.",
     "w.twitch.fact": "Lecteur, chaînes suivies et chat. Avec Twitch Live, aussi le titre, les clips et les marqueurs.",
     "w.calendar.fact": "Vue du mois et événements de Google, Outlook ou d'un lien .ics.",
     "w.deck.fact": "Touches tactiles pour les apps, raccourcis, médias, OBS, Discord, Home Assistant et macros.",
-    "w.smarthome.fact": "Tes appareils pièce par pièce : lumières, scènes et capteurs.",
+    "w.smarthome.fact": "Tes appareils pièce par pièce : lumières, scènes et capteurs. Demande à Bit de les allumer ou de les éteindre, et une carte apparaît à l'écran quand on sonne.",
     "w.news.fact": "Une liste à partir de journaux, de sujets et de flux RSS.",
     "w.stocks.fact": "Actions, indices, crypto et devises, avec le graphique de chaque symbole.",
     "w.obs.fact": "Aperçu, direct, enregistrement, scènes et audio.",
@@ -1852,6 +1865,7 @@ html[data-mobile] .onphone { display: block; }
     "games.saved": "Replay enregistré",
     "make.alt": "Xenon Maker en train de créer un widget",
     "sup.all": "300 Étincelles par mois, les crédits de Xenon, dans chaque formule.",
+    "sup.bit": "Chaque mois un nouvel objet pour ton Bit, dans chaque formule, et il reste à toi. <a href=\"/fr/bit.html#wardrobe\">Voir la garde-robe</a>",
     "sup.trial": "<a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial?lang=fr' target='_blank' rel='noopener' data-track='trial_click' data-track-location='home_support'>Essayez les sorties des supporters gratuitement pendant 7 jours</a>, une fois par PC, sans carte.",
     "sup.once": "Un seul mois ? <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener' data-track='coffee_click' data-track-location='tier_coffee'>5 USD une fois</a>, sans rien à résilier.",
     "sup.more": "Ce qu'ils débloquent et comment marchent les Étincelles",
@@ -1870,6 +1884,9 @@ html[data-mobile] .onphone { display: block; }
     "film.link": "Voir la vidéo",
     "film.sound": "Regarder avec le son",
     "film.alt": "La vidéo de Xenon : des widgets sur le bureau, par-dessus les jeux et sur n'importe quel écran, avec Bit",
+    "screens.l.pump": "L'écran de ta pompe AIO",
+    "ft.fans": "Contrôle des ventilateurs",
+    "ft.pump": "Écran de pompe AIO",
   };
 
   I18N.it = {
@@ -2064,14 +2081,14 @@ html[data-mobile] .onphone { display: block; }
     "w.discord.fact": "Canale vocale, chi parla, muto, soundboard, messaggi diretti e menzioni.",
     "w.spotify.fact": "Brano, coda, playlist e dispositivi Connect. Per comandare serve Premium.",
     "w.weather.fact": "Previsioni orarie e giornaliere e qualità dell'aria, senza account.",
-    "w.system.fact": "Carico e temperature, memoria, dischi, rete, ping e frame rate.",
+    "w.system.fact": "Carico e temperature, memoria, dischi, rete, ping e frame rate. Xenon può anche guidare le ventole.",
     "w.football.fact": "Partite, risultati e classifiche, senza chiavi da configurare.",
     "w.youtube.fact": "Mi piace, playlist, iscrizioni, ricerca e coda.",
     "w.steam.fact": "TGK Steam di The.GothamKnight, gratis: lancia i giochi recenti, tempo di gioco e batteria dello Steam Controller.",
     "w.twitch.fact": "Player, canali seguiti e chat. Con Twitch Live anche titolo, clip e marker.",
     "w.calendar.fact": "Vista mensile ed eventi da Google, Outlook o un link .ics.",
     "w.deck.fact": "Tasti touch per app, scorciatoie, media, OBS, Discord, Home Assistant e macro.",
-    "w.smarthome.fact": "I tuoi dispositivi per stanza: luci, scene e sensori.",
+    "w.smarthome.fact": "I tuoi dispositivi per stanza: luci, scene e sensori. Chiedi a Bit di accenderli o spegnerli, e quando suona il campanello compare una carta sullo schermo.",
     "w.news.fact": "Un elenco da testate, argomenti e feed RSS.",
     "w.stocks.fact": "Azioni, indici, cripto e valute, con il grafico di ogni simbolo.",
     "w.obs.fact": "Anteprima, diretta, registrazione, scene e audio.",
@@ -2087,6 +2104,7 @@ html[data-mobile] .onphone { display: block; }
     "games.saved": "Replay salvato",
     "make.alt": "Xenon Maker mentre costruisce un widget",
     "sup.all": "300 Scintille al mese, i crediti di Xenon, in ogni piano.",
+    "sup.bit": "Ogni mese un oggetto nuovo per il tuo Bit, in ogni piano, e resta tuo. <a href=\"/it/bit.html#wardrobe\">Guarda il guardaroba</a>",
     "sup.trial": "<a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial?lang=it' target='_blank' rel='noopener' data-track='trial_click' data-track-location='home_support'>Prova le uscite dei sostenitori gratis per 7 giorni</a>, una volta per PC, senza carta.",
     "sup.once": "Solo un mese? <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener' data-track='coffee_click' data-track-location='tier_coffee'>5 USD una volta</a>, senza niente da disdire.",
     "sup.more": "Cosa sbloccano e come funzionano le Scintille",
@@ -2105,6 +2123,9 @@ html[data-mobile] .onphone { display: block; }
     "film.link": "Guarda il video",
     "film.sound": "Guarda con l'audio",
     "film.alt": "Il video di Xenon: widget sul desktop, sopra i giochi e su ogni schermo, con Bit",
+    "screens.l.pump": "Lo schermo della pompa AIO",
+    "ft.fans": "Controllo ventole",
+    "ft.pump": "Schermo della pompa AIO",
   };
 
   I18N.es = {
@@ -2299,14 +2320,14 @@ html[data-mobile] .onphone { display: block; }
     "w.discord.fact": "Canal de voz, quién habla, silencio, soundboard, mensajes directos y menciones.",
     "w.spotify.fact": "Canción, cola, listas y dispositivos Connect. Para controlar la reproducción hace falta Premium.",
     "w.weather.fact": "Previsión por horas y por días y calidad del aire, sin cuenta.",
-    "w.system.fact": "Carga y temperaturas, memoria, discos, red, ping y frame rate.",
+    "w.system.fact": "Carga y temperaturas, memoria, discos, red, ping y frame rate. Xenon también puede controlar tus ventiladores.",
     "w.football.fact": "Partidos, resultados y clasificaciones, sin claves que configurar.",
     "w.youtube.fact": "Me gusta, listas, suscripciones, búsqueda y cola.",
     "w.steam.fact": "TGK Steam de The.GothamKnight, gratis: abre los juegos recientes, tiempo de juego y batería del Steam Controller.",
     "w.twitch.fact": "Reproductor, canales seguidos y chat. Con Twitch Live, también título, clips y marcadores.",
     "w.calendar.fact": "Vista mensual y eventos de Google, Outlook o un enlace .ics.",
     "w.deck.fact": "Teclas táctiles para apps, atajos, multimedia, OBS, Discord, Home Assistant y macros.",
-    "w.smarthome.fact": "Tus dispositivos por habitación: luces, escenas y sensores.",
+    "w.smarthome.fact": "Tus dispositivos por habitación: luces, escenas y sensores. Pide a Bit que los encienda o los apague, y cuando suena el timbre aparece una tarjeta en pantalla.",
     "w.news.fact": "Una lista de medios, temas y feeds RSS.",
     "w.stocks.fact": "Acciones, índices, cripto y divisas, con el gráfico de cada símbolo.",
     "w.obs.fact": "Vista previa, directo, grabación, escenas y audio.",
@@ -2322,6 +2343,7 @@ html[data-mobile] .onphone { display: block; }
     "games.saved": "Repetición guardada",
     "make.alt": "Xenon Maker creando un widget",
     "sup.all": "300 Chispas al mes, los créditos de Xenon, en todos los planes.",
+    "sup.bit": "Cada mes un objeto nuevo para tu Bit, en todos los planes, y es tuyo para siempre. <a href=\"/es/bit.html#wardrobe\">Ver el armario</a>",
     "sup.trial": "<a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial?lang=es' target='_blank' rel='noopener' data-track='trial_click' data-track-location='home_support'>Prueba las novedades para quienes apoyan gratis durante 7 días</a>, una vez por PC, sin tarjeta.",
     "sup.once": "¿Solo un mes? <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener' data-track='coffee_click' data-track-location='tier_coffee'>5 USD una vez</a>, sin nada que cancelar.",
     "sup.more": "Qué desbloquean y cómo funcionan las Chispas",
@@ -2340,6 +2362,9 @@ html[data-mobile] .onphone { display: block; }
     "film.link": "Mira el vídeo",
     "film.sound": "Verlo con sonido",
     "film.alt": "El vídeo de Xenon: widgets en el escritorio, sobre los juegos y en cualquier pantalla, con Bit",
+    "screens.l.pump": "La pantalla de tu bomba AIO",
+    "ft.fans": "Control de ventiladores",
+    "ft.pump": "Pantalla de la bomba AIO",
   };
 
   I18N.ja = {
@@ -2534,14 +2559,14 @@ html[data-mobile] .onphone { display: block; }
     "w.discord.fact": "ボイスチャンネル、話している人、ミュート、サウンドボード、ダイレクトメッセージ、メンション。",
     "w.spotify.fact": "曲、キュー、プレイリスト、Connect デバイス。再生の操作には Premium が必要です。",
     "w.weather.fact": "時間ごと・日ごとの予報と大気質。アカウントは不要です。",
-    "w.system.fact": "負荷と温度、メモリ、ディスク、ネットワーク、ping、フレームレート。",
+    "w.system.fact": "負荷と温度、メモリ、ディスク、ネットワーク、ping、フレームレート。ファンの制御も Xenon に任せられます。",
     "w.football.fact": "試合、スコア、順位表。キーの設定は不要です。",
     "w.youtube.fact": "高評価、プレイリスト、登録チャンネル、検索、キュー。",
     "w.steam.fact": "The.GothamKnight 作の TGK Steam、無料。最近のゲームの起動、プレイ時間、Steam Controller のバッテリー。",
     "w.twitch.fact": "プレーヤー、フォロー中のチャンネル、チャット。Twitch Live ならタイトル、クリップ、マーカーも。",
     "w.calendar.fact": "月表示と、Google、Outlook、.ics リンクの予定。",
     "w.deck.fact": "アプリ、ショートカット、メディア、OBS、Discord、Home Assistant、マクロのタッチキー。",
-    "w.smarthome.fact": "部屋ごとのデバイス: 照明、シーン、センサー。",
+    "w.smarthome.fact": "部屋ごとのデバイス: 照明、シーン、センサー。Bit に頼めばオン・オフでき、玄関のチャイムが鳴ると画面にカードが出ます。",
     "w.news.fact": "メディア、トピック、RSS フィードをひとつのリストに。",
     "w.stocks.fact": "株式、指数、暗号資産、通貨。銘柄ごとのチャート付き。",
     "w.obs.fact": "プレビュー、配信、録画、シーン、音声。",
@@ -2557,6 +2582,7 @@ html[data-mobile] .onphone { display: block; }
     "games.saved": "リプレイを保存しました",
     "make.alt": "ウィジェットを作っている Xenon Maker",
     "sup.all": "どのプランでも毎月 300 スパーク。Xenon のクレジットです。",
+    "sup.bit": "どのプランでも、毎月 Bit の新しいアイテムが 1 つ。ずっとあなたのものです。<a href=\"/ja/bit.html#wardrobe\">ワードローブを見る</a>",
     "sup.trial": "<a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial?lang=ja' target='_blank' rel='noopener' data-track='trial_click' data-track-location='home_support'>サポーターの配布を 7 日間無料で試す</a>。PC ごとに 1 回、カードは不要です。",
     "sup.once": "1 か月だけなら <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener' data-track='coffee_click' data-track-location='tier_coffee'>5 USD を 1 回</a>。解約の手続きはありません。",
     "sup.more": "解除される機能とスパークのしくみ",
@@ -2575,6 +2601,9 @@ html[data-mobile] .onphone { display: block; }
     "film.link": "動画を見る",
     "film.sound": "音ありで見る",
     "film.alt": "Xenon の動画：デスクトップ、ゲームの上、あらゆる画面のウィジェットと Bit",
+    "screens.l.pump": "AIO ポンプの画面",
+    "ft.fans": "ファン制御",
+    "ft.pump": "AIO ポンプの画面",
   };
 
   I18N.ko = {
@@ -2769,14 +2798,14 @@ html[data-mobile] .onphone { display: block; }
     "w.discord.fact": "음성 채널, 말하는 사람, 마이크 끄기, 사운드보드, DM, 멘션.",
     "w.spotify.fact": "곡, 대기열, 재생목록, Connect 기기. 재생을 제어하려면 Premium이 필요합니다.",
     "w.weather.fact": "시간별, 일별 예보와 대기질. 계정이 필요 없습니다.",
-    "w.system.fact": "부하와 온도, 메모리, 디스크, 네트워크, 핑, 프레임 속도.",
+    "w.system.fact": "부하와 온도, 메모리, 디스크, 네트워크, 핑, 프레임 속도. 팬 제어도 Xenon에 맡길 수 있습니다.",
     "w.football.fact": "경기, 결과, 순위표. 설정할 키가 없습니다.",
     "w.youtube.fact": "좋아요, 재생목록, 구독, 검색, 대기열.",
     "w.steam.fact": "The.GothamKnight의 TGK Steam, 무료. 최근 게임 실행, 플레이 시간, Steam Controller 배터리.",
     "w.twitch.fact": "플레이어, 팔로우한 채널, 채팅. Twitch Live에서는 제목, 클립, 마커까지.",
     "w.calendar.fact": "월간 보기와 Google, Outlook, .ics 링크의 일정.",
     "w.deck.fact": "앱, 단축키, 미디어, OBS, Discord, Home Assistant, 매크로용 터치 키.",
-    "w.smarthome.fact": "방별 기기: 조명, 장면, 센서.",
+    "w.smarthome.fact": "방별 기기: 조명, 장면, 센서. Bit에게 켜고 끄기를 부탁할 수 있고, 초인종이 울리면 화면에 카드가 뜹니다.",
     "w.news.fact": "언론사, 주제, RSS 피드를 하나의 목록으로.",
     "w.stocks.fact": "주식, 지수, 암호화폐, 통화. 종목마다 차트가 있습니다.",
     "w.obs.fact": "미리보기, 방송, 녹화, 장면, 오디오.",
@@ -2792,6 +2821,7 @@ html[data-mobile] .onphone { display: block; }
     "games.saved": "리플레이 저장됨",
     "make.alt": "위젯을 만드는 Xenon Maker",
     "sup.all": "모든 요금제에 매달 300 스파크. Xenon 크레딧입니다.",
+    "sup.bit": "모든 요금제에 매달 Bit의 새 아이템 하나, 계속 내 것이에요. <a href=\"/ko/bit.html#wardrobe\">옷장 보기</a>",
     "sup.trial": "<a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial?lang=ko' target='_blank' rel='noopener' data-track='trial_click' data-track-location='home_support'>후원자 팩을 7일 동안 무료로 써 보세요</a>. PC당 한 번, 카드는 필요 없습니다.",
     "sup.once": "한 달만 원하시나요? <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener' data-track='coffee_click' data-track-location='tier_coffee'>5 USD 1회</a>, 해지할 것이 없습니다.",
     "sup.more": "잠금 해제되는 기능과 스파크 사용법",
@@ -2810,6 +2840,9 @@ html[data-mobile] .onphone { display: block; }
     "film.link": "영상 보기",
     "film.sound": "소리와 함께 보기",
     "film.alt": "Xenon 영상: 데스크톱, 게임 위, 모든 화면의 위젯과 Bit",
+    "screens.l.pump": "AIO 펌프 화면",
+    "ft.fans": "팬 제어",
+    "ft.pump": "AIO 펌프 화면",
   };
 
   I18N.zh = {
@@ -3004,14 +3037,14 @@ html[data-mobile] .onphone { display: block; }
     "w.discord.fact": "语音频道、谁在说话、静音、音效板、私信和提及。",
     "w.spotify.fact": "歌曲、队列、播放列表和 Connect 设备。控制播放需要 Premium。",
     "w.weather.fact": "逐小时和逐日预报以及空气质量，无需账号。",
-    "w.system.fact": "负载和温度、内存、磁盘、网络、延迟和帧率。",
+    "w.system.fact": "负载和温度、内存、磁盘、网络、延迟和帧率。Xenon 还能控制你的风扇。",
     "w.football.fact": "比赛、比分和积分榜，无需配置密钥。",
     "w.youtube.fact": "点赞、播放列表、订阅、搜索和队列。",
     "w.steam.fact": "The.GothamKnight 制作的 TGK Steam，免费：启动最近玩的游戏，查看游戏时长和 Steam Controller 电量。",
     "w.twitch.fact": "播放器、关注的频道和聊天。使用 Twitch Live 时还有标题、剪辑和标记。",
     "w.calendar.fact": "月视图，以及来自 Google、Outlook 或 .ics 链接的日程。",
     "w.deck.fact": "用于应用、快捷键、媒体、OBS、Discord、Home Assistant 和宏的触控按键。",
-    "w.smarthome.fact": "按房间查看设备：灯光、场景和传感器。",
+    "w.smarthome.fact": "按房间查看设备：灯光、场景和传感器。可以让 Bit 帮你开关，门铃响时屏幕上会出现一张卡片。",
     "w.news.fact": "把媒体、话题和 RSS 源汇成一个列表。",
     "w.stocks.fact": "股票、指数、加密货币和外汇，每个代码都有图表。",
     "w.obs.fact": "预览、直播、录制、场景和音频。",
@@ -3027,6 +3060,7 @@ html[data-mobile] .onphone { display: block; }
     "games.saved": "回放已保存",
     "make.alt": "Xenon Maker 正在制作小组件",
     "sup.all": "每个方案每月 300 火花，即 Xenon 的点数。",
+    "sup.bit": "每个方案每月为你的 Bit 带来一件新物品，永久归你所有。<a href=\"/zh/bit.html#wardrobe\">查看衣橱</a>",
     "sup.trial": "<a href='https://xenon-supporter-hub.xenonedge.workers.dev/trial?lang=zh' target='_blank' rel='noopener' data-track='trial_click' data-track-location='home_support'>免费试用支持者内容 7 天</a>，每台电脑一次，无需银行卡。",
     "sup.once": "只要一个月？<a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener' data-track='coffee_click' data-track-location='tier_coffee'>一次性 5 USD</a>，无需取消。",
     "sup.more": "解锁内容和火花的用法",
@@ -3045,6 +3079,9 @@ html[data-mobile] .onphone { display: block; }
     "film.link": "观看视频",
     "film.sound": "带声音观看",
     "film.alt": "Xenon 视频：桌面上、游戏上方和任意屏幕上的小组件，还有 Bit",
+    "screens.l.pump": "AIO 水泵屏幕",
+    "ft.fans": "风扇控制",
+    "ft.pump": "AIO 水泵屏幕",
   };
 
   // Language engine. Every language has a URL of its own, generated by

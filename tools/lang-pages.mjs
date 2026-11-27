@@ -36,6 +36,8 @@ export const LANG_PAGES = [
   { page: 'single-screen.html', langs: ALL, dict: 'single-screen' },
   { page: 'fps-overlay.html', langs: ALL, dict: 'fps-overlay' },
   { page: 'screen-recorder.html', langs: ALL, dict: 'screen-recorder' },
+  { page: 'fan-control.html', langs: ALL, dict: 'fan-control' },
+  { page: 'aio-lcd-screen.html', langs: ALL, dict: 'aio-lcd-screen' },
   { page: '5.html', langs: ALL, dict: '5' },
   { page: 'pawnio.html', langs: ALL, dict: 'pawnio' },
   { page: 'bit.html', langs: ALL, dict: 'bit' },

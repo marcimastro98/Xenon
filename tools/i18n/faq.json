@@ -57,7 +57,13 @@
     "f.q.deck": "Can it replace a Stream Deck?",
     "f.a.deck": "<p>It does a similar job on a screen you already own: a Xeneon Edge, a spare monitor, a tablet or a phone. A key can open an app, send a shortcut, switch an OBS scene, mute Discord or run a Streamer.bot action, and it can light up to show the state of what it controls. It does not use Stream Deck hardware or plugins. The <a href='deck.html'>Deck guide</a> lists every action.</p>",
     "f.q.make": "Can I make my own widget or theme?",
-    "f.a.make": "<p>Yes, without code. <a href='/maker/'>Maker</a>, in beta, builds widgets and themes in the browser, and Bit makes them with you there or in the app. Trying everything in Maker is free; keeping projects and installing what you make are for supporters. If you write code, the <a href='create/'>creator guide</a> covers the Widget SDK.</p>"
+    "f.a.make": "<p>Yes, without code. <a href='/maker/'>Maker</a>, in beta, builds widgets and themes in the browser, and Bit makes them with you there or in the app. Trying everything in Maker is free; keeping projects and installing what you make are for supporters. If you write code, the <a href='create/'>creator guide</a> covers the Widget SDK.</p>",
+    "f.q.fans": "Can Xenon control my fans?",
+    "f.a.fans": "<p>Yes, on Windows, and as Beta on Linux. There are no fan curves to draw: a fan check of a few minutes finds what each control moves, then you pick a mode and Xenon keeps the fans as quiet as the temperatures allow. If something runs too hot, every fan goes to full speed. Laptops and Macs drive their own fans, so Xenon leaves them alone. More in <a href=\"/fan-control.html\">Fan control without fan curves</a>.</p>",
+    "f.q.pump": "Can it show my temperatures on my AIO pump's screen?",
+    "f.a.pump": "<p>Yes, on a CORSAIR iCUE LINK AIO LCD and on NZXT Kraken pumps with a screen. The screen changes by itself: temperatures and FPS while you play, the song while music plays, a clock or your own picture or GIF the rest of the time. The iCUE LINK screen works without iCUE, on Windows and as Beta on Linux; the other pumps need Windows. More in <a href=\"/aio-lcd-screen.html\">Your AIO pump's screen, run by Xenon</a>.</p>",
+    "f.q.home": "Can Bit control my lights and show my cameras?",
+    "f.a.home": "<p>Yes, once Home Assistant is connected in <strong>Settings &rarr; Smart Home</strong>. Ask Bit to switch a light or a scene, or how the house is, and its reply holds the switch. Bit never touches locks, alarms, doors or the garage. With UniFi Protect or Home Assistant cameras, a card with the picture at the door shows up when the doorbell rings, and Bit can show any camera in the chat. Before an AI looks at a picture, Bit asks you the first time. What stays on the PC is on the <a href=\"/privacy.html#home\">privacy page</a>.</p>"
   },
   "it": {
     "meta.title": "Domande su Xenon: schermi, giochi, prezzo, privacy, avvisi",
@@ -117,7 +123,13 @@
     "f.q.deck": "Può sostituire uno Stream Deck?",
     "f.a.deck": "<p>Fa un lavoro simile su uno schermo che hai già: uno Xeneon Edge, un monitor in più, un tablet o un telefono. Un tasto può aprire un’app, mandare una scorciatoia, cambiare scena in OBS, silenziare Discord o lanciare un’azione di Streamer.bot, e può illuminarsi per mostrare lo stato di ciò che comanda. Non usa l’hardware Stream Deck né i suoi plugin. La <a href='deck.html'>guida al Deck</a> elenca ogni azione.</p>",
     "f.q.make": "Posso creare un widget o un tema mio?",
-    "f.a.make": "<p>Sì, senza scrivere codice. <a href='/maker/'>Maker</a>, in beta, crea widget e temi nel browser, e Bit li costruisce con te lì o nell’app. Provare tutto in Maker è gratis; tenere i progetti e installare ciò che crei è per i sostenitori. Se scrivi codice, la <a href='create/'>guida per creare</a> spiega il Widget SDK.</p>"
+    "f.a.make": "<p>Sì, senza scrivere codice. <a href='/maker/'>Maker</a>, in beta, crea widget e temi nel browser, e Bit li costruisce con te lì o nell’app. Provare tutto in Maker è gratis; tenere i progetti e installare ciò che crei è per i sostenitori. Se scrivi codice, la <a href='create/'>guida per creare</a> spiega il Widget SDK.</p>",
+    "f.q.fans": "Xenon può controllare le ventole?",
+    "f.a.fans": "<p>Sì, su Windows, e in Beta su Linux. Non ci sono curve da disegnare: un controllo delle ventole di pochi minuti scopre cosa muove ogni comando, poi scegli una modalità e Xenon tiene le ventole silenziose quanto le temperature permettono. Se qualcosa scalda troppo, tutte le ventole vanno al massimo. Portatili e Mac gestiscono da soli le loro ventole, quindi Xenon non le tocca. Tutto in <a href=\"/fan-control.html\">Controllo ventole senza curve</a>.</p>",
+    "f.q.pump": "Può mostrare le temperature sullo schermo della pompa AIO?",
+    "f.a.pump": "<p>Sì, sul CORSAIR iCUE LINK AIO LCD e sulle pompe NZXT Kraken con lo schermo. Lo schermo cambia da solo: temperature e FPS mentre giochi, il brano mentre suona la musica, un orologio o una tua immagine o GIF il resto del tempo. Lo schermo iCUE LINK funziona senza iCUE, su Windows e in Beta su Linux; le altre pompe richiedono Windows. Tutto in <a href=\"/aio-lcd-screen.html\">Lo schermo della pompa AIO, guidato da Xenon</a>.</p>",
+    "f.q.home": "Bit può accendere le luci e mostrare le telecamere?",
+    "f.a.home": "<p>Sì, dopo aver collegato Home Assistant in <strong>Impostazioni &rarr; Smart Home</strong>. Chiedi a Bit di accendere una luce o una scena, o com'è la casa, e la sua risposta tiene l'interruttore. Bit non tocca mai serrature, allarmi, porte o garage. Con le telecamere di UniFi Protect o di Home Assistant, quando suona il campanello compare una carta con la foto dell'ingresso, e Bit può mostrare qualsiasi telecamera nella chat. Prima che un'AI guardi una foto, Bit te lo chiede la prima volta. Cosa resta sul PC è nella <a href=\"/privacy.html#home\">pagina della privacy</a>.</p>"
   },
   "ja": {
     "meta.title": "Xenonのよくある質問: 画面、ゲーム、料金、プライバシー",
@@ -177,7 +189,13 @@
     "f.q.deck": "Stream Deck の代わりになる?",
     "f.a.deck": "<p>お持ちの画面で同じような役割を果たします。Xeneon Edge、予備のモニター、タブレット、スマートフォンのどれでも使えます。キーでアプリを開く、ショートカットを送る、OBS のシーンを切り替える、Discord をミュートする、Streamer.bot のアクションを実行することができ、操作対象の状態に合わせて光らせることもできます。Stream Deck のハードウェアやプラグインは使いません。すべての操作は <a href='deck.html'>Deck ガイド</a>に載っています。</p>",
     "f.q.make": "自分のウィジェットやテーマを作れる?",
-    "f.a.make": "<p>はい、コードなしで作れます。ベータの <a href='/maker/'>Maker</a> はブラウザーでウィジェットとテーマを作れ、Bit がそこでもアプリでも一緒に作ります。Maker はすべて無料で試せます。プロジェクトの保存と、作ったものの Xenon へのインストールはサポーター向けです。コードを書く場合は、<a href='create/'>制作ガイド</a>で Widget SDK を説明しています。</p>"
+    "f.a.make": "<p>はい、コードなしで作れます。ベータの <a href='/maker/'>Maker</a> はブラウザーでウィジェットとテーマを作れ、Bit がそこでもアプリでも一緒に作ります。Maker はすべて無料で試せます。プロジェクトの保存と、作ったものの Xenon へのインストールはサポーター向けです。コードを書く場合は、<a href='create/'>制作ガイド</a>で Widget SDK を説明しています。</p>",
+    "f.q.fans": "Xenon でファンを制御できますか?",
+    "f.a.fans": "<p>はい。Windows で使え、Linux ではベータです。描くファンカーブはありません。数分のファンチェックでどの制御がどのファンを動かすかを調べ、モードを選ぶだけで、Xenon は温度が許す限りファンを静かに保ちます。何かが熱くなりすぎると、すべてのファンが全開になります。ノート PC と Mac は自分でファンを制御するため、Xenon は触れません。詳しくは <a href=\"/fan-control.html\">カーブのいらないファン制御</a> へ。</p>",
+    "f.q.pump": "AIO ポンプの画面に温度を表示できますか?",
+    "f.a.pump": "<p>はい。CORSAIR iCUE LINK AIO LCD と、画面付きの NZXT Kraken ポンプで使えます。画面は自動で切り替わります。ゲーム中は温度と FPS、音楽が流れているときは曲、それ以外は時計や自分の画像・GIF です。iCUE LINK の画面は iCUE なしで動き、Windows で使え、Linux ではベータです。ほかのポンプは Windows が必要です。詳しくは <a href=\"/aio-lcd-screen.html\">Xenon が動かす AIO ポンプの画面</a> へ。</p>",
+    "f.q.home": "Bit で照明を操作したり、カメラを見たりできますか?",
+    "f.a.home": "<p>はい。<strong>設定 &rarr; スマートホーム</strong> で Home Assistant をつなげば使えます。Bit に照明やシーンのオン・オフ、家の様子を頼むと、返事にスイッチが付きます。鍵、警報、ドア、ガレージには決して触れません。UniFi Protect や Home Assistant のカメラがあれば、チャイムが鳴ったときに玄関の画像付きカードが出て、Bit はどのカメラもチャットに表示できます。AI が画像を見る前に、Bit は最初に一度確認します。PC に残るものは <a href=\"/privacy.html#home\">プライバシーのページ</a> にあります。</p>"
   },
   "ko": {
     "meta.title": "Xenon FAQ: 화면, 게임, 가격, 개인정보",
@@ -237,7 +255,13 @@
     "f.q.deck": "Stream Deck을 대신할 수 있나요?",
     "f.a.deck": "<p>이미 가진 화면에서 비슷한 일을 합니다. Xeneon Edge, 남는 모니터, 태블릿, 휴대폰 모두 됩니다. 키 하나로 앱 열기, 단축키 보내기, OBS 장면 전환, Discord 음소거, Streamer.bot 액션 실행을 할 수 있고, 제어하는 대상의 상태를 빛으로 보여 줄 수도 있습니다. Stream Deck 하드웨어나 플러그인은 쓰지 않습니다. 모든 동작은 <a href='deck.html'>Deck 가이드</a>에 있습니다.</p>",
     "f.q.make": "내 위젯이나 테마를 만들 수 있나요?",
-    "f.a.make": "<p>네, 코드 없이 됩니다. 베타인 <a href='/maker/'>Maker</a>는 브라우저에서 위젯과 테마를 만들고, Bit가 거기서든 앱에서든 함께 만듭니다. Maker는 모두 무료로 써 볼 수 있고, 프로젝트 보관과 만든 것을 설치하는 기능은 후원자용입니다. 코드를 쓴다면 <a href='create/'>제작 가이드</a>에서 Widget SDK를 설명합니다.</p>"
+    "f.a.make": "<p>네, 코드 없이 됩니다. 베타인 <a href='/maker/'>Maker</a>는 브라우저에서 위젯과 테마를 만들고, Bit가 거기서든 앱에서든 함께 만듭니다. Maker는 모두 무료로 써 볼 수 있고, 프로젝트 보관과 만든 것을 설치하는 기능은 후원자용입니다. 코드를 쓴다면 <a href='create/'>제작 가이드</a>에서 Widget SDK를 설명합니다.</p>",
+    "f.q.fans": "Xenon으로 팬을 제어할 수 있나요?",
+    "f.a.fans": "<p>네. Windows에서, Linux에서는 베타로 됩니다. 그릴 팬 커브가 없습니다. 몇 분 걸리는 팬 점검이 각 제어가 무엇을 돌리는지 찾고, 모드를 고르면 Xenon이 온도가 허락하는 만큼 팬을 조용하게 유지합니다. 무언가 너무 뜨거워지면 모든 팬이 최대 속도로 돕니다. 노트북과 Mac은 스스로 팬을 제어하므로 Xenon은 건드리지 않습니다. 자세한 내용은 <a href=\"/fan-control.html\">커브 없는 팬 제어</a>에서 보세요.</p>",
+    "f.q.pump": "AIO 펌프 화면에 온도를 표시할 수 있나요?",
+    "f.a.pump": "<p>네. CORSAIR iCUE LINK AIO LCD와 화면이 있는 NZXT Kraken 펌프에서 됩니다. 화면은 알아서 바뀝니다. 게임 중에는 온도와 FPS, 음악이 나올 때는 곡, 나머지 시간에는 시계나 직접 고른 사진이나 GIF가 나옵니다. iCUE LINK 화면은 iCUE 없이 Windows에서, Linux에서는 베타로 작동하고, 다른 펌프는 Windows가 필요합니다. 자세한 내용은 <a href=\"/aio-lcd-screen.html\">Xenon이 움직이는 AIO 펌프 화면</a>에서 보세요.</p>",
+    "f.q.home": "Bit가 조명을 제어하고 카메라를 보여 줄 수 있나요?",
+    "f.a.home": "<p>네. <strong>설정 &rarr; 스마트 홈</strong>에서 Home Assistant를 연결하면 됩니다. Bit에게 조명이나 장면을 켜고 끄거나 집 상태를 물으면, 답장에 스위치가 함께 옵니다. Bit는 잠금장치, 경보, 문, 차고는 절대 건드리지 않습니다. UniFi Protect나 Home Assistant 카메라가 있으면 초인종이 울릴 때 현관 사진이 담긴 카드가 뜨고, Bit가 어떤 카메라든 채팅에 보여 줄 수 있습니다. AI가 사진을 보기 전에 Bit가 처음 한 번 물어봅니다. PC에 남는 것은 <a href=\"/privacy.html#home\">개인정보 페이지</a>에 있습니다.</p>"
   },
   "zh": {
     "meta.title": "Xenon 常见问题：屏幕、游戏、价格与隐私",
@@ -297,6 +321,12 @@
     "f.q.deck": "它能代替 Stream Deck 吗？",
     "f.a.deck": "<p>它能在你已有的屏幕上做类似的事：Xeneon Edge、闲置显示器、平板或手机都行。一个按键可以打开应用、发送快捷键、切换 OBS 场景、静音 Discord 或运行 Streamer.bot 动作，还可以亮起来显示所控制对象的状态。它不使用 Stream Deck 硬件或其插件。所有动作见 <a href='deck.html'>Deck 指南</a>。</p>",
     "f.q.make": "我能自己做小组件或主题吗？",
-    "f.a.make": "<p>可以，不用写代码。测试版 <a href='/maker/'>Maker</a> 在浏览器里制作小组件和主题，Bit 可以在那里或在应用里和你一起做。Maker 的所有功能都可以免费试用；保留项目和安装你的作品仅限支持者。如果你写代码，<a href='create/'>创作指南</a>介绍了 Widget SDK。</p>"
+    "f.a.make": "<p>可以，不用写代码。测试版 <a href='/maker/'>Maker</a> 在浏览器里制作小组件和主题，Bit 可以在那里或在应用里和你一起做。Maker 的所有功能都可以免费试用；保留项目和安装你的作品仅限支持者。如果你写代码，<a href='create/'>创作指南</a>介绍了 Widget SDK。</p>",
+    "f.q.fans": "Xenon 能控制我的风扇吗？",
+    "f.a.fans": "<p>可以，在 Windows 上，Linux 上为测试版。无需绘制风扇曲线：几分钟的风扇检查会找出每个控制带动哪些风扇，然后选一个模式，Xenon 会在温度允许的范围内让风扇尽量安静。如果有部件过热，所有风扇都会全速运转。笔记本和 Mac 自己控制风扇，所以 Xenon 不会去动。详见<a href=\"/fan-control.html\">无需曲线的风扇控制</a>。</p>",
+    "f.q.pump": "能在 AIO 水泵的屏幕上显示温度吗？",
+    "f.a.pump": "<p>可以，支持 CORSAIR iCUE LINK AIO LCD 和带屏幕的 NZXT Kraken 水泵。屏幕会自动切换：玩游戏时显示温度和 FPS，播放音乐时显示歌曲，其余时间显示时钟或你自己的图片、GIF。iCUE LINK 屏幕无需 iCUE，可在 Windows 上使用，Linux 上为测试版；其他水泵需要 Windows。详见<a href=\"/aio-lcd-screen.html\">由 Xenon 驱动的 AIO 水泵屏幕</a>。</p>",
+    "f.q.home": "Bit 能控制灯光、显示摄像头画面吗？",
+    "f.a.home": "<p>可以，在 <strong>设置 &rarr; 智能家居</strong> 中连接 Home Assistant 后即可。让 Bit 开关灯光或场景，或问问家里的情况，它的回复里就带着开关。Bit 绝不会碰门锁、警报、门或车库。使用 UniFi Protect 或 Home Assistant 摄像头时，门铃响起会出现一张带门口画面的卡片，Bit 也能在聊天中显示任意摄像头。在 AI 查看画面之前，Bit 会在第一次时先问你。哪些内容留在电脑上，请看<a href=\"/privacy.html#home\">隐私页面</a>。</p>"
   }
 }

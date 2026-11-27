@@ -905,9 +905,8 @@ const STATIC_ROUTES = [
   // Google they exist.
   { loc: '/faq.html', file: 'docs/faq.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/phone.html', file: 'docs/phone.html', priority: '0.7', changefreq: 'monthly' },
-  // The two pages written for the queries people actually arrive with: Google
-  // is the site's first referrer and sends most of them to GitHub, because the
-  // home page does not carry those words. These do.
+  // The two pages written for the queries people actually arrive with: Google is the site's first
+  // referrer and sends most of them to GitHub, because the home page does not carry those words. These do.
   { loc: '/xeneon-edge-widgets.html', file: 'docs/xeneon-edge-widgets.html', priority: '0.8', changefreq: 'monthly' },
   { loc: '/tablet-dashboard.html', file: 'docs/tablet-dashboard.html', priority: '0.8', changefreq: 'monthly' },
   // Search Console says "xenon.exe" draws 131 impressions and almost no clicks: people who found an
@@ -917,8 +916,7 @@ const STATIC_ROUTES = [
   // installer prompt, a driver list or an anti-cheat message and search it.
   { loc: '/pawnio.html', file: 'docs/pawnio.html', priority: '0.6', changefreq: 'monthly' },
   { loc: '/bit.html', file: 'docs/bit.html', priority: '0.6', changefreq: 'weekly' }, // the Bits people chose to show
-  // "xenon download" and "xenon linux": 74 impressions in Search Console and
-  // no clicks, because the home page's title carried neither word.
+  // "xenon download" and "xenon linux": 74 impressions in Search Console, no clicks: the home title had neither.
   { loc: '/download.html', file: 'docs/download.html', priority: '0.9', changefreq: 'weekly' },
   { loc: '/linux.html', file: 'docs/linux.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/demo/', file: 'docs/demo/index.html', priority: '0.7', changefreq: 'monthly' },
@@ -941,6 +939,8 @@ const STATIC_ROUTES = [
   { loc: '/single-screen.html', file: 'docs/single-screen.html', priority: '0.8', changefreq: 'monthly' },
   { loc: '/fps-overlay.html', file: 'docs/fps-overlay.html', priority: '0.8', changefreq: 'monthly' },
   { loc: '/screen-recorder.html', file: 'docs/screen-recorder.html', priority: '0.8', changefreq: 'monthly' },
+  { loc: '/fan-control.html', file: 'docs/fan-control.html', priority: '0.8', changefreq: 'monthly' }, // Airflow
+  { loc: '/aio-lcd-screen.html', file: 'docs/aio-lcd-screen.html', priority: '0.8', changefreq: 'monthly' }, // the pump
   // What is new in 5.0, one sheet per new thing.
   { loc: '/5.html', file: 'docs/5.html', priority: '0.8', changefreq: 'monthly' },
 ];

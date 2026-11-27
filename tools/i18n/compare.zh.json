@@ -50,7 +50,7 @@
     "cmp.h.ab": "MSI Afterburner",
     "cmp.ab.p1": "MSI Afterburner 搭配 RivaTuner，是超频、风扇曲线和从游戏内部绘制 FPS 叠加层的经典免费工具，正因为从内部绘制，它能显示在独占全屏之上。",
     "cmp.ab.p2": "Xenon 在游戏外部运行。它把帧率、1% 和 0.1% 低帧以及帧时间显示在副屏、手机或游戏上方的窗口里，开启后还能通过 RivaTuner 显示在独占全屏上方。它会对比以往的游戏，并在游戏卡顿时指出可能的原因。它不超频、不降压，也不设置风扇曲线。",
-    "cmp.ab.use": "超频和风扇曲线，<strong>继续用 Afterburner</strong>。想在另一块屏幕上看数据并保留游戏记录，<strong>加上 Xenon</strong>。详情见<a href=\"/fps-overlay.html\">FPS 叠加层指南</a>。",
+    "cmp.ab.use": "超频，<strong>继续用 Afterburner</strong>。想在另一块屏幕上看数据并保留游戏记录，<strong>加上 Xenon</strong>。显卡风扇只选一个来控制：Afterburner 的曲线或 Xenon 的<a href=\"/fan-control.html\">风扇控制</a>，不要同时用。详情见<a href=\"/fps-overlay.html\">FPS 叠加层指南</a>。",
     "cmp.h.we": "Wallpaper Engine",
     "cmp.we.p1": "Wallpaper Engine 是一款价格不高的 Steam 动态壁纸应用，拥有庞大的创意工坊场景库，还有免费的 Android 应用可以把壁纸带到手机上。",
     "cmp.we.p2": "Xenon 也有动态背景和 Ambient 场景，但它的本职是小组件：读数、音乐、日历、Deck 按键和助手。两者可以在同一台电脑上运行。",

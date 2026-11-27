@@ -57,7 +57,7 @@
     "fo.systems.p1": "在 macOS 和 Linux 上，磁贴仍会显示 CPU 和 GPU 负载，并用一行字说明为什么没有帧率。",
     "fo.h.afterburner": "与 MSI Afterburner 和 RivaTuner 对比",
     "fo.afterburner.p1": "Afterburner 搭配 RivaTuner 是在游戏内部绘制叠加层，所以能显示在独占全屏上方。Xenon 留在游戏外部，遇到这类游戏时可以把数据交给同一个 RivaTuner。它还补上这些工具留给你自己去做的事：对比过去的游戏，游戏卡顿时给出原因，以及在第二块屏幕或手机上显示同样的数字。",
-    "fo.afterburner.p2": "Xenon 不超频、不降压、不设置风扇曲线、不限制帧率，也不改驱动设置。如果你用 Afterburner 做这些事，继续用它就好。",
+    "fo.afterburner.p2": "Xenon 不超频、不降压、不限制帧率，也不改驱动设置：如果你用 Afterburner 做这些事，继续用它就好。Xenon 可以控制你的风扇，无需画曲线：见<a href=\"/fan-control.html\">风扇控制</a>。每个风扇同一时间只交给一个程序控制。",
     "fo.h.faq": "常见问题",
     "fo.faq.cheat.q": "FPS 叠加层会被反作弊封号吗？",
     "fo.faq.cheat.a": "Xenon 从不向游戏注入代码，也从不挂钩游戏进程。它在上方绘制自己的窗口，并用 PresentMon 从系统读取帧时间，所以游戏内部没有任何东西会被反作弊标记。唯一的例外由你决定：开启 在独占全屏上方显示 后，会像 MSI Afterburner 一样，由 RivaTuner Statistics Server 在游戏内绘制。",

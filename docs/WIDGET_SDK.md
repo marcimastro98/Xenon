@@ -69,7 +69,8 @@ codex mcp add xenon-widgets -- npx -y xenon-mcp                 # Codex
 
 Any other MCP client runs `npx -y xenon-mcp` as a stdio server (Node.js 18+). In
 Claude Code, `/plugin install xenon-widgets --marketplace marcimastro98/Xenon`
-adds the same server plus a `build-widget` skill. The first time the assistant
+adds the same server plus a `build-widget` skill and a `build-look` skill for
+themes and backgrounds. The first time the assistant
 uses a tool, Xenon asks on the dashboard: **Let this tool build widgets?** The
 connected tools are listed in that Settings card, where **Remove** ends one.
 
@@ -84,6 +85,10 @@ connected tools are listed in that Settings card, where **Remove** ends one.
 | `widget_screenshot` | A picture of the tile on screen now |
 | `my_widgets` | Your own widgets; with an id and a folder, writes one out to keep working on it |
 | `share_widget` | A share code, plus the Store review notes |
+| `preset_reference` | Xenon 5.3: the rules of a theme, animated background, package, page, Deck profile, top bar or icon pack, with an example |
+| `check_preset` | Xenon 5.3: the import checks, design and performance notes, and the share code |
+| `import_preset` | Xenon 5.3: opens it in the import window on the dashboard, where the person confirms it |
+| `dashboard_screenshot` | Xenon 5.3: a picture of the whole dashboard on screen now |
 
 The folder's name is the widget id unless the tool is given `id`. Limits are the
 same as any package: 40 files, 512 KB each, 3 MB in all.
@@ -490,6 +495,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `energy` (v5.0.0) — `{ ok, enabled, sampleMinutes, now, hours:[…], days:[…] }`: **how much energy this PC used**, in Wh per hour (72 h) and per day (90 days), from the sensor history, with the source of each figure. Numbers only. See *Energy, hour by hour and day by day* below. A **pull** stream
 - `airflow` (v5.3) — `{ ok, state, drive, mode, why, fans:[…], check, quieterDb }`: **how the PC's fans are** with Airflow, Xenon's fan control: each fan's speed and who drives it, and the reason behind what Xenon does. Read only. See *The fans* below. A **pull** stream
 - `bit` (v5.3) — `{ ok, hatched, stage, name, number, founder, genes:{…}, worn:[…], items:[…], played, signal }`: **the person's own Bit**, to draw it with the Bit kit (`bit-kit.js`, copied into the package), play the moves it makes on the dashboard and show the sign over its head. Never what it learned about the person. See *Your own Bit* below. A **pull** stream
+- `homeEvents` (v5.3) — `{ ok, events:[{ kind, place, at }] }`: **what happened at home** while Xenon was connected to Home Assistant or UniFi Protect: rings at the door, the people, vehicles, parcels and animals the cameras picked out, doors and windows opened. Newest first, never a picture, never who. See *What happened at home* below. A **pull** stream
 - `network` — `{ ok, downloadBps, uploadBps, ping, latency, loss, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline. `position` is a whole number of seconds and can trail the real position by up to a second or two; when you need to time something to the song (lyrics, a beat-synced effect), read `positionMs` instead, the unrounded position in milliseconds as of the moment the event was sent (absent from an older Xenon Helper: fall back to `position * 1000`). Between events, add the time since you received the event to it while `playbackStatus` is `Playing`. `thumbnail` is the cover picture, or `null`/empty when there is none: a `data:image/...` URL you can put straight into an `<img>`, or an `https://` URL (some players give one, and Xenon looks the cover up online when the player gives none), which the sandbox cannot load directly: show it through `/sdk/tile/` (see "Map & radar tiles") with its host in `hosts`. The same track keeps the same cover, so redraw it only when `title` or `artist` change
 - `audio` — volume, mute, output device (`speaker` is the current default output; `speakers[]` lists every connected one, each with an `id` and `isDefault`), and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
@@ -1154,7 +1160,8 @@ badge or a pump card.
   come later: show nothing rather than the raw code.
 - **A fan's `why`** says why Xenon does not drive it: `readonly` (it can only be
   read), `leave` (the person left it to the PC), `unchecked` (the fan check
-  has not measured it), `three-pin`, `blind` (no speed reading), `unproven`
+  has not measured it, or the fan on that header or a new graphics card's fan
+  changed since), `three-pin`, `blind` (no speed reading), `unproven`
   (a model Xenon never tried, until the fan check sees it go back to the PC), `stall`,
   `sensor`, `brain`.
 - **`rpm` and `duty`** are whole numbers or `null` (a fan with no speed reading).
@@ -1188,9 +1195,9 @@ it made on the dashboard, so a widget's Bit moves with the others.
     temperament: 'shy', quirk: 'juggle', voice: 'chirpy',
   },
   worn: ['scarf', 'hut'], // what it has on, item ids: one per place (see below)
-  played: { clip: 'wave', at: 1764000000000 },  // the last move on the dashboard, or null
   items: [],           // the items it wears that Xenon's hub made (a month's supporters' item, a newer
                        // shop item): their drawing, which the Bit kit takes in by itself
+  played: { clip: 'wave', at: 1764000000000 },  // the last move on the dashboard, or null
   signal: 'done',      // the sign over its head, or null: 'done' | 'ask' | 'soon' | 'bell' | 'disk'
 }
 ```
@@ -1242,8 +1249,39 @@ bit.set(m.data, { light: theme.appearance === 'light' });
   `bit.set(m.data, { light, classic: m.data.everywhere === false })`.
 - **Never in it**: the seed, what Bit learned about the person (its traits and
   days) and what it owns. The genes draw it, nothing more.
-- **Pull it about once a second**, only while the widget is on screen.
+- **Pull it about once a second**, only while the widget is on screen: nothing
+  comes until you ask, `{ xenonSdk: 1, type: 'refresh', id, stream: 'bit' }`.
 - To make it move, the `bit` action category (§5c-septies).
+
+### 3b-nonies. What happened at home: `homeEvents` (v5.3)
+
+The home log Xenon keeps on the PC while it is connected to Home Assistant or
+UniFi Protect. `streams: ["homeEvents"]` gives the last 30 entries, newest first:
+
+```js
+{
+  ok: true,
+  events: [
+    { kind: 'ring', place: 'Front door', at: 1764172800000 },   // at: ms since 1970
+    { kind: 'person', place: 'Garden', at: 1764171000000 },
+    { kind: 'opened', place: 'Kitchen window', at: 1764160000000 },
+  ],
+}
+```
+
+- **`kind`**: `ring` (the doorbell), `person`, `vehicle`, `package`, `animal`
+  (what a UniFi Protect camera picked out) or `opened` (a Home Assistant door,
+  window or garage door sensor going from closed to open). Plain motion is never
+  logged. A new kind may come later: skip one you do not know.
+- **`place`**: the camera's or the sensor's name as the person set it (up to 80
+  characters, may be empty). Show it with `textContent`.
+- **Only what happened while Xenon was running**, up to 100 entries and 48
+  hours, one line a minute per kind and place.
+- **`{ ok: false, error: 'log_off' }`**: the person switched the home log off in
+  Settings (Smart Home or Cameras). Say so rather than showing an empty list.
+- **Never in it**: a picture, a face, who it was, a camera id or an address.
+- **Pull it every couple of seconds**, only while the widget is on screen.
+  Nothing in the SDK opens a door, a lock or a camera.
 
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
@@ -3419,7 +3457,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `airflow`, `audio`, `audioLevels`, `battery`, `bit`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `energy`, `football`, `gameSessions`, `homeassistant`, `lighting`, `media`, `netPath`, `network`, `news`, `notes`, `obs`, `perf`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `vitals`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `airflow`, `audio`, `audioLevels`, `battery`, `bit`, `claude`, `codex`, `devStorage`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `energy`, `football`, `gameSessions`, `homeEvents`, `homeassistant`, `lighting`, `media`, `netPath`, `network`, `news`, `notes`, `obs`, `perf`, `processes`, `scriptStates`, `sensors`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `vitals`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 

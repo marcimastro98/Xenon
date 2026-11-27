@@ -50,7 +50,7 @@
     "cmp.h.ab": "MSI Afterburner",
     "cmp.ab.p1": "MSI Afterburner와 RivaTuner는 오버클럭, 팬 커브, 게임 안쪽에서 그리는 FPS 오버레이의 대표적인 무료 도구입니다. 안쪽에서 그리기 때문에 전용 전체 화면 위에도 보입니다.",
     "cmp.ab.p2": "Xenon은 게임 바깥에서 동작합니다. FPS, 1%와 0.1% Low, 프레임 타임을 보조 화면, 휴대폰, 게임 위의 창에 보여 주고, 켜 두면 RivaTuner를 통해 전용 전체 화면 위에도 보여 줍니다. 지난 게임과 비교하며, 끊김이 생기면 가능성 높은 원인을 알려 줍니다. 오버클럭, 언더볼트, 팬 커브 설정은 하지 않습니다.",
-    "cmp.ab.use": "오버클럭과 팬 커브에는 <strong>Afterburner를 계속 쓰세요</strong>. 수치를 다른 화면에서 보고 게임 기록을 남기고 싶다면 <strong>Xenon을 더하세요</strong>. 자세한 내용은 <a href=\"/fps-overlay.html\">FPS 오버레이 가이드</a>에 있습니다.",
+    "cmp.ab.use": "오버클럭에는 <strong>Afterburner를 계속 쓰세요</strong>. 수치를 다른 화면에서 보고 게임 기록을 남기고 싶다면 <strong>Xenon을 더하세요</strong>. 그래픽카드 팬은 Afterburner 커브와 Xenon의 <a href=\"/fan-control.html\">팬 제어</a> 중 하나만 쓰세요. 둘을 함께 쓰면 안 됩니다. 자세한 내용은 <a href=\"/fps-overlay.html\">FPS 오버레이 가이드</a>에 있습니다.",
     "cmp.h.we": "Wallpaper Engine",
     "cmp.we.p1": "Wallpaper Engine은 움직이는 배경화면을 위한 저렴한 Steam 앱입니다. 거대한 창작마당이 있고, 무료 Android 앱으로 배경화면을 휴대폰에 옮길 수 있습니다.",
     "cmp.we.p2": "Xenon에도 움직이는 배경과 Ambient 장면이 있지만, 본업은 위젯입니다. 수치, 음악, 캘린더, Deck 키, 어시스턴트. 둘 다 같은 PC에서 함께 돌아갑니다.",

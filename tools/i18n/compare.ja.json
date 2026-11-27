@@ -50,7 +50,7 @@
     "cmp.h.ab": "MSI Afterburner",
     "cmp.ab.p1": "MSI AfterburnerとRivaTunerは、オーバークロック、ファンカーブ、ゲームの内側から描くFPSオーバーレイの定番の無料ツールです。内側から描くので、排他的フルスクリーンの上にも表示できます。",
     "cmp.ab.p2": "Xenonはゲームの外側で動きます。FPS、1%と0.1%のLow、フレームタイムをサブモニター、スマホ、ゲームの上のウィンドウに表示し、オンにすれば RivaTuner を通して排他的フルスクリーンの上にも表示します。過去のプレイと比べ、カクついたときはありそうな原因を示します。オーバークロック、低電圧化、ファンカーブの設定はしません。",
-    "cmp.ab.use": "オーバークロックとファンカーブには<strong>Afterburnerのままで</strong>。数値を別の画面で見て、プレイの履歴を残したいなら<strong>Xenonを追加してください</strong>。詳しくは<a href=\"/fps-overlay.html\">FPSオーバーレイのガイド</a>へ。",
+    "cmp.ab.use": "オーバークロックには<strong>Afterburnerのままで</strong>。数値を別の画面で見て、プレイの履歴を残したいなら<strong>Xenonを追加してください</strong>。グラフィックカードのファンは、Afterburner のカーブか Xenon の<a href=\"/fan-control.html\">ファン制御</a>のどちらか一方にしてください。両方は使えません。詳しくは<a href=\"/fps-overlay.html\">FPSオーバーレイのガイド</a>へ。",
     "cmp.h.we": "Wallpaper Engine",
     "cmp.we.p1": "Wallpaper Engineは、動く壁紙のための手ごろな価格のSteamアプリです。シーンの大きなワークショップがあり、無料のAndroidアプリで壁紙をスマホに持っていけます。",
     "cmp.we.p2": "Xenonにも動く背景とAmbientシーンがありますが、本業はウィジェットです。数値、音楽、カレンダー、Deckのキー、アシスタント。両方を同じPCで使えます。",

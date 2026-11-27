@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko" data-langs="en,es,fr,it,ja,ko,zh">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var d=document.documentElement,m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')d.setAttribute('data-theme',m);if(Number(localStorage.getItem('xenon.site.strip.until'))>Date.now()){d.setAttribute('data-strip','');addEventListener('load',function(){d.removeAttribute('data-strip')})}}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#302E31">
+<title>커브 없는 무료 팬 제어 프로그램</title>
+<meta name="description" content="Xenon은 커브를 그리지 않고 PC 팬을 돌립니다. 모드와 조용함 정도만 고르면, 열보다 먼저 부하를 읽습니다. Windows용 무료.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<meta property="og:title" content="커브 없는 무료 팬 제어 프로그램">
+<meta property="og:description" content="Xenon은 커브를 그리지 않고 PC 팬을 돌립니다. 모드와 조용함 정도만 고르면, 열보다 먼저 부하를 읽습니다. Windows용 무료.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://xenon-app.com/ko/fan-control.html">
+<meta property="og:image" content="https://xenon-app.com/images/home/og-card.png">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="커브 없는 무료 팬 제어 프로그램">
+<meta name="twitter:description" content="Xenon은 커브를 그리지 않고 PC 팬을 돌립니다. 모드와 조용함 정도만 고르면, 열보다 먼저 부하를 읽습니다. Windows용 무료.">
+<link rel="canonical" href="https://xenon-app.com/ko/fan-control.html">
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/fan-control.html">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/fan-control.html">
+<link rel="alternate" hreflang="fr" href="https://xenon-app.com/fr/fan-control.html">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/fan-control.html">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/fan-control.html">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/fan-control.html">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/fan-control.html">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/fan-control.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Airflow는 무료인가요?","acceptedAnswer":{"@type":"Answer","text":"네. 팬 제어는 Xenon의 기능이고, Xenon은 무료이며 계정이 필요 없습니다."}},{"@type":"Question","name":"노트북이나 Mac에서도 되나요?","acceptedAnswer":{"@type":"Answer","text":"아니요. 노트북과 Mac은 기기가 직접 팬을 제어하므로 Xenon은 건드리지 않습니다."}},{"@type":"Question","name":"Xenon이 iCUE 없이 iCUE LINK 팬을 제어할 수 있나요?","acceptedAnswer":{"@type":"Answer","text":"네. Windows와, 베타로 Linux에서 iCUE를 닫은 상태라면 됩니다. 팬 화면에서 LINK 허브 사용을 누르거나, 팬, 옵션에서 iCUE LINK 허브도 제어를 켜세요. 허브의 팬과 펌프가 함께 들어오고, 조명도 Xenon이 직접 켭니다. 끄면 허브는 곧바로 저장된 자체 설정으로 돌아갑니다."}},{"@type":"Question","name":"Xenon이 하는 게 마음에 들지 않으면요?","acceptedAnswer":{"@type":"Answer","text":"PC에 맡기기를 고르거나 Xenon에 팬 맡기기를 끄면, 팬은 PC 자체 설정으로 돌아갑니다. 팬 하나만 PC에 맡길 수도 있습니다."}}]}</script>
+
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+<script src="/chrome.js" defer></script>
+</head>
+<body data-sheet="sky">
+
+<!-- xenon:header -->
+<header class="xh" id="xh">
+  <div class="xh-w">
+    <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+    <nav class="xh-nav" aria-label="Main"><ul><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/ko/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul></nav>
+    <div class="xh-end">
+      <div class="xh-marks">
+        <a class="xh-mk dc" href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span class="xh-n" data-count="dc"></span></a>
+        <a class="xh-mk gh" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><svg class="xh-down" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.4 2.5h3.2v8.6h3.9L12 16.7l-5.5-5.6h3.9zM3.5 18.3h17v3.2h-17z"/></svg><span class="xh-n xh-n-long" data-count="dl"></span></a>
+      </div>
+      <details class="xh-lang"><summary aria-label="Language"><span>KO</span></summary><ul><li><a href="/fan-control.html" hreflang="en" lang="en">English <span>EN</span></a></li><li><a href="/es/fan-control.html" hreflang="es" lang="es">Español <span>ES</span></a></li><li><a href="/fr/fan-control.html" hreflang="fr" lang="fr">Français <span>FR</span></a></li><li><a href="/it/fan-control.html" hreflang="it" lang="it">Italiano <span>IT</span></a></li><li><a href="/ja/fan-control.html" hreflang="ja" lang="ja">日本語 <span>JA</span></a></li><li><a href="/ko/fan-control.html" hreflang="ko" lang="ko" aria-current="page">한국어 <span>KO</span></a></li><li><a href="/zh/fan-control.html" hreflang="zh" lang="zh">中文 <span>ZH</span></a></li></ul></details>
+      <a class="xh-dl" id="xh-dl" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="nav" data-xl="download">다운로드</a>
+      <button class="xh-menu" id="xh-menu" type="button" aria-expanded="false" aria-controls="xh-mnav"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="menu">메뉴</span></button>
+    </div>
+  </div>
+  <nav class="xh-mnav" id="xh-mnav" aria-label="Menu">
+    <div class="xh-mtop">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <button class="xh-menu xh-mclose" id="xh-mclose" type="button"><span class="xh-bars" aria-hidden="true"></span><span class="xh-sr" data-xl="close">닫기</span></button>
+    </div>
+    <ul class="xh-mlist"><li><a href="/demo/" data-xl="demo">데모</a></li><li><a href="/ko/catalog/" data-xl="catalog">카탈로그</a></li><li><a href="/maker/"><span data-xl="maker">Maker</span><span class="xh-beta" data-xl="beta">베타</span></a></li><li><a href="/ko/#support" data-xl="supporters">후원자</a></li><li><a href="/ko/faq.html" data-xl="help">도움말</a></li></ul>
+    <div class="xh-mfoot">
+      <a class="xh-key" href="/ko/#install" data-xl="install">설치</a>
+      <ul class="xh-mlinks">
+        <li><a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="nav_menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.4 6.2h13.4v7a5.5 5.5 0 0 1-5.5 5.5H7.9a5.5 5.5 0 0 1-5.5-5.5v-7Zm14 2.2h1.7a3.7 3.7 0 0 1 0 7.4h-1.9a7.4 7.4 0 0 0 .2-1.9V8.4Zm.3 2v3.4h1.4a1.7 1.7 0 0 0 0-3.4h-1.4ZM2 20.6h14.2v1.9H2v-1.9Z"/></svg><span data-xl="coffee">커피 한 잔 사주기</span></a></li>
+        <li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg><span>Discord</span></a></li>
+        <li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg><span>GitHub</span></a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+<!-- /xenon:header -->
+
+<main>
+  <section class="pg" aria-labelledby="pg-h">
+    <div class="pg-w">
+      <div class="pg-copy">
+        <!-- xenon:crumbs --><nav class="xc" aria-label="이동 경로"><ol><li><a href="/ko/" data-xl="home">홈</a></li><li><a href="/ko/fan-control.html" aria-current="page" data-xl="f.fans">팬 제어</a></li></ol></nav><script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Xenon","item":"https://xenon-app.com/ko/"},{"@type":"ListItem","position":2,"name":"팬 제어","item":"https://xenon-app.com/ko/fan-control.html"}]}</script><!-- /xenon:crumbs -->
+        <h1 id="pg-h" data-i18n="fc.h1">커브 없는 팬 제어</h1>
+        <p class="lede" data-i18n="fc.lede">Airflow는 PC 팬을 돌리는 Xenon의 기능입니다. 그릴 커브가 없습니다. 모드를 고르고 가장 조용히부터 가장 시원하게 사이에서 한 단계를 고르면, Xenon이 PC를 익히고 온도가 허락하는 만큼 팬을 조용하게 유지합니다.</p>
+        <div class="pg-act">
+          <a class="pg-key" data-dl href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="page_top" data-xl="cta">Windows용 다운로드</a>
+          <a class="pg-alt" href="/demo/" data-track="demo_click" data-track-location="page_top" data-xl="try">브라우저에서 체험하기</a>
+        </div>
+        <p class="updated" data-i18n="fc.updated">최종 업데이트: 2026년 11월 26일</p>
+      </div>
+      <figure class="pg-pic fit"><img src="/images/features/fan-control.webp" width="1080" height="720" fetchpriority="high" decoding="async" alt="Xenon의 팬 화면. Xenon이 팬을 제어 중이고, 모드는 자동, 저소음, 균형, 냉각, PC에 맡기기, 조용함 또는 냉각은 가장 조용히부터 가장 시원하게까지 5단계." data-i18n-alt="fc.pic.alt"></figure>
+    </div>
+  </section>
+  <div class="pg-body">
+    <nav class="jump" aria-labelledby="jump-h">
+      <p id="jump-h" data-xl="onpage">이 페이지 내용</p>
+      <a href="#how" data-i18n="fc.jump.how">작동 방식</a>
+      <a href="#modes" data-i18n="fc.jump.modes">모드</a>
+      <a href="#curve" data-i18n="fc.jump.curve">커브가 없는 이유</a>
+      <a href="#systems" data-i18n="fc.jump.systems">제어 대상</a>
+      <a href="#safety" data-i18n="fc.jump.safety">안전</a>
+      <a href="#apps" data-i18n="fc.jump.apps">다른 팬 프로그램</a>
+      <a href="#faq" data-i18n="fc.jump.faq">자주 묻는 질문</a>
+    </nav>
+    <div class="wrap">
+    <h2 id="how" data-i18n="fc.h.how">세 단계, 몇 분</h2>
+    <p data-i18n-html="fc.how.p1"><strong>Xenon → 팬</strong>을 엽니다. Airflow는 직접 켜기 전까지 꺼져 있습니다. 먼저 몇 분짜리 <strong>팬 점검</strong>이 어떤 제어가 어떤 팬을 움직이는지, 각 팬이 얼마나 느리게 돌 수 있는지 찾습니다. 점검하는 동안 팬 소리가 크며, 중간에 멈출 수 있습니다.</p>
+    <p data-i18n="fc.how.p2">그다음 Xenon은 원하는 만큼 지켜봅니다. 팬은 건드리지 않고, 자기라면 어떻게 할지와 PC가 대략 얼마나 조용해질지 보여 줍니다. 마음에 들면 맡기세요.</p>
+    <p data-i18n="fc.how.p3">팬 화면은 찾은 것을 위치별로 먼저 알려 주므로 케이스 안과 비교할 수 있습니다. 메인보드의 팬 헤더 수와 그중 무언가 돌고 있는 수, 그래픽카드의 팬 제어 수, 그리고 iCUE LINK 허브가 있는지입니다.</p>
+
+    <h2 id="modes" data-i18n="fc.h.modes">모드, 그리고 조용함 또는 냉각</h2>
+    <p data-i18n-html="fc.modes.p1"><strong>자동</strong>, <strong>저소음</strong>, <strong>균형</strong>, <strong>냉각</strong>, <strong>PC에 맡기기</strong> 중에서 고르고, 조용함 또는 냉각에서 가장 조용히부터 가장 시원하게까지 5단계 중 하나를 고르세요. 자동은 PC가 하는 일에 맞춰 고릅니다. 쉴 때는 조용히, 게임이 시작되면 대비합니다.</p>
+    <p data-i18n="fc.modes.p2">변경할 때마다 Xenon 메뉴와 팬 위젯에 이유가 나옵니다. 프로세서가 일하는 중, 게임 시작, 무언가 너무 뜨거움 같은 이유입니다. 팬이 들릴 만큼 빨라지면 팝업이 한 번 이유를 알려 주고, 알 수 있으면 원인이 된 프로그램 이름도 보여 줍니다.</p>
+    <p data-i18n="fc.modes.p3">Bit, Deck 키, 페어링한 휴대폰으로도 모드를 바꿀 수 있습니다. Bit에게 팬을 조용히 해 달라고 하거나 왜 빨라졌는지 물어보세요.</p>
+
+    <h2 id="curve" data-i18n="fc.h.curve">팬 커브를 쓰지 않는 이유</h2>
+    <p data-i18n="fc.curve.p1">팬 커브는 온도 하나를 속도 하나에 묶기 때문에, 팬은 열이 이미 온 뒤에 반응하고 짧은 순간마다 따라갑니다. Xenon은 온도보다 먼저 오르는 부하를 읽어서 팬을 더 일찍, 더 부드럽게 움직입니다.</p>
+    <p data-i18n="fc.curve.p2">짧은 순간은 그냥 넘기고, 같은 팬은 같은 속도로 맞춰 서로 웅웅거리지 않게 하며, 본 적 있는 게임이 시작되면 대비하고, 통화 중이나 밤에는 조용히 있을 수 있습니다. 수랭 쿨러는 천천히 데워지는 냉각수를 라디에이터가 빨아들이는 공기와 비교해 따라갑니다.</p>
+
+    <h2 id="systems" data-i18n="fc.h.systems">시스템별 제어 대상</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th data-i18n="fc.sys.th0">시스템</th><th data-i18n="fc.sys.th1">Xenon이 제어할 수 있는 팬</th></tr></thead>
+      <tbody>
+        <tr><td data-i18n="fc.sys.r0c0">Windows</td><td data-i18n="fc.sys.r0c1">Xenon Sensors 서비스를 통한 메인보드 팬 헤더, NVIDIA 그래픽카드(카드가 식어 있으면 지금처럼 팬이 저절로 멈춥니다), iCUE가 닫혀 있는 동안의 CORSAIR iCUE LINK 허브와 그 팬과 펌프</td></tr>
+        <tr><td data-i18n="fc.sys.r1c0">Windows(베타)</td><td data-i18n="fc.sys.r1c1">AMD 그래픽카드, 센서 라이브러리가 아는 USB 쿨러(NZXT Kraken과 그 팬 허브, MSI CoreLiquid, ARCTIC, Razer)</td></tr>
+        <tr><td data-i18n="fc.sys.r2c0">Linux(베타)</td><td data-i18n="fc.sys.r2c1">커널이 제어할 수 있는 모든 팬 칩, AMD 그래픽카드, 커널 드라이버가 있는 쿨러. Xenon이 보여 주는 명령 하나를 실행한 뒤 쓸 수 있습니다. iCUE LINK 허브도 됩니다. NVIDIA 카드는 읽기만 합니다</td></tr>
+        <tr><td data-i18n="fc.sys.r3c0">Mac과 노트북</td><td data-i18n="fc.sys.r3c1">지원하지 않습니다. 팬은 기기가 직접 제어합니다</td></tr>
+      </tbody>
+    </table></div>
+    <p data-i18n="fc.systems.p1">Xenon이 실제 하드웨어에서 시험해 본 적 없는 모델은 베타로 표시되며, Xenon이 손을 뗐을 때 팬이 PC 설정으로 돌아가는 것을 팬 점검이 확인한 뒤에만 제어합니다. 어떤 팬이든 PC에 맡겨 둘 수 있습니다.</p>
+
+    <h2 id="safety" data-i18n="fc.h.safety">안전이 먼저</h2>
+    <p data-i18n="fc.safety.p1">무언가 너무 뜨거워지면 식을 때까지 모든 팬이 최고 속도로 돕니다. 온도가 더 이상 들어오지 않거나, 돌아야 할 팬이 멈추거나, Xenon이 5초 동안 응답이 없으면 그 팬들은 PC 자체 설정으로 돌아갑니다. Xenon 종료, 업데이트, 절전, 시스템 종료 때도 마찬가지입니다.</p>
+    <p data-i18n="fc.safety.p2">펌프는 절대 멈추지 않고 절반 속도 아래로 내려가지도 않습니다. 상태 탭은 닳은 팬과 먼지를 지켜보며, 새 프로세서나 그래픽카드로 바꾸면 그 부품의 학습을 스스로 다시 시작합니다.</p>
+
+    <h2 id="apps" data-i18n="fc.h.apps">iCUE, NZXT CAM, Fan Control과 함께 쓸 때</h2>
+    <p data-i18n="fc.apps.p1">팬 하나는 프로그램 하나만 돌려야 합니다. iCUE, NZXT CAM, Fan Control, MSI Afterburner가 같은 팬을 돌리고 있다면 Xenon에서 그 팬을 PC에 맡기거나 그 프로그램을 닫으세요. Xenon은 iCUE가 닫혀 있을 때만 iCUE LINK 허브를 제어하고, iCUE가 허브를 가져가면 손을 뗍니다.</p>
+    <p data-i18n-html="fc.apps.p2">Windows에서는 메인보드 팬에 LibreHardwareMonitor와 PawnIO(Fan Control도 쓰는 서명된 드라이버)를 통해 접근합니다. <a href="/ko/pawnio.html">PawnIO가 무엇이고 Xenon이 왜 설치하는지</a> 보세요.</p>
+
+    <h2 id="faq" data-i18n="fc.h.faq">자주 묻는 질문</h2>
+    <details><summary data-i18n="fc.faq.free.q">Airflow는 무료인가요?</summary><div class="body"><p data-i18n="fc.faq.free.a">네. 팬 제어는 Xenon의 기능이고, Xenon은 무료이며 계정이 필요 없습니다.</p></div></details>
+    <details><summary data-i18n="fc.faq.laptop.q">노트북이나 Mac에서도 되나요?</summary><div class="body"><p data-i18n="fc.faq.laptop.a">아니요. 노트북과 Mac은 기기가 직접 팬을 제어하므로 Xenon은 건드리지 않습니다.</p></div></details>
+    <details><summary data-i18n="fc.faq.icue.q">Xenon이 iCUE 없이 iCUE LINK 팬을 제어할 수 있나요?</summary><div class="body"><p data-i18n="fc.faq.icue.a">네. Windows와, 베타로 Linux에서 iCUE를 닫은 상태라면 됩니다. 팬 화면에서 LINK 허브 사용을 누르거나, 팬, 옵션에서 iCUE LINK 허브도 제어를 켜세요. 허브의 팬과 펌프가 함께 들어오고, 조명도 Xenon이 직접 켭니다. 끄면 허브는 곧바로 저장된 자체 설정으로 돌아갑니다.</p></div></details>
+    <details><summary data-i18n="fc.faq.wrong.q">Xenon이 하는 게 마음에 들지 않으면요?</summary><div class="body"><p data-i18n="fc.faq.wrong.a">PC에 맡기기를 고르거나 Xenon에 팬 맡기기를 끄면, 팬은 PC 자체 설정으로 돌아갑니다. 팬 하나만 PC에 맡길 수도 있습니다.</p></div></details>
+
+    <div class="card accent">
+      <h3 data-i18n="fc.cta.h">Xenon 다운로드</h3>
+      <p data-i18n-html="fc.cta.p">무료이며 계정이 필요 없습니다. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Windows용 Xenon 다운로드</a> 또는 <a href="/ko/download.html">다운로드 페이지</a>에서 시스템을 고르세요. 팬과 온도를 보조 화면에서 보려면 <a href="/ko/sensor-panel.html">PC용 센서 패널</a>을 읽어 보세요.</p>
+    </div>
+    <!-- xenon:guides --><nav class="xg" aria-labelledby="xg-h"><h2 id="xg-h" data-xl="more">다른 가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/single-screen.html" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li><li><a href="/ko/fps-overlay.html" data-xl="f.fps">FPS 오버레이</a></li><li><a href="/ko/screen-recorder.html" data-xl="f.recorder">화면 녹화</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/aio-lcd-screen.html" data-xl="f.pump">AIO 펌프 화면</a></li><li><a href="/ko/compare.html" data-xl="f.compare">Xenon과 다른 도구</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul><p class="xg-dl"><a href="/ko/download.html" data-xl="f.download">다운로드</a></p></nav><!-- /xenon:guides -->
+    </div>
+  </div>
+</main>
+
+<!-- xenon:footer -->
+<footer class="xf">
+  <div class="xf-w">
+    <div class="xf-brand">
+      <a class="xh-brand" href="/ko/" aria-label="Xenon"><svg class="mark-i" viewBox="0 0 8 11" shape-rendering="crispEdges" aria-hidden="true"><path class="bb" d="M4 0h1v2H4zM1 2h6v1H1zM0 3h8v6H0zM1 9h6v1H1zM1 10h2v1H1zM5 10h2v1H5z"/><path class="bf" d="M2 4h1v2H2zM5 4h1v2H5zM2 7h1v1H2zM3 8h2v1H3zM5 7h1v1H5z"/></svg>xenon</a>
+      <p data-xl="tag">어떤 화면에서든 쓰는 무료 PC 위젯. Windows용이며 macOS와 Linux는 베타입니다.</p>
+      <div class="xf-bit"><span data-xl="bit">Xenon을 설치하면 자기만의 Bit가 태어나고, 똑같은 Bit는 하나도 없어요.</span></div>
+      <ul class="xf-social"><li><a href="https://www.youtube.com/@xenon-app" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814ZM9.545 15.568V8.432L15.818 12l-6.273 3.568Z"/></svg></a></li><li><a href="https://www.instagram.com/xenon.app/" target="_blank" rel="noopener" aria-label="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M7.5 2h9A5.5 5.5 0 0 1 22 7.5v9a5.5 5.5 0 0 1-5.5 5.5h-9A5.5 5.5 0 0 1 2 16.5v-9A5.5 5.5 0 0 1 7.5 2Zm0 2A3.5 3.5 0 0 0 4 7.5v9A3.5 3.5 0 0 0 7.5 20h9a3.5 3.5 0 0 0 3.5-3.5v-9A3.5 3.5 0 0 0 16.5 4h-9ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm5.25-3.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5Z"/></svg></a></li><li><a href="https://www.tiktok.com/@xenon.app" target="_blank" rel="noopener" aria-label="TikTok"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07Z"/></svg></a></li><li><a href="https://www.facebook.com/profile.php?id=61596514267824" target="_blank" rel="noopener" aria-label="Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg></a></li><li><a href="https://x.com/XenonDashboard" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg></a></li><li><a href="https://discord.gg/MBVrw9kZyg" data-discord target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg></a></li></ul>
+    </div>
+    <div class="xf-col"><h2 data-xl="app">앱</h2><ul><li><a href="/ko/download.html" data-xl="f.download">다운로드</a></li><li><a href="/demo/" data-xl="f.demo">브라우저 데모</a></li><li><a href="/ko/catalog/" data-xl="f.catalog">카탈로그</a></li><li><a href="/ko/bit.html">Bit</a></li><li><a href="/maker/" data-xl="f.maker">Xenon Maker</a></li><li><a href="/create/" data-xl="f.create">위젯 만들기</a></li><li><a href="/releases.html" data-xl="f.releases">릴리스</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="guides">가이드</h2><ul><li><a href="/ko/xeneon-edge-widgets.html" data-xl="f.edge">Xeneon Edge에서 쓰는 Xenon</a></li><li><a href="/ko/tablet-dashboard.html" data-xl="f.tablet">태블릿이나 휴대폰을 대시보드로</a></li><li><a href="/ko/phone.html" data-xl="f.phone">휴대폰 페어링</a></li><li><a href="/ko/single-screen.html" data-xl="f.onescreen">화면 하나로 쓰는 Xenon</a></li><li><a href="/ko/fps-overlay.html" data-xl="f.fps">FPS 오버레이</a></li><li><a href="/ko/screen-recorder.html" data-xl="f.recorder">화면 녹화</a></li><li><a href="/ko/fan-control.html" data-xl="f.fans">팬 제어</a></li><li><a href="/ko/aio-lcd-screen.html" data-xl="f.pump">AIO 펌프 화면</a></li><li><a href="/ko/mac.html" data-xl="f.mac">Mac에서 쓰는 Xenon</a></li><li><a href="/ko/linux.html" data-xl="f.linux">Linux에서 쓰는 Xenon</a></li><li><a href="/ko/widgets.html" data-xl="f.widgets">모든 위젯</a></li><li><a href="/ko/deck.html" data-xl="f.deck">Deck 키</a></li><li><a href="/ko/claude-code.html" data-xl="f.claude">터치스크린에서 쓰는 Claude Code</a></li><li><a href="/ko/codex.html" data-xl="f.codex">터치스크린에서 쓰는 OpenAI Codex</a></li><li><a href="/ko/sensor-panel.html" data-xl="f.sensor">PC 센서 패널</a></li><li><a href="/ko/compare.html" data-xl="f.compare">Xenon과 다른 도구</a></li><li><a href="/ko/xenon-exe.html" data-xl="f.exe">설치 프로그램은 안전한가요?</a></li></ul></div>
+    <div class="xf-col"><h2 data-xl="project">프로젝트</h2><ul><li><a href="/ko/#support" data-xl="f.support">후원자</a></li><li><a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a></li><li><a href="/ko/faq.html" data-xl="f.faq">도움말과 질문</a></li><li><a href="/ko/privacy.html" data-xl="f.privacy">개인정보</a></li></ul></div>
+    <div class="xf-col" data-theme-switch></div>
+    <div class="xf-bottom"><span data-xl="legal">Xenon은 독립 프로젝트입니다. Xeneon과 iCUE는 CORSAIR의 상표입니다. 그 밖의 이름과 로고는 각 소유자의 것입니다.</span></div>
+  </div>
+</footer>
+<!-- /xenon:footer -->
+<script src="/analytics.js" defer></script>
+<script src="/download-flow.js" defer></script>
+</body>
+</html>

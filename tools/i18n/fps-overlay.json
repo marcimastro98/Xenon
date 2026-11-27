@@ -57,7 +57,7 @@
     "fo.systems.p1": "On macOS and Linux the tile still shows CPU and GPU load, and says in one line why the frame rate is missing.",
     "fo.h.afterburner": "Next to MSI Afterburner and RivaTuner",
     "fo.afterburner.p1": "Afterburner with RivaTuner draws its overlay from inside the game, which is how it can show over exclusive full screen. Xenon stays outside the game and can hand its readings to the same RivaTuner for those games. It adds what those tools leave to you: past games compared, a cause when a game stutters, and the same numbers on a second screen or a phone.",
-    "fo.afterburner.p2": "Xenon does not overclock, undervolt, set fan curves, limit the frame rate or change driver settings. If you use Afterburner for those, keep it.",
+    "fo.afterburner.p2": "Xenon does not overclock, undervolt, limit the frame rate or change driver settings: if you use Afterburner for those, keep it. Xenon can drive your fans, with no curves to draw: see <a href=\"/fan-control.html\">fan control</a>. Let one program at a time drive each fan.",
     "fo.h.faq": "Common questions",
     "fo.faq.cheat.q": "Does the FPS overlay get me banned by anti-cheat?",
     "fo.faq.cheat.a": "Xenon never injects code into a game and never hooks its process. It draws its own window on top and reads frame times from the system with PresentMon, so there is nothing inside the game for anti-cheat to flag. The one exception is your choice: with Show over exclusive full screen on, RivaTuner Statistics Server draws inside the game, as it does for MSI Afterburner.",

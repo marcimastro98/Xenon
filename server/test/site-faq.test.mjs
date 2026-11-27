@@ -18,7 +18,7 @@ const LANGS = ['en', 'it', 'es', 'fr', 'ja', 'ko', 'zh'];
 const QUESTIONS = [
   'what', 'edge', 'screen', 'os',
   'free', 'trial', 'sparks', 'refund',
-  'games', 'cheat', 'sensors', 'replay', 'bit', 'deck', 'add', 'make', 'connect', 'backup',
+  'games', 'cheat', 'sensors', 'replay', 'bit', 'deck', 'add', 'make', 'connect', 'fans', 'pump', 'home', 'backup',
   'virus', 'closes', 'temp', 'update',
   'data', 'help',
 ];

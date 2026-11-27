@@ -50,7 +50,7 @@
     "cmp.h.ab": "MSI Afterburner",
     "cmp.ab.p1": "MSI Afterburner, with RivaTuner, is the free classic for overclocking, fan curves and an FPS overlay drawn from inside the game, which is how it can show over exclusive full screen.",
     "cmp.ab.p2": "Xenon stays outside the game. It shows the frame rate, 1% and 0.1% lows and frame time on a second screen, a phone or a window over the game, and over exclusive full screen through RivaTuner if you turn that on. It compares past games and names a likely cause when a game stutters. It does not overclock, undervolt or set fan curves.",
-    "cmp.ab.use": "<strong>Keep Afterburner</strong> for overclocking and fan curves. <strong>Add Xenon</strong> to read the numbers on another screen and keep a history of your games. The <a href=\"/fps-overlay.html\">FPS overlay guide</a> has the details.",
+    "cmp.ab.use": "<strong>Keep Afterburner</strong> for overclocking. <strong>Add Xenon</strong> to read the numbers on another screen and keep a history of your games. For the graphics card's fans, pick one: Afterburner's curve or Xenon's <a href=\"/fan-control.html\">fan control</a>, never both. The <a href=\"/fps-overlay.html\">FPS overlay guide</a> has the details.",
     "cmp.h.we": "Wallpaper Engine",
     "cmp.we.p1": "Wallpaper Engine is a low-cost Steam app for animated wallpapers, with a huge Workshop of scenes and a free Android app that takes them to a phone.",
     "cmp.we.p2": "Xenon has animated backgrounds and Ambient scenes too, but its job is widgets: readings, music, the calendar, Deck keys and the assistant. The two can run on the same PC.",

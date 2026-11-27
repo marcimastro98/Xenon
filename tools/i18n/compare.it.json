@@ -50,7 +50,7 @@
     "cmp.h.ab": "MSI Afterburner",
     "cmp.ab.p1": "MSI Afterburner, con RivaTuner, è il classico gratuito per overclock, curve delle ventole e un overlay degli FPS disegnato da dentro il gioco, ed è per questo che si vede anche sopra lo schermo intero esclusivo.",
     "cmp.ab.p2": "Xenon resta fuori dal gioco. Mostra FPS, 1% e 0,1% low e frame time su un secondo schermo, sul telefono o in una finestra sopra il gioco, e sopra lo schermo intero esclusivo tramite RivaTuner se lo accendi. Confronta le partite passate e indica una causa probabile quando un gioco scatta. Non fa overclock, undervolt né curve delle ventole.",
-    "cmp.ab.use": "<strong>Tieni Afterburner</strong> per overclock e curve delle ventole. <strong>Aggiungi Xenon</strong> per leggere i numeri su un altro schermo e tenere la storia delle tue partite. La <a href=\"/fps-overlay.html\">guida all'overlay FPS</a> ha i dettagli.",
+    "cmp.ab.use": "<strong>Tieni Afterburner</strong> per l'overclock. <strong>Aggiungi Xenon</strong> per leggere i numeri su un altro schermo e tenere la storia delle tue partite. Per le ventole della scheda video scegline uno: la curva di Afterburner o il <a href=\"/fan-control.html\">controllo delle ventole</a> di Xenon, mai tutti e due. La <a href=\"/fps-overlay.html\">guida all'overlay FPS</a> ha i dettagli.",
     "cmp.h.we": "Wallpaper Engine",
     "cmp.we.p1": "Wallpaper Engine è un'app di Steam che costa poco, per sfondi animati, con un Workshop enorme di scene e un'app Android gratuita che le porta sul telefono.",
     "cmp.we.p2": "Anche Xenon ha sfondi animati e scene Ambient, ma il suo mestiere sono i widget: letture, musica, calendario, tasti del Deck e l'assistente. I due possono girare sullo stesso PC.",
