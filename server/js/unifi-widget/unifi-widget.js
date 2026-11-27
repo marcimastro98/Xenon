@@ -21,8 +21,8 @@
 
   const STATE_POLL_MS = 30000;    // re-check config/camera list/status while visible
   const {
-    readHubSettings, ASPECT_CSS, ROTATIONS, DEFAULT_REFRESH_MS, layoutOf, MAX_ZOOM, angleOf,
-    applyCamAngle, orderCameras, applyGridVars, applyLayout, refreshOne, tick, setCamAngle,
+    readHubSettings, ROTATIONS, layoutOf, MAX_ZOOM, angleOf, applyCamAngle, orderCameras,
+    applyGridVars, applyLayout, refreshOne, releaseFrame, dropCams, tick, setCamAngle,
   } = window.UnifiWidgetCameraLayout;
 
   const tiles = new Map();        // instanceId -> tile state
@@ -177,9 +177,8 @@
     const btn = el('button', 'ui-btn ui-btn--primary', t('unifi_open_settings', 'Set up'));
     btn.type = 'button';
     btn.addEventListener('click', openUnifiSettings);
-    wrap.appendChild(btn);
-    tile.mount.replaceChildren(wrap);
-    tile.cams = [];
+    wrap.appendChild(btn); tile.mount.replaceChildren(wrap);
+    dropCams(tile);
   }
 
   function renderEmpty(tile, msg) {
@@ -188,9 +187,8 @@
     const btn = el('button', 'ui-btn', t('unifi_open_settings', 'Open settings'));
     btn.type = 'button';
     btn.addEventListener('click', openUnifiSettings);
-    wrap.appendChild(btn);
-    tile.mount.replaceChildren(wrap);
-    tile.cams = [];
+    wrap.appendChild(btn); tile.mount.replaceChildren(wrap);
+    dropCams(tile);
   }
 
   function renderGrid(tile, cameras) {
@@ -200,6 +198,7 @@
     // Tag HA cameras with a small source badge only when both sources are shown, so
     // a single-source tile stays clutter-free.
     const mixed = cameras.some((c) => c.source === 'unifi') && cameras.some((c) => c.source === 'ha');
+    dropCams(tile);
     tile.cams = orderCameras(cameras, lay.order).map((c) => {
       const card = el('button', 'up-cam' + (c.source === 'ha' ? ' up-cam--ha' : ''));
       card.type = 'button';
@@ -357,7 +356,7 @@
 
   function closeExpand(tile) {
     if (tile.overlay) { tile.overlay.remove(); tile.overlay = null; }
-    tile.expandCam = null;
+    releaseFrame(tile.expandCam); tile.expandCam = null;
     if (tile._esc) { document.removeEventListener('keydown', tile._esc); tile._esc = null; }
   }
 
@@ -433,6 +432,7 @@
       if (tile.section && !document.contains(tile.section)) {
         stopPulling(tile);
         closeExpand(tile);
+        dropCams(tile);
         if (tile._io) { tile._io.disconnect(); tile._io = null; }
         if (tile._mo) tile._mo.disconnect();
         tiles.delete(id);

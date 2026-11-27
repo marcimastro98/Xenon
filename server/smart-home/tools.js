@@ -2,10 +2,23 @@
 // or start a scene, and never a lock, an alarm or a door.
 
 const aiPcApps = require('../ai/ai-pc-apps.js');
+const { offerControl, lightControl } = require('../ai/reply-control-offer.js');
+
+const SWITCH_ON = { turn_on: () => true, turn_off: () => false, toggle: (was) => !was };
+
+// A light Bit switched gets its switch and brightness under the reply. HA's new state arrives
+// later, so the switch shows what was asked, worked out from the state read before the call
+// (none when HA was not connected yet: then a toggle's result is left to the live state).
+function offerLight(clientActions, deckHa, action, entity, before, fnResult) {
+  if (!entity.startsWith('light.') || !SWITCH_ON[action] || (fnResult && (fnResult.error || fnResult.ok === false))) return;
+  const known = deckHa.snapshot([entity])[0] || before || null;
+  const on = before ? SWITCH_ON[action](before.state === 'on') : (action === 'toggle' ? null : SWITCH_ON[action](false));
+  offerControl(clientActions, lightControl(entity, known, on));
+}
 
 /** @type {Record<string, (context: any, engine?: any) => Promise<any>>} */
 const branches = {
-  'home_assistant': async ({ fnArgs, runAction }, { deckHa }) => {
+  'home_assistant': async ({ fnArgs, runAction, clientActions }, { deckHa }) => {
       let fnResult;
       // Smart-home control. `list` reads the entity roster (so the model can match
       // a friendly name → entity_id); everything else goes through the registry's
@@ -36,7 +49,9 @@ const branches = {
         if (act && ((entity && !aiPcApps.haDomainAllowed(entity)) || (service && !aiPcApps.haDomainAllowed(service)))) {
           fnResult = { error: 'not allowed: locks, alarms, covers, garage doors, scripts and automations are not controlled by the assistant. The user can do it in Home Assistant or with a Deck key.' };
         } else {
+          const before = act && deckHa.snapshot([entity])[0];
           fnResult = act ? await runAction(act) : { error: 'bad_action' };
+          if (act) offerLight(clientActions, deckHa, action, entity, before, fnResult);
         }
       }
       return fnResult;

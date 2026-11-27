@@ -170,13 +170,13 @@ function createHomeAssistant(getConfig) {
   }
 
   // A state_changed event carries the full new_state; keep the local cache fresh
-  // and notify the watcher. Unknown/entity-removed events drop the entity.
+  // and hand the change to the watcher. Unknown/entity-removed events drop the entity.
   function applyEvent(event) {
     const data = event && event.data;
     if (!data || !data.entity_id) return;
     if (data.new_state) states.set(data.entity_id, data.new_state);
     else states.delete(data.entity_id);
-    if (onChange) { try { onChange(); } catch (e) { /* ignore */ } }
+    if (onChange) { try { onChange(data); } catch (e) { /* ignore */ } }
   }
 
   // Fetch the entity→area map once per connection (areas change rarely). Best

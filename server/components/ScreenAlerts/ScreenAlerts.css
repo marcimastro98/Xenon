@@ -98,9 +98,6 @@ html[data-screen-alerts] .gc-card {
   background: linear-gradient(rgba(var(--panel-rgb), 0.92) 0 0), var(--floating-ui-bg);
 }
 
-/* Two keys here: the price takes the line above them, and they stay together. */
-html[data-screen-alerts] .gc-cost { flex-basis: 100%; }
-
 /* A game started under a card: it waits, it does not stay on top. The performance
    question stays: the game starting is what it asks about. */
 body.game-mode .rn-corner,

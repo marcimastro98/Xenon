@@ -11,7 +11,8 @@
 //     console password never leaves the server; only compact detections reach the
 //     browser.
 //   - A long-lived socket → must be stopped in _gracefulShutdown. Reconnect uses
-//     exponential backoff (2s→30s), never a tight retry.
+//     exponential backoff (2s→30s), never a tight retry. A socket that stops
+//     answering pings is terminated, so a silent drop reconnects too (keepAlive).
 //   - Never throws out of the public surface; a malformed frame is ignored.
 const WebSocket = require('ws');
 const zlib = require('zlib');
@@ -81,6 +82,25 @@ function extractDetection(action, data) {
 // `client` is the snapshot client from actions/unifi.js. We reuse its session
 // (updatesWs → { wsUrl, cookie }), its camera list (for friendly names) and its
 // close() (to force a re-login when the console rejects the upgrade).
+// A socket can die without a 'close' (the console rebooted, Wi-Fi or a router dropped
+// it): no detection arrives again and nothing says so. A ping every 30 s, and a
+// socket that answered nothing since the last one is terminated, so 'close' fires
+// and the normal reconnect runs. Returns a stop function.
+const PING_MS = 30 * 1000;
+function keepAlive(sock, timers = { setInterval, clearInterval }) {
+  let alive = true;
+  const heard = () => { alive = true; };
+  sock.on('pong', heard);
+  sock.on('message', heard);
+  const timer = timers.setInterval(() => {
+    if (!alive) { try { sock.terminate(); } catch { /* already gone */ } return; }
+    alive = false;
+    try { sock.ping(); } catch { /* closing */ }
+  }, PING_MS);
+  timer?.unref?.();
+  return () => timers.clearInterval(timer);
+}
+
 function createUnifiEvents(client) {
   let ws = null;
   let watching = false;
@@ -153,6 +173,7 @@ function createUnifiEvents(client) {
       });
     } catch (e) { scheduleReconnect(); return; }
     ws = sock;
+    const stopKeepAlive = keepAlive(sock);
     sock.on('open', () => { openedAt = Date.now(); });
     sock.on('message', handleMessage);
     sock.on('unexpected-response', (req, res) => {
@@ -165,6 +186,7 @@ function createUnifiEvents(client) {
     });
     sock.on('error', () => { try { sock.close(); } catch (e) { /* ignore */ } });
     sock.on('close', () => {
+      stopKeepAlive();
       if (ws === sock) ws = null;
       // Never upgraded → the cached url/cookie may be the problem; re-fetch next time.
       if (!openedAt) wsInfoCache = null;
@@ -193,4 +215,4 @@ function createUnifiEvents(client) {
   return { watch, close };
 }
 
-module.exports = { createUnifiEvents, decodeUpdatePacket, decodeFrame, extractDetection, SMART_KINDS };
+module.exports = { createUnifiEvents, decodeUpdatePacket, decodeFrame, extractDetection, keepAlive, PING_MS, SMART_KINDS };

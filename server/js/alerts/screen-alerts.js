@@ -17,8 +17,7 @@
 // thing (alert-toasts.js, capture-toast.js, deck-error-text.js). A viewer: it
 // reads the settings and never writes them.
 
-// The settings toast.js, audio-feedback.js and capture-toast.js read, as on the
-// dashboard. Never saved.
+// The settings toast.js, audio-feedback.js and capture-toast.js read, as on the dashboard. Never saved.
 let hubSettings = {};
 
 (function () {
@@ -396,8 +395,8 @@ let hubSettings = {};
     } catch (e) { /* the server is restarting: SSE screen_menu brings the next */ }
   }
 
-  // "Ask Bit" on a game recap or a heat alert: with no dashboard here, Bit's
-  // chat is the search window's, opened on the question (server/spotlight-ask/).
+  // "Ask Bit" on a game recap, a heat alert or a ring: with no dashboard here, Bit's chat is the
+  // search window's, opened on the question (server/spotlight-ask/).
   async function askInSearch(text) {
     try {
       const res = await fetch(SERVER + '/spotlight/ask', {
@@ -440,6 +439,7 @@ let hubSettings = {};
   const HANDLERS = Object.freeze({
     ...Object.fromEntries(Object.entries(POPUPS).map(([event, [build, open]]) => [event, (d) => { if (popups()) show(AlertToasts[build](d, ctx(), open)); }])),
     guardian_alert: (d) => { if (guardianOn()) show(AlertToasts.guardian(d, ctx())); },
+    home_ring: (d) => { if (popups() && window.DoorCard) show(window.DoorCard.toast(d, ctx(), { ask: askInSearch })); },
     timer_done: (d) => { if (!onScreen()) return; chime(); show(AlertToasts.timerDone(d && d.label, ctx())); },
     timer_chime: (d) => { if (!onScreen()) return; chime(); show(AlertToasts.timerChime(d && d.label, d && d.every, ctx())); },
     calendar_reminder: reminder,

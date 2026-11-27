@@ -14,7 +14,13 @@
   display: grid; gap: 8px;
   /* Auto-fit so 1 camera fills the tile and many cameras wrap into a neat grid. */
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  grid-auto-rows: 1fr;
+  /* Rows as tall as their cards, the block centred: a card keeps its picture's
+     shape, so 1fr rows in a tall tile left a band of empty tile under each row
+     (two columns on an upright tablet). `safe` keeps the top reachable when the
+     cards overflow and the grid scrolls. */
+  grid-auto-rows: auto;
+  align-content: start;
+  align-content: safe center;
   background:
     radial-gradient(125% 95% at 100% -12%, rgba(var(--accent-rgb), 0.14), transparent 55%),
     radial-gradient(100% 70% at 0% 112%, rgba(var(--accent-rgb), 0.05), transparent 60%);

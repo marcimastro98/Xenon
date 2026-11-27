@@ -132,23 +132,52 @@
     retimePulling(tile);
   }
 
-  // Double-buffer: preload the next frame into a detached Image and only swap the
-  // visible <img> once it has decoded, so a refresh never flashes blank. A
-  // per-camera in-flight guard keeps a slow console from stacking requests.
-  function refreshOne(cam) {
+  // Double-buffer: the next frame is downloaded ONCE as bytes, decoded off screen,
+  // and only then shown, so a refresh never flashes blank. It used to preload into
+  // a detached Image and then point the visible <img> at the same URL, but the
+  // snapshot proxies answer `no-store`, so that second assignment fetched the
+  // frame again and the tile went empty while it did: the cameras flickered on
+  // every refresh, worst on Safari (reported on an iPad), at twice the bandwidth.
+  // A blob: URL is the same bytes in memory, so the swap is instant. A per-camera
+  // in-flight guard keeps a slow console from stacking requests.
+  async function refreshOne(cam) {
     if (!cam || cam.loading || !cam.img) return;
     cam.loading = true;
-    const pre = new Image();
-    pre.onload = () => {
-      cam.loading = false;
-      if (cam.img) { cam.img.src = pre.src; cam.img.classList.add('is-live'); }
+    let url = '';
+    try {
+      const res = await fetch(snapUrl(cam), { cache: 'no-store' });
+      if (!res.ok) throw new Error('snapshot ' + res.status);
+      url = URL.createObjectURL(await res.blob());
+      const pre = new Image();
+      pre.src = url;
+      await pre.decode();
+      if (!cam.img) throw new Error('camera closed');
+      cam.img.src = url;
+      cam.img.classList.add('is-live');
+      if (cam.frameUrl) URL.revokeObjectURL(cam.frameUrl);
+      cam.frameUrl = url;
+      url = '';
       if (cam.card) cam.card.classList.remove('up-cam--stale');
-    };
-    pre.onerror = () => {
+    } catch (e) {
+      if (cam.card && cam.img) cam.card.classList.add('up-cam--stale');
+    } finally {
+      if (url) URL.revokeObjectURL(url);
       cam.loading = false;
-      if (cam.card) cam.card.classList.add('up-cam--stale');
-    };
-    pre.src = snapUrl(cam);
+    }
+  }
+
+  // Lets go of the frame a camera is showing, when its card or full-size view goes.
+  function releaseFrame(cam) {
+    if (!cam) return;
+    if (cam.frameUrl) URL.revokeObjectURL(cam.frameUrl);
+    cam.frameUrl = '';
+    cam.img = null;
+  }
+
+  // A tile's cards are about to be replaced or the tile is gone: free their frames.
+  function dropCams(tile) {
+    (tile.cams || []).forEach(releaseFrame);
+    tile.cams = [];
   }
 
   function tick(tile) {
@@ -199,6 +228,7 @@
 
   window.UnifiWidgetCameraLayout = {
     readHubSettings, ASPECT_CSS, ROTATIONS, DEFAULT_REFRESH_MS, layoutOf, MAX_ZOOM, angleOf,
-    applyCamAngle, orderCameras, applyGridVars, applyLayout, refreshOne, tick, setCamAngle,
+    applyCamAngle, orderCameras, applyGridVars, applyLayout, refreshOne, releaseFrame, dropCams, tick,
+    setCamAngle,
   };
 })();

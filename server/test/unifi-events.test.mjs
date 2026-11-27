@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { decodeUpdatePacket, extractDetection } = require('../smart-home/unifi-events.js');
+const { decodeUpdatePacket, extractDetection, keepAlive } = require('../smart-home/unifi-events.js');
+const { WebSocket, WebSocketServer } = require('ws');
+const { EventEmitter } = require('node:events');
 
 // Build one Protect update frame the same way the console does: 8-byte header
 // (packetType, JSON format, deflate flag, reserved, UInt32BE size) + payload.
@@ -67,4 +69,43 @@ test('decode → extract round-trips a real-shaped person detection', () => {
   ));
   const d = extractDetection(p.action, p.data);
   assert.deepEqual(d, { camId: 'FrontDoor01', kinds: ['person'], at: 42 });
+});
+
+// The events socket could die without a 'close' (console reboot, a router drop):
+// detections stopped for good and nothing said so.
+test('keepAlive pings, and terminates a socket that stopped answering', () => {
+  const sock = Object.assign(new EventEmitter(), { pings: 0, ended: false, ping() { this.pings++; }, terminate() { this.ended = true; } });
+  let tick = null;
+  const stop = keepAlive(sock, { setInterval: (fn) => { tick = fn; return 1; }, clearInterval: () => { tick = null; } });
+  tick();
+  assert.equal(sock.pings, 1);
+  sock.emit('pong');
+  tick();
+  assert.equal(sock.ended, false, 'answered: kept');
+  sock.emit('message', Buffer.alloc(0));
+  tick();
+  assert.equal(sock.ended, false, 'any frame counts as an answer');
+  tick();
+  assert.equal(sock.ended, true, 'nothing since the last ping: terminated');
+  stop();
+  assert.equal(tick, null, 'stop clears the timer');
+});
+
+test('keepAlive frees a real ws socket whose peer went silent', async () => {
+  const wss = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  await new Promise((r) => wss.on('listening', r));
+  const peer = new Promise((r) => wss.on('connection', (s) => r(s)));
+  const sock = new WebSocket('ws://127.0.0.1:' + wss.address().port);
+  await new Promise((r) => sock.on('open', r));
+  const fast = { setInterval: (fn) => setInterval(fn, 50), clearInterval };
+  const stop = keepAlive(sock, fast);
+  (await peer)._socket.pause();   // the far end stops reading: no pong, no close
+  const closed = await Promise.race([
+    new Promise((r) => sock.on('close', () => r(true))),
+    new Promise((r) => setTimeout(() => r(false), 2000)),
+  ]);
+  stop();
+  wss.clients.forEach((c) => c.terminate());
+  await new Promise((r) => wss.close(r));
+  assert.equal(closed, true, 'the silent socket closes, so the reconnect can run');
 });

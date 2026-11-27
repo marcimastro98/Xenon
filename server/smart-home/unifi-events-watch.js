@@ -7,7 +7,10 @@ const { deckUnifiEvents } = require('./deck-clients.js');
 const { unifiWatching } = require('./unifi-events-watching.js');
 const { unifiNotify } = require('./unifi-notify-state.js');
 const { _unifiNotifyCooldown, _onUnifiDetection } = require('./unifi-detections.js');
+const { normalizeHome } = require('./home-settings.js');
+const homeLog = require('./home-events.js');
 
+// The doorbell card (doorbell.js, on unless switched off) counts as asking for the rings.
 async function refreshUnifiEventsWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const u = (s && s.unifi) || {};
@@ -17,8 +20,11 @@ async function refreshUnifiEventsWatch() {
     types: (notify.types && typeof notify.types === 'object') ? notify.types : {},
     cooldownMs: Math.max(5, Math.min(600, Number(notify.cooldownSec) || 45)) * 1000,
   };
+  // Switching the home log off empties it at once: this runs on every settings save.
+  if (!normalizeHome(s.home).log) homeLog.clear().catch(() => {});
   const configured = !!(u.host && u.username && u.password);
-  const want = configured && notify.enabled === true && sseClients.size > 0;
+  const doorbell = normalizeHome(s.home).doorbell && unifiNotify.snapshot.types.ring === true;
+  const want = configured && (notify.enabled === true || doorbell) && sseClients.size > 0;
   // Reconnect if the console credentials changed under an active watch (the socket
   // is bound to the old session); a mere toggle of the type checkboxes doesn't need it.
   const sig = want ? [u.host, u.username, u.password].join('\u0000') : '';

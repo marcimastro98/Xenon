@@ -6,6 +6,8 @@ const { readHubSettings } = require('../settings/read.js');
 const { deckHa } = require('./deck-clients.js');
 const { haWatch } = require('./ha-watch-state.js');
 const { _haDeckWatchClients, haDeckWatchUnion } = require('./deck-watch.js');
+const doorbell = require('./doorbell.js');
+const homeLog = require('./home-events.js');
 
 // Compact { id: { state, brightness? } } map for the deck-bound entities.
 function buildHaDeckStates() {
@@ -47,7 +49,11 @@ function broadcastHaDeckStates(force) {
   broadcastSSE('ha_states', payload);
 }
 
-function scheduleHaBroadcast() {
+// `change` is the state_changed data when one arrived: a doorbell's becomes its card at once,
+// a door or window opening goes in the home log.
+function scheduleHaBroadcast(change) {
+  if (change && doorbell.haRing(change)) doorbell.fromHa(change, deckHa).catch(() => {});
+  if (change) homeLog.fromHa(change);
   if (haWatch.notifyTimer) return;
   haWatch.notifyTimer = setTimeout(async () => {
     haWatch.notifyTimer = null;
