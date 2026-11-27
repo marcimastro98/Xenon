@@ -49,7 +49,8 @@
     const el = document.getElementById('ai-overlay');
     return !!el && !el.hidden;
   };
-  const showing = () => !!window.SheetChat || settingsOpen() || !!document.querySelector('.preset-modal-overlay, .wn-stage, #deck-mix-backdrop, #deck-editor-backdrop, .bitp, .bitc-overlay');
+  // The pocket's window holds the pocket alone: it goes when the pocket closes, whatever else is behind it.
+  const showing = () => (POCKET ? !!document.querySelector('.bitp') : !!window.SheetChat || settingsOpen() || !!document.querySelector('.preset-modal-overlay, .wn-stage, #deck-mix-backdrop, #deck-editor-backdrop, .bitp, .bitc-overlay'));
 
   function go(address) {
     if (leaving) return;

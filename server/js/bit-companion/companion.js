@@ -145,10 +145,12 @@
 
   // Until the egg hatched and its setup is done (room-setup.js), the room opens by itself once each time
   // the page opens, after the first-run choice and anything else on screen: the corner alone is too small
-  // to be found. Closed before that, it opens again the next time; never where no Bit is wanted.
+  // to be found. Closed before that, it opens again the next time; never where no Bit is wanted, nor in
+  // the pocket's little window (js/ai/sheet-page.js), which holds the pocket alone.
   function meetRoom() {
     const waiting = () => bit.hatched !== true || bit.prefs?.setup !== true;
-    if (met || bit.prefs?.place === 'off' || !waiting()) return;
+    const pocketWindow = /[?&]alone=pocket(&|$)/.test(window.location?.search || ''); // sheet-page.js loads later
+    if (met || pocketWindow || bit.prefs?.place === 'off' || !waiting()) return;
     met = true;
     const show = () => { if (waiting() && window.BitSheet && !window.BitSheet.isOpen()) window.BitSheet.open(); };
     const I = window.XenonInterrupts;

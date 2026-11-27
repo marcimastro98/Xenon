@@ -643,6 +643,10 @@ test('until the egg hatched and its setup is done, the room opens by itself once
   page().tell(born({ setup: true }));
   page().tell(egg({ place: 'off' }));
   assert.equal(waiting.length, 0, 'set up already, or no Bit wanted anywhere: nothing opens');
+  const pocket = page();
+  pocket.ctx.location = { search: '?panel=sheet&open=pocket&alone=pocket' };
+  pocket.tell(egg());
+  assert.equal(waiting.length, 0, "not in the pocket's little window, which holds the pocket alone");
   assert.deepEqual(cards, [], 'no card for the egg or the setup: the room itself opens');
 });
 

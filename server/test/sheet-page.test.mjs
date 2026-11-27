@@ -68,7 +68,7 @@ function sheetPage({ settingsHidden = true, overlays = [], section = 'now', sear
     const e = { key, defaultPrevented: false, preventDefault() { e.defaultPrevented = true; }, stopImmediatePropagation() { stopped = true; }, ...extra };
     for (const f of listeners.keydown) { if (stopped) break; f(e); }
   };
-  return { ctx, window, replaced, posts, stored, press, settings, signals, classes };
+  return { ctx, window, replaced, posts, stored, press, settings, signals, classes, listeners };
 }
 
 test('only the screens the menu window can hold open as a sheet, with safe values only', () => {
@@ -299,6 +299,20 @@ test("Bit's pocket alone in its own little window: it says when it is done, and 
   assert.ok(!menu.classes.has('is-pocket-window'));
   menu.ctx.window.XenonSheet.again();
   assert.deepEqual(menu.signals, []);
+});
+
+test('the pocket window goes when the pocket closes, whatever a page left behind it', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pocket = sheetPage({ section: '', search: '?panel=sheet&open=pocket&alone=pocket', overlays: ['.bitc-overlay'] });
+  const menu = sheetPage({ section: '', overlays: ['.bitc-overlay'] });
+  for (const p of [pocket, menu]) {
+    p.ctx.document.getElementById = (id) => (id === 'settings-overlay' ? p.settings : null); // no Settings list to shorten
+    p.listeners.load.forEach((f) => f());
+  }
+  t.mock.timers.tick(1500); // the page's grace, then the settle of what it sees
+  t.mock.timers.tick(400);
+  assert.deepEqual(pocket.signals, ['xenon-app:bit-pocket-close'], 'the room behind it does not keep it');
+  assert.deepEqual([menu.signals, menu.posts], [[], []], "in the menu's window the room is a screen of its own");
 });
 
 test('the pocket window fits its card and runs keys only once it is gone', () => {
