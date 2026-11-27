@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 // The real script on a small page: the card, the question box, a held keyboard.
-function boot({ alertsWindow = false } = {}) {
+function boot({ alertsWindow = false, bit = null } = {}) {
   const els = {};
   const element = (id) => (els[id] ||= {
     id, hidden: id === 'gc-overlay', dataset: {}, textContent: '', value: '',
@@ -14,10 +14,10 @@ function boot({ alertsWindow = false } = {}) {
     focus() { page.focused = id; },
     querySelector: (sel) => (sel === '.gc-card' ? element('gc-card') : null),
   });
-  const page = { focused: '', looks: 0, holds: [], order: [], freeze: [], timers: [] };
+  const page = { focused: '', looks: 0, holds: [], order: [], freeze: [], timers: [], on: {} };
   const ctx = {
     console,
-    document: { getElementById: element, addEventListener() {} },
+    document: { getElementById: element, addEventListener: (type, fn) => { (page.on[type] ||= []).push(fn); } },
     requestAnimationFrame() {},
     setInterval: () => 1,
     clearInterval() {},
@@ -42,6 +42,7 @@ function boot({ alertsWindow = false } = {}) {
   };
   ctx.window = ctx;
   if (alertsWindow) ctx.ScreenCompanion = {};
+  if (bit) ctx.BitApp = bit;
   vm.createContext(ctx);
   vm.runInContext(read('../js/game-companion/game-companion.js'), ctx);
   return { card: ctx.GameCompanion, els, page, element };
@@ -115,11 +116,45 @@ test('the card is a sheet: page blurred, one main key, the price with its spark'
   assert.match(card, /class="gc-cost-spark" data-xspark/);
   assert.doesNotMatch(card.slice(card.indexOf('gc-analyze')), /<svg/, 'words on the key, no picture');
   const css = read('../components/GameCompanion/GameCompanion.css');
-  assert.doesNotMatch(css, /gradient/);
+  assert.doesNotMatch(css.replace('linear-gradient(var(--bit-fill) 0 0)', ''), /gradient/, 'one flat layer of the Bit colour is the only one');
   assert.doesNotMatch(css, /var\(--surface-alt\)/, 'a grey wash hid the dashboard');
   assert.match(css, /\.gc-card \{[^}]*max-height: calc\(100dvh - 36px\);/);
-  assert.match(css, /\.gc-reply \{[^}]*overflow-y: auto;/);
+  assert.match(css, /\.gc-insight \{[^}]*overflow-y: auto;/, 'a long answer scrolls in its bubble');
   const sheets = read('../styles/liquid-sheets.css');
   assert.match(sheets, /\[data-screen-alerts\] :is\(\.call-overlay, \.gc-overlay\) \{ background: none;/, 'no scrim over a game');
   assert.doesNotMatch(sheets.slice(sheets.indexOf(':root[data-style="liquid"] .gc-pill {')).split('}')[0], /backdrop-filter/, 'the game would pay for a blur');
+});
+
+// Bit on the card is the chat's: one live Bit at the foot, its answer in a bubble above it.
+test('one Bit, at the start of the question row, and the answer is its bubble', () => {
+  const html = read('../index.html');
+  const card = html.slice(html.indexOf('id="gc-overlay"'), html.indexOf('<!-- Perspective neon grid'));
+  assert.equal(card.split('class="gc-bit"').length, 2, 'one Bit');
+  assert.doesNotMatch(card, /gc-reply-bit/, 'no still Bit beside the answer');
+  assert.match(card, /<div class="gc-ask">\s*<span class="gc-bit" id="gc-bit" aria-hidden="true"><\/span>\s*<input class="gc-ask-input"/);
+  assert.match(card, /<div class="gc-head">\s*<div class="gc-headline">\s*<strong class="gc-name">Bit<\/strong>/, 'the head keeps the name');
+  const css = read('../components/GameCompanion/GameCompanion.css');
+  assert.match(css, /\.gc-insight \{[^}]*border-radius: 14px 14px 14px 0;[^}]*background: var\(--bit-bubble\);/);
+  assert.match(css, /\.gc-reply::after \{[^}]*clip-path: var\(--px-tail\);/, 'the stepped tail down to Bit');
+  assert.match(css, /\.gc-card \{[^}]*--bit-bubble: /, 'the alerts window has no chat CSS: the card brings its own');
+});
+
+test('Bit takes the state of the card with no still pose, and a tap is a poke', () => {
+  const calls = [];
+  const player = { setMood: (m) => calls.push('mood:' + m), play: (c) => calls.push('play:' + c), poke: () => calls.push('poke') };
+  const bit = {
+    mount: (host, o) => { calls.push('mount:' + host.id + ':' + o.mood); return player; },
+    playerFor: (host) => (host && host.id === 'gc-bit' ? player : null),
+  };
+  const { card, page } = boot({ bit });
+  card.openOverlay();
+  assert.ok(calls.includes('mount:gc-bit:idle'), calls.join());
+  assert.ok(calls.includes('play:gaming'), calls.join());
+  calls.length = 0;
+  const target = { closest: (sel) => (sel === '#gc-bit' ? { id: 'gc-bit' } : null) };
+  page.on.click.forEach((fn) => fn({ target }));
+  assert.deepEqual(calls, ['poke']);
+  page.on.click.forEach((fn) => fn({ target: { closest: () => null } }));
+  assert.deepEqual(calls, ['poke'], 'a tap elsewhere is not one');
+  assert.doesNotMatch(read('../js/game-companion/says.js'), /pose:/, 'one live Bit, no pose painted by the answer');
 });

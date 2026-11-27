@@ -226,10 +226,10 @@
 .xm-pumpring--theme { background: var(--accent); }
 .xm-pumpring--own { background: conic-gradient(from 200deg, oklch(84% 0.14 205), oklch(66% 0.24 355)); }
 .xm-pumpring--lights { background: conic-gradient(oklch(78% 0.09 255) 0 25%, var(--cst-sep) 0 50%, oklch(78% 0.09 255) 0 75%, var(--cst-sep) 0); }
-/* A screen's style (Look): Xenon's rings, Strumento's dial with its needle, or a Store widget's tile. */
+/* A screen's style (Look): Xenon's drop (the two shapes of PumpFaceDrop.css), Strumento's dial with its needle, or a Store widget's tile. */
 .xm-pumpring--style-xenon, .xm-pumpring--style-gauge, .xm-pumpring--style-widget { background: black; }
-.xm-pumpring--style-xenon::before { width: 46px; height: 46px; background: radial-gradient(circle, black 62%, transparent 64%), conic-gradient(from 225deg, oklch(84% 0.17 150) 0 46%, #303030 0 75%, transparent 0); }
-.xm-pumpring--style-xenon::after { width: 26px; height: 26px; background: radial-gradient(circle, black 52%, transparent 55%), conic-gradient(from 225deg, oklch(78% 0.11 255) 0 34%, #303030 0 75%, transparent 0); }
+.xm-pumpring--style-xenon::before { width: 34px; height: 34px; translate: 3px -2px; border-radius: 38% 62% 57% 43% / 55% 40% 60% 45%; background: color-mix(in oklab, oklch(84% 0.17 150) 45%, black); }
+.xm-pumpring--style-xenon::after { width: 32px; height: 32px; translate: -1px 1px; border-radius: 60% 40% 47% 53% / 46% 57% 43% 54%; background: oklch(84% 0.17 150); }
 .xm-pumpring--style-gauge::before { width: 46px; height: 46px; background: radial-gradient(circle closest-side, black 76%, transparent 78%), conic-gradient(from 138deg, black 0 84deg, transparent 0), repeating-conic-gradient(from 222deg, oklch(84% 0.17 150) 0 6deg, transparent 0 45deg); }
 .xm-pumpring--style-widget::before { width: 24px; height: 24px; border-radius: 7px; background: conic-gradient(oklch(84% 0.17 150) 0 25%, oklch(78% 0.11 255) 0 50%, oklch(74% 0.14 300) 0 75%, oklch(82% 0.15 85) 0); }
 .xm-pumpring--style-gauge::after { width: 3px; height: 34px; border-radius: 2px; background: linear-gradient(oklch(68% 0.2 25) 0 50%, transparent 0); transform: rotate(35deg); }

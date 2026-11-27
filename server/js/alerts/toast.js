@@ -30,6 +30,8 @@
   const CLOSE_ICON = [['path', { d: 'M6 6l12 12' }], ['path', { d: 'M18 6 6 18' }]];
   const DEFAULT_DURATION = { reminder: 14000, timer: 12000 };
   const MAX_VISIBLE = 4;
+  // A picture on the card: a capture's thumbnail, or a camera frame through the loopback proxies.
+  const SHOT_PATH = /^\/(?:captures\/thumb\?|api\/unifiprotect\/snapshot\/[A-Za-z0-9]{4,64}(?:\?ts=\d{1,15})?$|api\/ha\/camera\/snapshot\/camera\.[a-z0-9_]{1,120}(?:\?ts=\d{1,15})?$)/;
 
   let container = null;
   let seq = 0;
@@ -336,10 +338,9 @@
     el.style.setProperty('--xt-ink', inkFor(rgb));
     el.setAttribute('role', type === 'error' || type === 'reminder' || type === 'timer' ? 'alert' : 'status');
 
-    // A caller may supply the source app's own icon (a data:image/ URI only — no
-    // remote loads), or the picture just taken, so the card shows what it talks
-    // about; otherwise fall back to the type's line-icon.
-    const shot = typeof o.image === 'string' && o.image.startsWith('/captures/thumb?') ? o.image : '';
+    // A caller may supply the source app's own icon (a data:image/ URI only — no remote loads), or
+    // the picture just taken or a camera's (the loopback proxies only); else the type's line-icon.
+    const shot = typeof o.image === 'string' && SHOT_PATH.test(o.image) ? o.image : '';
     const appIcon = typeof o.iconUrl === 'string' && o.iconUrl.startsWith('data:image/') ? o.iconUrl : '';
     if (shot || appIcon) {
       const wrapImg = document.createElement('span');
@@ -404,6 +405,7 @@
     if (dur > 0) close.appendChild(progressRing(dur));
     close.addEventListener('click', () => dismiss(id));
     el.appendChild(close);
+    if (typeof o.onMount === 'function') { try { o.onMount(el); } catch { /* the card still shows */ } }
 
     const onIsland = !!island && isMinimalChrome() && !stackBusy();
     toasts.set(id, {
@@ -439,14 +441,10 @@
     };
     el.addEventListener('pointerdown', (e) => {
       if (e.button != null && e.button !== 0) return;
-      // Let the toast's own controls work. The close button was exempted from
-      // the start; the ACTION buttons were not, and that made them dead: the
-      // drag below calls setPointerCapture on the toast, which retargets the
-      // click away from the button it was aimed at, so the handler never ran.
-      // Seen on the macOS permission toast, whose only button did nothing at
-      // all — and it was worse on a toast that also has a tap action, because
-      // the retargeted click ran THAT: "Skip this version" installed the
-      // update it was declining.
+      // Let the toast's own controls work: the drag below calls setPointerCapture on the toast,
+      // which retargets the click away from the button aimed at, so its handler never ran (the
+      // macOS permission toast's only button did nothing), and on a toast with a tap action the
+      // retargeted click ran THAT: "Skip this version" installed the update it was declining.
       if (e.target.closest('.xtoast-close, .xtoast-action, .xisland-more')) return;
       wasDragged = false;
       drag = { startX: e.clientX, startY: e.clientY, dx: 0, horizontal: false, surface: dragSurface() };

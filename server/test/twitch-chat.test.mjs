@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { parseIrcLines, anonNick, MAX_TEXT } = require('../js/streaming/twitch-chat.js');
+const { parseIrcLines, anonNick, openChat, MAX_TEXT, QUIET_MS, ANSWER_MS, CHECK_MS, RETRY_MS } = require('../js/streaming/twitch-chat.js');
 
 // This parser had shipped for versions inside js/streaming-page/streaming-page.js with no test
 // at all, and it was about to be copied a second time into the watching widget.
@@ -144,4 +144,124 @@ test('a message with no emote tag is one text part equal to the message', () => 
   const m = parseIrcLines(raw).messages[0];
   assert.deepEqual(m.parts, [{ type: 'text', text: 'just words' }]);
   assert.equal(m.parts.map(p => p.text).join(''), m.text);
+});
+
+test('RECONNECT from the server is reported', () => {
+  assert.equal(parseIrcLines(':tmi.twitch.tv RECONNECT\r\n').reconnect, true);
+  assert.equal(parseIrcLines('@display-name=A :a!a@a PRIVMSG #c :RECONNECT\r\n').reconnect, false, 'a chatter typing it is a message');
+});
+
+// A hand-driven clock and socket: `tick(ms)` moves time and fires what is due.
+function rig() {
+  const st = { now: 0, socks: [], timers: [], seq: 0, lines: [] };
+  class FakeSocket {
+    constructor(url) { this.url = url; this.readyState = 0; this.sent = []; this.closed = false; st.socks.push(this); }
+    send(line) { this.sent.push(line); }
+    close() { this.closed = true; this.readyState = 3; }
+    open() { this.readyState = 1; this.onopen?.(); }
+    hear(raw) { this.onmessage?.({ data: raw }); }
+    die() { this.readyState = 3; this.onclose?.(); }
+  }
+  const add = (fn, ms, every) => { const id = ++st.seq; st.timers.push({ id, fn, at: st.now + ms, every }); return id; };
+  const drop = (id) => { st.timers = st.timers.filter((x) => x.id !== id); };
+  const timers = {
+    setTimeout: (fn, ms) => add(fn, ms, 0), clearTimeout: drop,
+    setInterval: (fn, ms) => add(fn, ms, ms), clearInterval: drop,
+  };
+  const tick = (ms) => {
+    const end = st.now + ms;
+    for (;;) {
+      const due = st.timers.filter((x) => x.at <= end).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      st.now = due.at;
+      if (due.every) due.at += due.every; else drop(due.id);
+      due.fn();
+    }
+    st.now = end;
+  };
+  const chat = openChat('somechannel', (msgs) => st.lines.push(...msgs.map((m) => m.text)),
+    { WebSocket: FakeSocket, timers, now: () => st.now });
+  const sock = () => st.socks.at(-1);
+  return { st, chat, tick, sock };
+}
+
+test('the connection joins the channel and answers PING', () => {
+  const { st, chat, sock } = rig();
+  sock().open();
+  assert.deepEqual(sock().sent.map((l) => l.split(' ')[0]), ['CAP', 'NICK', 'JOIN']);
+  assert.equal(sock().sent[2], 'JOIN #somechannel\r\n');
+  sock().hear('PING :tmi.twitch.tv\r\n@display-name=A :a!a@a PRIVMSG #somechannel :hi\r\n');
+  assert.equal(sock().sent.at(-1), 'PONG :tmi.twitch.tv\r\n');
+  assert.deepEqual(st.lines, ['hi']);
+  chat.close();
+});
+
+test('a socket that goes quiet without closing is probed, then replaced', () => {
+  // The reported bug: the chat stopped after a while and only a page reload brought it back.
+  const { st, chat, tick, sock } = rig();
+  sock().open();
+  tick(QUIET_MS + CHECK_MS);
+  assert.equal(sock().sent.at(-1), 'PING :tmi.twitch.tv\r\n', 'a quiet minute sends our own PING');
+  const dead = sock();
+  tick(ANSWER_MS);
+  assert.equal(dead.closed, true, 'no answer: the silent socket is dropped');
+  tick(RETRY_MS[0]);
+  assert.equal(st.socks.length, 2, 'and a new one is opened');
+  sock().open();
+  sock().hear('@display-name=A :a!a@a PRIVMSG #somechannel :back\r\n');
+  assert.deepEqual(st.lines, ['back']);
+  chat.close();
+});
+
+test('an answered probe keeps the socket', () => {
+  const { st, chat, tick, sock } = rig();
+  sock().open();
+  tick(QUIET_MS + CHECK_MS);
+  sock().hear(':tmi.twitch.tv PONG tmi.twitch.tv :tmi.twitch.tv\r\n');
+  tick(ANSWER_MS + CHECK_MS);
+  assert.equal(st.socks.length, 1);
+  assert.equal(sock().closed, false);
+  chat.close();
+});
+
+test('RECONNECT opens a new socket at once', () => {
+  const { st, chat, tick, sock } = rig();
+  sock().open();
+  const old = sock();
+  old.hear(':tmi.twitch.tv RECONNECT\r\n');
+  assert.equal(old.closed, true);
+  tick(0);
+  assert.equal(st.socks.length, 2);
+  chat.close();
+});
+
+test('failed attempts wait longer each time, and a working one resets the wait', () => {
+  const { st, chat, tick, sock } = rig();
+  for (const wait of RETRY_MS.concat(RETRY_MS.at(-1))) {
+    const before = st.socks.length;
+    sock().die();
+    tick(wait - 1);
+    assert.equal(st.socks.length, before, 'not before ' + wait + ' ms');
+    tick(1);
+    assert.equal(st.socks.length, before + 1, 'at ' + wait + ' ms');
+  }
+  sock().open();
+  sock().hear(':tmi.twitch.tv 001 justinfan1 :Welcome, GLHF!\r\n');
+  const before = st.socks.length;
+  sock().die();
+  tick(RETRY_MS[0]);
+  assert.equal(st.socks.length, before + 1, 'back to the short wait');
+  chat.close();
+});
+
+test('close() ends everything: no socket, no timer, no reconnect', () => {
+  const { st, chat, tick, sock } = rig();
+  sock().open();
+  const s = sock();
+  chat.close();
+  assert.equal(s.closed, true);
+  assert.equal(s.onclose, null, 'a late close event cannot schedule a reconnect');
+  assert.equal(st.timers.length, 0);
+  tick(QUIET_MS * 10);
+  assert.equal(st.socks.length, 1);
 });

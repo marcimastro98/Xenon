@@ -165,11 +165,11 @@ function mirrorChatCopies() {
   // treating the primary pane as a copy and inserting mirror elements before the real
   // chat elements — which would break the visual order.
   if (!primaryPane) return;
-  if (window.BitChat) BitChat.mountHeads(); // a copy made since gets its own live Bit
   document.querySelectorAll('[data-chatf="pane"]').forEach(pane => {
     if (pane === primaryPane) return; // primary keeps the live session
     syncChatCopyPane(pane);
   });
+  if (window.BitChat) BitChat.mountHeads(); // after the copies have a composer: each gets its own live Bit
   // Fill any strip this pass created: the pending attachments are a singleton, so
   // one render pass paints the primary and every copy with the same list.
   if (typeof _aiUpdateAttachPreview === 'function') _aiUpdateAttachPreview();

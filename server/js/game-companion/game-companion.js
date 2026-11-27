@@ -30,17 +30,16 @@
     CARD_HOLD, BIT_STATE, prettyName, freezeBehind, paintCost, PROBLEM_TEXT,
   } = window.GameCompanionSays;
 
+  // One Bit, at the foot of the card under its answer, as in the chat: it takes the card's state.
   function showBit(state) {
     if (!window.BitApp) return;
     const s = BIT_STATE[state] || BIT_STATE.waiting;
-    const head = document.getElementById('gc-bit');
-    const player = head && BitApp.mount(head, { mood: s.mood, fidgets: false, hold: CARD_HOLD });
+    const host = document.getElementById('gc-bit');
+    const player = host && BitApp.mount(host, { mood: s.mood, fidgets: false, hold: CARD_HOLD });
     if (player) {
       player.setMood(s.mood);
       if (s.play) player.play(s.play);
     }
-    const by = document.getElementById('gc-reply-bit');
-    if (by) by.innerHTML = BitApp.still(s.pose[0], 18, s.pose[1]);
   }
 
   // Called from the status SSE/poll pipeline in data-stream.js with the server's
@@ -142,8 +141,8 @@
     if (out && !out.textContent.trim()) { out.textContent = t('gc_waiting'); showBit('waiting'); }
     else showBit(out && out.dataset.bit);
     // Bit says hello with the controller in hand, then waits.
-    const head = window.BitApp && BitApp.playerFor(document.getElementById('gc-bit'));
-    if (head) head.play('gaming');
+    const bit = window.BitApp && BitApp.playerFor(document.getElementById('gc-bit'));
+    if (bit) bit.play('gaming');
   }
 
   function closeOverlay() {
@@ -267,6 +266,13 @@
   }
 
   const isOpen = () => overlayOpen;
+
+  // A tap on Bit is a poke, as in the chat.
+  document.addEventListener('click', (e) => {
+    const host = e.target?.closest?.('#gc-bit');
+    const player = host && window.BitApp && BitApp.playerFor(host);
+    if (player) player.poke();
+  });
 
   document.addEventListener('ai-features-changed', () => {
     if (!enabled()) endSession();

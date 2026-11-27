@@ -84,9 +84,9 @@ window.__XD__ = (function () {
     // What the chat opens on, as [role, text]. Written for this demo's fake machine.
     chat: [
       ['user', 'Why are my fans so loud?'],
-      ['ai', 'Cyberfall is keeping your GPU busy and the fans follow its temperature. Nothing else is using much, so there is nothing to close.'],
+      ['assistant', 'Cyberfall is keeping your GPU busy and the fans follow its temperature. Nothing else is using much, so there is nothing to close.'],
       ['user', 'Turn the desk lights down.'],
-      ['ai', 'Done. The desk lights are at 30%.'],
+      ['assistant', 'Done. The desk lights are at 30%.'],
     ],
 
     audio: {

@@ -174,6 +174,8 @@ window.DeckEditorActionIcons = () => {
       bitDesk: _ai('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M3 14h18M9 21h6M12 17v4"/><rect x="14" y="10" width="3" height="4"/>'),
       // How it teleports: a block breaking into smaller and smaller bits.
       bitWarp: _ai('<rect x="3" y="11" width="7" height="7"/><rect x="12" y="8" width="4" height="4"/><rect x="18" y="5" width="2.5" height="2.5"/><rect x="17" y="13" width="2" height="2"/>'),
+      // A home camera over the dashboard: a camera on its mount.
+      homeCamera: _ai('<rect x="3" y="6" width="14" height="9" rx="2"/><path d="m17 9 4-2v7l-4-2M8 15v3M5 21h6"/><circle cx="9" cy="10.5" r="1.5"/>'),
       desktopWallpaper: _ai('<rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M6 13l3.5-4 3 3 2-2 3.5 3"/>'),
     };
     // One icon per category header, from an action that stands for the group.

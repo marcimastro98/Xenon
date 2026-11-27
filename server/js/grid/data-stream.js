@@ -63,8 +63,8 @@
   function connect() {
     if (es) { try { es.close(); } catch {} }
     es = new EventSource('/sse');
-    // Layer windows follow the widget layers' edit mode; MCP pairings and questions; the person's own Bit and its moves.
-    for (const host of [window.LayerHost, window.McpDev, window.BitApp, window.BitCompanion, window.BitMoments]) if (host) host.listen(es);
+    // Layer windows follow the widget layers' edit mode; MCP pairings and questions; the person's own Bit, its moves and the controls in its replies.
+    for (const host of [window.LayerHost, window.McpDev, window.BitApp, window.BitCompanion, window.BitMoments, window.BitControls]) if (host) host.listen(es);
 
     let lastFgProcess = null;
     es.addEventListener('status', e => {
@@ -462,11 +462,11 @@
         try { showAlertToast(window.AlertToasts && window.AlertToasts[build](JSON.parse(e.data), alertToastCtx(), open)); } catch {}
       });
     });
+    // A ring at the door (its card, under the Notifiche switch like every pop-up) and a Deck key's camera over the page: js/alerts/door-card.js.
+    for (const type of ['home_ring', 'home_camera']) es.addEventListener(type, e => { try { window.DoorCard.onEvent(type, JSON.parse(e.data), alertToastCtx(), { ask: window.aiAsk, view: true, show: showAlertToast }); } catch {} });
     es.addEventListener('unifi_event', e => {
-      // A UniFi Protect camera detected something (person/vehicle/motion/ring). The
-      // tile badge flashes regardless (the server only emits this when the user
-      // enabled camera notifications); the toast pop-up is additionally gated by the
-      // master Notifiche switch, like every other pop-up.
+      // A UniFi Protect camera detected something: the tile badge flashes regardless (the server
+      // only emits this when the user enabled camera notices), the pop-up follows Notifiche.
       try {
         const d = JSON.parse(e.data);
         if (window.UnifiProtect && typeof window.UnifiProtect.onNotification === 'function') window.UnifiProtect.onNotification(d);

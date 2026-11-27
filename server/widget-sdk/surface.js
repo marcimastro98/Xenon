@@ -38,7 +38,7 @@ const SDK_API_VERSION = 1;
 // never an address. Pulled; its echoes stop 10 s after the last read (net-path/).
 // `energy` is what this PC drew, in Wh per hour (72 h) and per day (90 days),
 // from the sensor history (sensor-history/energy.js). Pulled, numbers only.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals', 'netPath', 'energy', 'airflow', 'bit']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'network', 'diskIo', 'devStorage', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'codex', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'sensors', 'spotify', 'scriptStates', 'lighting', 'perf', 'gameSessions', 'vitals', 'netPath', 'energy', 'airflow', 'bit', 'homeEvents']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every

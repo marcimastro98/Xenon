@@ -120,7 +120,7 @@ function stripDiscordClone(clone) {
   });
 }
 function stripChatClone(clone) {
-  clone.querySelectorAll('.ai-chat, .ai-status, .ai-attach-preview, .ai-input-row, .ai-voice-view')
+  clone.querySelectorAll('.ai-chat, .ai-status, .bit-say, .ai-attach-preview, .ai-input-row, .ai-voice-view')
     .forEach(el => el.remove());
 }
 // An Agenda clone strips singleton sub-widget controls (task add-row, timer

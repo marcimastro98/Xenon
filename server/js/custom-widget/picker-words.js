@@ -14,7 +14,7 @@
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
     { id: 'work', key: 'cw_cat_work', fb: 'Productivity', streams: ['tasks', 'notes', 'agenda', 'claude', 'codex'] },
-    { id: 'home', key: 'cw_cat_home', fb: 'Smart home', streams: ['homeassistant', 'lighting'] },
+    { id: 'home', key: 'cw_cat_home', fb: 'Smart home', streams: ['homeassistant', 'lighting', 'homeEvents'] },
   ];
   // Below this many entries the list is already scannable and the filter bar
   // would cost more tile height than it saves.

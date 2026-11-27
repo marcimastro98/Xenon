@@ -111,7 +111,7 @@ test('the focus guard says nothing until the page has loaded, without needing th
 });
 
 test('a widget-layer window is not the kiosk: native-bridge sends it no shell signals', () => {
-  assert.match(BRIDGE, /const isNative = window\.__XENON_LAYER_SHELL__ !== true\s*&& \(window\.__XENON_NATIVE__ === true \|\| window\.isTauri === true\);/);
+  assert.match(BRIDGE, /const isNative = window\.top === window\s*&& window\.__XENON_LAYER_SHELL__ !== true\s*&& \(window\.__XENON_NATIVE__ === true \|\| window\.isTauri === true\);/);
   assert.doesNotMatch(BRIDGE, /addEventListener\('load', fire/, 'every shell signal waits through afterLoad');
 });
 

@@ -10,6 +10,7 @@ const path = require('node:path');
 const { profileLooks } = require('./icue-profile.js');
 
 const SPAN_MS = 60000;
+const PROFILE_MAX_BYTES = 4 * 1024 * 1024;
 // A device in an iCUE profile ("vid:pid") and the id Xenon gives the same device when it drives
 // it itself: the iCUE LINK System Hub held by Airflow (airflow/link-lights.js DEVICE_ID).
 const XENON_IDS = new Map([['1b1c:0c3f', 'corsair-link-hub']]);
@@ -51,6 +52,8 @@ function createIcueImport(o) {
     if (!found) { looks = []; seen = ''; return; }
     const stamp = found.file + ':' + found.st.mtimeMs + ':' + found.st.size;
     if (stamp === seen) return;
+    // A profile is read and parsed in one go: one far bigger than any real one is left alone.
+    if (found.st.size > PROFILE_MAX_BYTES) { looks = []; seen = stamp; return; }
     looks = profileLooks(await io.readFile(found.file, 'utf8'));
     seen = stamp;
   }

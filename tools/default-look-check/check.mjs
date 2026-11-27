@@ -16,7 +16,7 @@ const AA_CONTRAST = 4.5;
 const TILE_SHEET = '.grid-stack-item[data-tile-glass] > .grid-stack-item-content > :is(.panel, .dashboard-widget)';
 // Everything but the sheet goes, so the measure reads what stands behind the words.
 const SHEET_ONLY = `*{color:transparent!important;text-shadow:none!important;caret-color:transparent!important}
-  .grid-stack-item-content :is(svg,img,canvas,button,input,.media-art,.ai-chat>*,.stat-track,.bit-chat-face){visibility:hidden!important}`;
+  .grid-stack-item-content :is(svg,img,canvas,button,input,.media-art,.ai-chat>*,.stat-track,.bit-floor-bit){visibility:hidden!important}`;
 
 const failures = [];
 function check(name, ok, detail = '') {

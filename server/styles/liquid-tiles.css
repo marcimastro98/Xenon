@@ -110,10 +110,8 @@
 }
 :root[data-style="liquid"] .tabgroup-bar:not([data-tgc-bar]) .tabgroup-tab-ico { display: none; }
 
-/* Bit's chat: the name beside the face, and the conversation starts without a rule. */
+/* Bit's chat: the conversation starts without a rule. */
 :root[data-style="liquid"] .bit-chat-head { padding-bottom: 0; border-bottom-color: transparent; }
-:root[data-style="liquid"] .bit-chat-face { place-items: center; }
-:root[data-style="liquid"] .bit-chat-face:not(:empty) + .bit-chat-name { width: auto; height: auto; overflow: visible; clip-path: none; }
 :root[data-style="liquid"] [data-chatf="pane"] .ai-msg-user .ai-msg-bubble { border-color: transparent; background: var(--lg-key); }
 :root[data-style="liquid"] [data-chatf="pane"] .ai-text-input:not(:focus) { border-color: transparent; }
 

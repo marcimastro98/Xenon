@@ -1,4 +1,4 @@
-// What the Game Companion card says and shows around a look: Bit's mood and pose for each thing the
+// What the Game Companion card says and shows around a look: Bit's mood for each thing the
 // card is doing, a game's name made readable, what a look costs on Sparks, the words for each
 // reason Bit could not answer, and the page behind held still while the card is up.
 'use strict';
@@ -8,12 +8,12 @@
   // is at the dashboard, not playing), so like the voice view it moves under
   // game mode and stops only for the low-GPU choices; hidden, it stops by itself.
   const CARD_HOLD = ['low-power-gpu', 'perf-mode'];
-  // What the card is doing -> Bit's mood in the head and its pose by the answer.
+  // What the card is doing -> Bit's mood, and what it does as the answer lands.
   const BIT_STATE = {
-    waiting: { mood: 'idle', pose: ['idle'] },
-    looking: { mood: 'think', pose: ['think', 'think'] },
-    answered: { mood: 'idle', pose: ['happy', 'done'], play: 'nod' },
-    failed: { mood: 'worry', pose: ['worry'] },
+    waiting: { mood: 'idle' },
+    looking: { mood: 'think' },
+    answered: { mood: 'idle', play: 'nod' },
+    failed: { mood: 'worry' },
   };
 
   function prettyName(p) {

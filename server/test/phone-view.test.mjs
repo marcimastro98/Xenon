@@ -126,7 +126,7 @@ test('the phone test is about the device, not about the layout', () => {
 test('the automatic answers', () => {
   assert.equal(pv.stackMode({ width: 390, height: 844, preference: 'auto' }), 'phone');
   assert.equal(pv.stackMode({ width: 768, height: 1024, preference: 'auto' }), 'tablet', 'a short tablet held upright');
-  assert.equal(pv.stackMode({ width: 1024, height: 1366, preference: 'auto' }), 'portrait', 'a tall tablet held upright');
+  assert.equal(pv.stackMode({ width: 1024, height: 1366, preference: 'auto' }), 'tablet', 'a tall tablet held upright');
   assert.equal(pv.stackMode({ width: 1024, height: 768, preference: 'auto' }), 'tablet', 'the same tablet lying down');
   assert.equal(pv.stackMode({ width: 720, height: 2560, preference: 'auto' }), 'portrait', 'a vertical Edge');
   assert.equal(pv.stackMode({ width: 2560, height: 720, preference: 'auto' }), 'off');
@@ -184,7 +184,7 @@ test('a screen taller than wide gets the vertical layout', () => {
     { width: 1080, height: 1920 },  // rotated 1080p monitor
     { width: 1440, height: 2560 },
     { width: 2160, height: 3840 },
-    { width: 1024, height: 1366 },  // iPad Pro 12.9 upright
+    { width: 864, height: 1536 },   // rotated 1080p monitor at 125%
   ];
   for (const v of VERTICAL) {
     assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'portrait', v.width + 'x' + v.height);
@@ -195,7 +195,9 @@ test('a screen taller than wide gets the vertical layout', () => {
 // upright screen would squeeze them under what their content needs, so it keeps
 // the tablet band, which scrolls.
 test('a short upright screen keeps the tablet band', () => {
-  for (const v of [{ width: 768, height: 1024 }, { width: 820, height: 1180 }, { width: 834, height: 1112 }]) {
+  // The iPad Pros upright cleared the first bound and drew five tiles at 208px.
+  for (const v of [{ width: 768, height: 1024 }, { width: 820, height: 1180 }, { width: 834, height: 1112 },
+    { width: 1024, height: 1366 }, { width: 1032, height: 1376 }]) {
     assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'tablet', v.width + 'x' + v.height);
   }
   assert.ok(pv.PORTRAIT_MIN_H <= 1280, 'a vertical Edge at 200% is still a vertical screen');
@@ -428,4 +430,15 @@ test('the dock concedes the bottom-right corner to the pager, not to the actions
     'the pager must be the control anchored to the right edge');
   assert.equal(/margin-left:\s*auto/.test(ruleFor('.ph-acts')), false,
     'the dock actions must not be pushed into the corner a browser floats over');
+});
+
+// Two columns on a tablet keep the grid's rows, each the screen's share of the
+// page (PhoneView.css), so the page's row count is read off its tiles, never
+// under the 8 rows the grid fills a screen with.
+test('the page rows a tablet divides its screen by', () => {
+  const tile = (y, h) => ({ getAttribute: (k) => ({ 'gs-y': String(y), 'gs-h': String(h), 'gs-x': '0' })[k] });
+  assert.equal(pv.pageRows([tile(0, 4), tile(4, 4)]), 8);
+  assert.equal(pv.pageRows([tile(0, 2), tile(2, 2)]), 8, 'a page under 8 rows is still drawn at 8');
+  assert.equal(pv.pageRows([tile(0, 8), tile(8, 12)]), 20);
+  assert.equal(pv.pageRows([]), 8);
 });

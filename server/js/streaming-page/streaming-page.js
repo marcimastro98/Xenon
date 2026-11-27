@@ -552,11 +552,13 @@
 
   // ── Twitch chat (anonymous IRC over WebSocket — no token needed to READ) ────
   // Reading a channel's chat needs no auth: connect as an anon `justinfan` nick.
-  // One socket per channel, shared across all tiles; messages buffer so a freshly
-  // built chat-log (new tile / rebuild) seeds instantly.
-  let chatSock = null;
-  let chatChannel = '';
-  let chatReconnect = null;
+  // One connection per channel, shared across all tiles; messages buffer so a freshly
+  // built chat-log (new tile / rebuild) seeds instantly. The connection itself (the
+  // watch that replaces a socket gone silent, RECONNECT, the retry waits) and the
+  // parsing live in js/streaming/twitch-chat.js, shared with the watching widget.
+  let chat = null;
+  let chatSeq = 0;
+  let chatFrame = 0;
   const chatBuffer = [];
   const CHAT_MAX = 120;
 
@@ -571,47 +573,29 @@
   }
 
   function connectChat(channel) {
-    if (chatChannel === channel && chatSock && chatSock.readyState <= 1) return;  // already on it
+    if (chat && chat.channel === channel) return;  // already on it
     closeChat();
-    chatChannel = channel;
-    try { chatSock = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); }
-    catch { chatSock = null; return; }
-    chatSock.onopen = () => {
-      ircSend('CAP REQ :twitch.tv/tags');
-      ircSend('NICK ' + window.TwitchChat.anonNick());
-      ircSend('JOIN #' + channel);
-    };
-    chatSock.onmessage = (e) => handleIrc(String(e.data || ''));
-    chatSock.onclose = () => { if (chatChannel) scheduleChatReconnect(); };
-    chatSock.onerror = () => { try { chatSock.close(); } catch {} };
+    chat = window.TwitchChat.openChat(channel, (lines) => { lines.forEach(pushChat); });
   }
 
-  function scheduleChatReconnect() {
-    if (chatReconnect) return;
-    chatReconnect = setTimeout(() => { chatReconnect = null; if (chatChannel && twitchTiles().length) connectChat(chatChannel); }, 4000);
-  }
-
+  // The buffer stays, so the history is still there when the tile comes back.
   function closeChat() {
-    if (chatReconnect) { clearTimeout(chatReconnect); chatReconnect = null; }
-    const ch = chatChannel; chatChannel = '';
-    if (chatSock) { try { chatSock.onclose = null; chatSock.close(); } catch {} chatSock = null; }
-    if (ch) { /* keep buffer so a quick reconnect still shows history */ }
-  }
-
-  function ircSend(line) { try { if (chatSock && chatSock.readyState === 1) chatSock.send(line + '\r\n'); } catch {} }
-
-  // The parsing lives in js/streaming/twitch-chat.js, shared with the watching widget and
-  // unit-tested there — an IRC tag parser written twice is a bug written twice.
-  function handleIrc(raw) {
-    const r = window.TwitchChat.parseIrcLines(raw);
-    if (r.ping) ircSend('PONG :tmi.twitch.tv');
-    r.messages.forEach(pushChat);
+    if (chat) { chat.close(); chat = null; }
   }
 
   function pushChat(entry) {
+    entry.seq = ++chatSeq;
     chatBuffer.push(entry);
     if (chatBuffer.length > CHAT_MAX) chatBuffer.shift();
-    document.querySelectorAll('.twitch-chat-log').forEach(log => appendChatLine(log, entry));
+    if (!chatFrame) chatFrame = requestAnimationFrame(drawChat);
+  }
+
+  // A busy chat is dozens of lines a second. Drawn one by one, each line made the
+  // page measure the log again, and the chat fell behind; now every log takes what
+  // it has not shown yet once per frame, with one measure and one scroll.
+  function drawChat() {
+    chatFrame = 0;
+    document.querySelectorAll('.twitch-chat-log').forEach(log => { appendChatLines(log, chatBuffer); });
   }
 
   function chatEmptyEl() {
@@ -621,10 +605,7 @@
     return box;
   }
 
-  function appendChatLine(log, entry) {
-    const empty = log.querySelector('.twitch-chat-empty');
-    if (empty) empty.remove();
-    const near = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  function chatLineEl(entry) {
     const line = el('div', 'twitch-chat-line');
     const u = el('span', 'twitch-chat-user', entry.name + ':');
     if (entry.color) u.style.setProperty('--name', entry.color);
@@ -641,14 +622,27 @@
       } else body.appendChild(document.createTextNode(p.text));
     });
     line.appendChild(body);
-    log.appendChild(line);
+    return line;
+  }
+
+  function appendChatLines(log, lines) {
+    const shown = Number(log.dataset.chatSeq || 0);
+    const fresh = lines.filter(e => e.seq > shown);
+    if (!fresh.length) return;
+    const empty = log.querySelector('.twitch-chat-empty');
+    if (empty) empty.remove();
+    const near = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    const frag = document.createDocumentFragment();
+    fresh.forEach(e => { frag.appendChild(chatLineEl(e)); });
+    log.appendChild(frag);
     while (log.childElementCount > CHAT_MAX) log.removeChild(log.firstChild);
+    log.dataset.chatSeq = String(fresh[fresh.length - 1].seq);
     if (near) log.scrollTop = log.scrollHeight;
   }
 
   function seedChatLog(log) {
     if (!chatBuffer.length) { log.appendChild(chatEmptyEl()); return; }
-    chatBuffer.forEach(e => appendChatLine(log, e));
+    appendChatLines(log, chatBuffer);
   }
 
   // ── SSE hooks (fed by data-stream.js, mirroring how the Deck is updated) ─────────

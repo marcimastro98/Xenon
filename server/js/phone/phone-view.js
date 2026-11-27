@@ -73,12 +73,12 @@
   // 1.2, not 1: a desktop window a few pixels taller than wide is not a vertical
   // screen, and a 3:4 tablet (1.33) or a rotated 16:9 monitor (1.78) clearly is.
   const PORTRAIT_RATIO = 1.2;
-  // ...and at least this tall (CSS px). A vertical page holds a landscape
-  // page's tiles one under the other in a single screen, and a shorter one
-  // squeezes them under what their content needs (an upright 768x1024 tablet
-  // drew three 320px tiles and clipped the system cards). Shorter upright
-  // screens keep the tablet band, which scrolls.
+  // ...and at least this tall (CSS px), more in the tablet's width band unless it
+  // is a panel. A vertical page holds a landscape page's tiles in one screen, and a
+  // shorter one squeezes them (768x1024 clipped the system cards; an upright iPad
+  // Pro, 1024x1366, drew five tiles at 208px). Those keep the tablet band, which scrolls.
   const PORTRAIT_MIN_H = 1200;
+  const TABLET_PORTRAIT_MIN_H = 1500;
 
   // A PANEL is never a phone, however narrow. A vertical Edge is 720px wide at
   // 100% scaling but 480 at 150% and 360 at 200%, inside the phone band above,
@@ -86,12 +86,6 @@
   // The shape tells them apart: 2560/720 is 3.6, and the tallest phone screens
   // (a foldable's cover display) stay under 2.8.
   const PANEL_RATIO = 3;
-
-  // Height per grid row when stacked. The user's `gs-h` is respected as a
-  // PROPORTION rather than a pixel size — a tile they made twice as tall stays
-  // twice as tall — but clamped, because a 30-row tile would otherwise be three
-  // phone screens of one widget.
-  const ROW_PX = 26;
 
   let active = null;         // null = never applied yet
   let portrait = false;      // the vertical layout is on (the grid, not a stack)
@@ -164,7 +158,8 @@
     if (!Number.isFinite(w) || w <= 0) return 'off';
     if (phone) return 'phone';
     const hasH = Number.isFinite(h) && h > 0;
-    if (hasH && h / w >= PORTRAIT_RATIO && h >= PORTRAIT_MIN_H) return 'portrait';
+    if (hasH && h / w >= PORTRAIT_RATIO && h >= PORTRAIT_MIN_H
+      && (h >= TABLET_PORTRAIT_MIN_H || w > TABLET_MAX_W || h / w >= PANEL_RATIO)) return 'portrait';
     if (w > TABLET_MAX_W) return 'off';
     return 'tablet';
   }
@@ -252,12 +247,16 @@
     };
   }
 
+  // Rows the page spans, at least the grid's MIN_FILL_ROWS: a tablet tile's share.
+  function pageRows(items) {
+    return items.reduce((rows, el) => { const c = tileCoords(el); return Math.max(rows, c.y + c.h); }, 8);
+  }
   function sortGrid(grid) {
     const items = [...grid.children].filter((n) => n.classList && n.classList.contains('grid-stack-item'));
+    grid.style.setProperty('--ph-page-rows', String(pageRows(items)));
     if (items.length < 2) { items.forEach(stampRows); return; }
     const order = readingOrder(items.map(tileCoords));
-    // Already correct → touch nothing. Without this the observer below would
-    // see its own reorder and loop.
+    // Already correct → touch nothing, or the observer below sees its own reorder and loops.
     let sorted = true;
     for (let i = 0; i < order.length; i++) { if (order[i] !== i) { sorted = false; break; } }
     items.forEach(stampRows);
@@ -274,7 +273,8 @@
   }
 
   function clearStamps() {
-    document.querySelectorAll('.grid-stack-item').forEach((el) => el.style.removeProperty('--ph-rows'));
+    document.querySelectorAll('.grid-stack-item').forEach((el) => { el.style.removeProperty('--ph-rows'); });
+    document.querySelectorAll('.dashboard.grid-stack').forEach((/** @type {HTMLElement} */ el) => { el.style.removeProperty('--ph-page-rows'); });
   }
 
   function sortAll() {
@@ -776,9 +776,9 @@
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-      stackMode, shouldUsePhoneView, isPhoneSized, readingOrder,
-      PHONE_MAX_W, PHONE_MAX_H, PHONE_LANDSCAPE_MAX_W, ROW_PX,
-      TABLET_MAX_W, PORTRAIT_RATIO, PORTRAIT_MIN_H, PANEL_RATIO,
+      stackMode, shouldUsePhoneView, isPhoneSized, readingOrder, pageRows,
+      PHONE_MAX_W, PHONE_MAX_H, PHONE_LANDSCAPE_MAX_W,
+      TABLET_MAX_W, PORTRAIT_RATIO, PORTRAIT_MIN_H, TABLET_PORTRAIT_MIN_H, PANEL_RATIO,
     };
   }
 })();

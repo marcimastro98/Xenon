@@ -173,6 +173,10 @@
 @container histchart (max-width: 360px) {
   .guardian-xtick[data-rank="2"] { display: none; }
 }
+/* "Nov 24, 1 PM" at both ends: measured touching the middle tick at a 240px chart, clear at 283px. */
+@container histchart (max-width: 300px) {
+  .guardian-xaxis[data-days] .guardian-xtick[data-rank="1"] { display: none; }
+}
 @container histchart (max-width: 210px) {
   .guardian-xtick[data-rank="1"] { display: none; }
 }

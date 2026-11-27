@@ -1338,7 +1338,7 @@
       }
       if (activeKind === '__limited') return flatInto(frag, sortList(limited), t('gallery_limited_empty', 'No limited drops right now: check back soon.'), renderPoster);
       if (activeKind === '__supporters') {
-        const band = supporterBand(); if (band) frag.appendChild(band);
+        for (const band of [supporterBand(), window.BitStoreBand?.band({ goView })]) if (band) frag.appendChild(band);
         flatInto(frag, sortList(supporters), undefined, renderPoster);
         const sparks = sparksBand(); if (sparks) frag.appendChild(sparks);
         return undefined;
@@ -1415,20 +1415,18 @@
             frag.appendChild(stage);
           }
         } else if (b.type === 'supporters') {
-          // Renders whenever the tier EXISTS, even with every entry up in the
-          // spotlight: the offer under it is the whole way in.
+          // The posters render whenever the tier EXISTS, even with every entry up in the spotlight:
+          // the offer under it is the whole way in. Then the person's Bit dressed for the shop, then Sparks.
           const items = cap(sortList(supporters.filter(notSpot)), b);
-          if (!supporters.length) return;
           const stage = el('div', 'cst-stage');
-          const offer = supporterBand();
+          const offer = supporters.length ? supporterBand() : null;
           if (items.length) {
             const posters = shelf(t('gallery_supporters_section', 'Supporters'), items, { grid, card: renderPoster, more: '__supporters' });
             if (offer) posters.insertBefore(offer, posters.lastElementChild);
             stage.appendChild(posters);
           } else if (offer) stage.appendChild(offer);
-          const sparks = sparksBand();
-          if (sparks) stage.appendChild(sparks);
-          frag.appendChild(stage);
+          for (const part of [window.BitStoreBand?.shelf({ goView, shelf }), sparksBand()]) if (part) stage.appendChild(part);
+          if (stage.childElementCount) frag.appendChild(stage);
         } else if (b.type === 'new') {
           putFresh();
           // "Just added": catalog recency, identical on every machine.

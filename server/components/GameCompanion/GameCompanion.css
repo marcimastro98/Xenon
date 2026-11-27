@@ -59,12 +59,19 @@
 
 .gc-overlay.show { opacity: 1; }
 
-/* The card speaks as Bit, like the chat tile: Bit in the head, its answer
-   beside a small Bit with no bubble, the question box under it. Colours come
-   from the theme contract (theme-contract.css), so light themes get a light card;
-   the keys take their colours from it too. A long answer scrolls in its place:
-   the keys stay on screen on a 720 px Edge and on a phone. */
+/* The card speaks as Bit, like the chat: the name in the head, Bit at the
+   start of the question box and its answer in a bubble above it, tail down to
+   Bit's head. Colours come from the theme contract (theme-contract.css), so
+   light themes get a light card; the keys take their colours from it too. A
+   long answer scrolls inside its bubble: the keys stay on screen on a 720 px
+   Edge and on a phone. */
 .gc-card {
+  /* Bit's bubble, the chat's own (AIPanelConversation.css), which this window may not load:
+     the person's Bit colour (BitApp, bit-app.js) over the ground of the controls. */
+  --bit-tint: var(--bit-body, var(--bit-action, #6ee787));
+  --bit-fill: color-mix(in oklab, var(--bit-tint) 20%, transparent);
+  --bit-bubble: linear-gradient(var(--bit-fill) 0 0) var(--control-bg, rgba(255,255,255,.08));
+  --px-tail: polygon(0 0, 100% 0, 100% 100%, 66.67% 100%, 66.67% 66.67%, 33.33% 66.67%, 33.33% 33.33%, 0 33.33%);
   width: min(440px, 100%);
   max-height: calc(100dvh - 36px);
   display: flex;
@@ -85,9 +92,6 @@
   align-items: center;
   gap: 12px;
 }
-
-.gc-bit { width: 44px; height: 42px; flex: none; display: grid; place-items: end center; }
-.gc-bit .xbit { width: 44px; height: auto; display: block; }
 
 .gc-headline { flex: 1; min-width: 0; }
 
@@ -132,13 +136,36 @@
 
 .gc-stat-label { font-size: 14px; color: var(--muted-text); }
 
-.gc-reply { display: flex; gap: 10px; flex: 0 1 auto; min-height: 64px; overflow-y: auto; }
-.gc-reply-bit { flex: none; width: 18px; margin-top: 3px; }
-.gc-reply-bit svg { display: block; width: 18px; height: auto; }
+/* The bubble's left edge stands over Bit's middle, so the tail lands on its head. */
+.gc-reply {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 0 9px 22px;
+  margin-bottom: -6px;
+}
+.gc-reply::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  bottom: 0;
+  width: 9px;
+  height: 9px;
+  background: var(--bit-bubble);
+  clip-path: var(--px-tail);
+  transform: scaleX(-1);
+}
 
 .gc-insight {
-  flex: 1;
-  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  overflow-y: auto;
+  padding: 9px 14px 10px;
+  border-radius: 14px 14px 14px 0;
+  background: var(--bit-bubble);
   font-size: 15px;
   line-height: 1.5;
   color: var(--text);
@@ -167,6 +194,18 @@
 }
 
 .gc-ask { display: flex; gap: 8px; flex: none; }
+
+/* 72px of stage is a 32px Bit, as at the foot of the chat; the margins give the empty stage back. */
+.gc-bit {
+  flex: none;
+  align-self: flex-end;
+  width: 72px;
+  height: 68px;
+  margin: -24px -16px 0 -14px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.gc-bit svg { display: block; width: 100%; height: 100%; }
 
 .gc-ask-input {
   flex: 1;

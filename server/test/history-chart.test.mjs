@@ -160,6 +160,10 @@ test('the ends of an hourly axis carry the day only when the range crosses midni
   const overnight = HC.build(spec, [bucket(hour(22, 6)), bucket(hour(23, 6)), bucket(hour(8, 7))], fallback);
   assert.deepEqual(ends(overnight).map((n) => n.dataset.edge), ['start', 'end']);
   assert.ok(ends(overnight).every((n) => n.textContent.includes(',')), ends(overnight).map((n) => n.textContent).join(' | '));
+  // The longer ends mark the axis, so a narrow chart hides its middle tick sooner (CSS).
+  const axis = (card) => byClass(dom, card, 'guardian-xaxis')[0];
+  assert.ok('days' in axis(overnight).dataset);
+  assert.ok(!('days' in axis(sameDay).dataset));
 });
 
 test('the hours on the axis follow Settings → Time format', () => {

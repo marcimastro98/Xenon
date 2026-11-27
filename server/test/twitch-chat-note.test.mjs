@@ -22,9 +22,10 @@ function harness() {
   const note = { style: { display: '' } };
   const log = { lines: [] };
   const queries = [];
+  const frames = [];
   const ctx = {
     CHAT_MAX: 120,
-    appendChatLine: (l, entry) => l.lines.push(entry),
+    requestAnimationFrame: (fn) => { frames.push(fn); return frames.length; },
     publishChatSoon: () => {},
     document: {
       querySelectorAll: (sel) => {
@@ -37,18 +38,23 @@ function harness() {
   };
   // eslint-disable-next-line no-new-func
   const pushChat = new Function('ctx', `
-    const { CHAT_MAX, appendChatLine, publishChatSoon, document } = ctx;
+    const { CHAT_MAX, requestAnimationFrame, publishChatSoon, document } = ctx;
     let chatSeq = 0;
+    let chatFrame = 0;
     let chatLines = [];
+    function drawChat() { chatFrame = 0; ctx.log.lines = chatLines.slice(); }
     ${src}
     return pushChat;
-  `)(ctx);
-  return { pushChat, note, log, queries };
+  `)(Object.assign(ctx, { log }));
+  // Runs the frames the page would have drawn by now.
+  const paint = () => { frames.splice(0).forEach((fn) => { fn(); }); };
+  return { pushChat, note, log, queries, frames, paint };
 }
 
 test('the first chat line hides the waiting note', () => {
   const h = harness();
   h.pushChat({ name: 'a', text: 'hello' });
+  h.paint();
   assert.equal(h.log.lines.length, 1, 'the line still reaches the log');
   assert.equal(h.note.style.display, 'none', '"Waiting for the first message" must go with the first message');
 });
@@ -60,5 +66,17 @@ test('later lines leave the note alone, one query per chat at most', () => {
   h.pushChat({ name: 'b', text: 'two' });
   h.pushChat({ name: 'c', text: 'three' });
   assert.equal(h.queries.filter((q) => q === '.tww-chat-note').length, 1);
+  h.paint();
   assert.equal(h.log.lines.length, 3);
+});
+
+test('a burst of lines is drawn in one frame, not one layout per line', () => {
+  // A busy channel fell behind: every line measured the log again before the next.
+  const h = harness();
+  for (let i = 0; i < 50; i++) h.pushChat({ name: 'n' + i, text: 'line ' + i });
+  assert.equal(h.frames.length, 1, 'one frame asked for the whole burst');
+  h.paint();
+  assert.equal(h.log.lines.length, 50);
+  h.pushChat({ name: 'z', text: 'after' });
+  assert.equal(h.frames.length, 1, 'the next line asks for the next frame');
 });

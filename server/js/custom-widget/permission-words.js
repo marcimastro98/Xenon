@@ -11,6 +11,7 @@
     energy: ['cw_stream_energy', 'How much energy this PC used, hour by hour and day by day'],
     airflow: ['cw_stream_airflow', 'How your fans are: their speed, who drives them and why'],
     bit: ['cw_stream_bit', 'Your own Bit: how it looks, its name and number, what it wears and its moves'],
+    homeEvents: ['cw_stream_homeevents', 'What happened at home: rings, what the cameras picked out, doors and windows opened (never pictures)'],
     diskIo: ['cw_stream_diskio', 'Which disks are busy, and how busy'],
     devStorage: ['cw_stream_devstorage', 'How much space developer tools take up'],
     processes: ['cw_stream_processes', 'Which apps are using your CPU, memory and GPU'],

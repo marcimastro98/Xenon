@@ -26,7 +26,7 @@ const MONITOR = read('../../apps/native/src-tauri/src/monitor.rs');
 const SEE_THROUGH = read('../../apps/native/src-tauri/src/see_through.rs');
 
 /** Run native-bridge.js against a fake page, as the given shell would load it. */
-function loadBridge(caps, { layer = false } = {}) {
+function loadBridge(caps, { layer = false, framed = false } = {}) {
   const classes = new Set();
   const navigations = [];
   const location = {};
@@ -54,6 +54,7 @@ function loadBridge(caps, { layer = false } = {}) {
     matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
   };
   window.window = window;
+  window.top = framed ? {} : window;
   const context = vm.createContext({
     window, document, location, navigator: { userAgent: 'test' },
     setTimeout: (fn) => { fn(); return 0; }, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
@@ -83,6 +84,15 @@ test('only the app offers it; a browser, a phone and a layer window never do', (
   const layer = loadBridge(ON, { layer: true });
   assert.equal(layer.native.seeThroughState().offered, false);
   assert.ok(!layer.classes.has('see-through'), 'a widget layer is transparent already and is not the dashboard');
+});
+
+// Found 26 Nov 2026: the Settings pump preview frames pump-widget.html, which loads this bridge; WebView2
+// runs the shell's scripts in every frame, and its signals took the frame to an error page.
+test('a framed page is never the app: it offers nothing and sends no signal', () => {
+  const framed = loadBridge(OFF, { framed: true });
+  assert.equal(framed.native.isNative, false);
+  assert.equal(framed.native.setSeeThrough(true), false);
+  assert.deepEqual(framed.navigations, []);
 });
 
 test('the switch is a shell signal, and nothing is sent where it is not offered', () => {

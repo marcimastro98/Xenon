@@ -64,6 +64,9 @@
     // Airflow (airflow/actions.js).
     airflow_off: ['deck_err_airflow_off', 'Airflow is off: turn it on in the Xenon menu, Fans'],
     needs_check: ['deck_err_needs_check', 'run the fan check first, in the Xenon menu, Fans'],
+    // The home cameras (smart-home/camera-show.js).
+    no_cameras: ['deck_err_no_cameras', 'no camera is connected: add Home Assistant or UniFi Protect in Settings'],
+    no_camera: ['deck_err_no_camera', 'no camera has that name: check it on the key'],
     no_function: ['deck_err_no_function', 'that widget has no such function'],
     needs_settings: ['deck_err_needs_settings', 'this function asks for settings: put it on a Deck key, where you choose them'],
     not_granted: ['deck_err_not_granted', 'you did not allow this function when you installed the widget'],

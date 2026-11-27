@@ -1,5 +1,5 @@
 // The integrations' tools (OBS, Twitch, YouTube, Streamer.bot, Spotify, Home
-// Assistant, Discord voice) reach Bit by voice as well as in the chat: one
+// Assistant and its cameras, Discord voice) reach Bit by voice as well as in the chat: one
 // builder, used by the chat turn and by Voice Live, and every tool it declares
 // is dispatched by executeAiTool (the path Voice Live calls).
 import test from 'node:test';
@@ -19,7 +19,7 @@ test('every tool the builder declares is dispatched by executeAiTool', () => {
   const start = src.indexOf('async function addIntegrationAiFunctions');
   const body = src.slice(start, src.indexOf('\n}\n', start));
   const names = [...body.matchAll(/AI_FUNCTIONS\.push\(\{ name: '([a-z_]+)'/g)].map((m) => m[1]);
-  assert.deepEqual(names.sort(), ['discord_voice', 'home_assistant', 'obs_control', 'spotify_control', 'streamerbot_action', 'twitch_action', 'youtube_broadcast']);
+  assert.deepEqual(names.sort(), ['discord_voice', 'home_assistant', 'home_camera', 'obs_control', 'spotify_control', 'streamerbot_action', 'twitch_action', 'youtube_broadcast']);
   const exec = src.slice(src.indexOf('async function executeAiTool'));
   for (const n of names) assert.ok(exec.includes(`fnName === '${n}'`), n);
 });

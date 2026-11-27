@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installRootFromTaskXml, refuseRoot, stagedJson, readOutcome, parseArgs } from '../../tools/dev-install/lib.mjs';
+import { parseSnapshotArgs, pickPaths } from '../../tools/dev-install/snapshot-lib.mjs';
 
 const xml = (args, cmd = 'C:\\Windows\\System32\\wscript.exe') =>
   `<Task><Actions Context="Author"><Exec><Command>${cmd}</Command><Arguments>${args}</Arguments></Exec></Actions></Task>`;
@@ -59,4 +60,20 @@ test('an unknown or misspelt argument stops the tool instead of installing', () 
   assert.match(parseArgs(['main']).error, /unknown argument: main/);
   assert.match(parseArgs(['--ref']).error, /--ref needs/);
   assert.match(parseArgs(['--ref', '--dry-run']).error, /--ref needs/);
+});
+
+// tools/dev-install/snapshot.mjs: uncommitted work installed apart from another session's.
+test('snapshot: the command line is read strictly, and a skip is a path, never a pattern', () => {
+  assert.deepEqual(parseSnapshotArgs([]), { base: 'HEAD', skip: [], dryRun: false });
+  assert.deepEqual(parseSnapshotArgs(['--base', 'abc', '--skip', 'server\\airflow\\', '--skip', 'a.js', '--dry-run']),
+    { base: 'abc', skip: ['server/airflow', 'a.js'], dryRun: true });
+  assert.deepEqual(parseSnapshotArgs(['-h']), { help: true });
+  assert.match(parseSnapshotArgs(['--skip']).error, /--skip needs/);
+  assert.match(parseSnapshotArgs(['--base', '--dry-run']).error, /--base needs/);
+  assert.match(parseSnapshotArgs(['--ref', 'x']).error, /unknown argument: --ref/);
+
+  const { take, skipped } = pickPaths(['server/a.js', 'server/airflow/brain.js', 'CHANGELOG.md'],
+    ['server/ab.js', 'server/a.js', 'old-trace.txt'], ['server/airflow', 'server/a', 'old-trace.txt']);
+  assert.deepEqual(take, ['CHANGELOG.md', 'server/a.js', 'server/ab.js']);
+  assert.deepEqual(skipped, ['old-trace.txt', 'server/airflow/brain.js']);
 });

@@ -442,8 +442,8 @@
     // The demo's own assets and the site's static files are real too. The
     // leading ^ is load-bearing: an unanchored /community/ also matches inside
     // /api/community/catalog, which sent the in-app Store to the site's 404 page
-    // instead of to its mock.
-    if (/^\/(demo|community|images|get|catalog|submit|create)\//.test(url.pathname)
+    // instead of to its mock. Camera frames are pictures fetched as bytes: real.
+    if (/^\/(demo|community|images|get|catalog|submit|create|api\/unifiprotect\/snapshot|api\/ha\/camera\/snapshot)\//.test(url.pathname)
       || /\.(js|css|png|jpe?g|webp|svg|gif|woff2?|json|txt|mp4|ico)$/i.test(url.pathname)) {
       return realFetch(input, init);
     }

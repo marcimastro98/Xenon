@@ -28,7 +28,11 @@ test('Enter in the picker takes the whole screen, which no click reaches under t
 });
 
 test('a notification shows the picture it talks about, and only one of ours', () => {
-  assert.ok(TOAST.includes("o.image.startsWith('/captures/thumb?')"), 'no remote load');
+  // The card's own path rule (a capture's thumbnail, or a camera through the loopback proxies).
+  const rule = new RegExp(TOAST.match(/const SHOT_PATH = \/(.+)\/;/)[1]);
+  assert.ok(TOAST.includes('SHOT_PATH.test(o.image)'));
+  assert.ok(rule.test('/captures/thumb?id=x'));
+  for (const remote of ['https://example.com/a.png', '//example.com/a.png', '/api/unifiprotect/snapshot/../x']) assert.ok(!rule.test(remote), 'no remote load: ' + remote);
   assert.ok(TOAST.includes('xtoast-icon--shot'));
 });
 

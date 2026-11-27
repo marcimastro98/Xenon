@@ -488,10 +488,12 @@
   // at all, so the messages come over the same anonymous IRC socket the streamer's
   // Twitch tile has used for versions, and the lines are ours to draw: they fit,
   // they match the dashboard, and nothing sets a cookie.
+  // The connection (the watch that replaces a socket gone silent, RECONNECT, the
+  // retry waits) lives in twitch-chat.js, shared with the streamer's tile.
   const CHAT_MAX = 120;
-  let chatSock = null;
+  let chat = null;
   let chatChannel = '';
-  let chatReconnect = null;
+  let chatFrame = 0;
   let chatLines = [];
 
   // The cinema view shows the chat whether or not the card is on in the layout:
@@ -512,7 +514,7 @@
   }
 
   function connectChat(channel) {
-    if (chatChannel === channel && chatSock && chatSock.readyState <= 1) return;
+    if (chat && chatChannel === channel) return;
     const switched = chatChannel !== channel;
     closeChat();
     if (switched) {
@@ -521,58 +523,39 @@
       publishChat(channel, false);   // a widget must not keep drawing the previous channel's chat
     }
     chatChannel = channel;
-    try { chatSock = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); }
-    catch { chatSock = null; return; }
-    chatSock.onopen = () => {
-      ircSend('CAP REQ :twitch.tv/tags');
-      ircSend('NICK ' + window.TwitchChat.anonNick());
-      ircSend('JOIN #' + channel);
-    };
-    chatSock.onmessage = (e) => {
-      const r = window.TwitchChat.parseIrcLines(String(e.data || ''));
-      if (r.ping) ircSend('PONG :tmi.twitch.tv');
-      r.messages.forEach(pushChat);
-    };
-    chatSock.onclose = () => { if (chatChannel) scheduleChatReconnect(); };
-    chatSock.onerror = () => { try { chatSock.close(); } catch { /* already gone */ } };
-  }
-  function scheduleChatReconnect() {
-    if (chatReconnect) return;
-    chatReconnect = setTimeout(() => {
-      chatReconnect = null;
-      if (chatChannel && tiles().length) connectChat(chatChannel);
-    }, 4000);
+    chat = window.TwitchChat.openChat(channel, (lines) => { lines.forEach(pushChat); });
   }
   function closeChat() {
-    if (chatReconnect) { clearTimeout(chatReconnect); chatReconnect = null; }
     const had = chatChannel;
     chatChannel = '';
-    if (chatSock) { try { chatSock.onclose = null; chatSock.close(); } catch { /* already gone */ } chatSock = null; }
+    if (chat) { chat.close(); chat = null; }
     // Keep the messages and say the feed stopped, rather than publishing an empty
-    // list: a reconnect is four seconds and a widget should not blink through it.
+    // list: a reconnect is seconds and a widget should not blink through it.
     if (had) { cancelChatFlush(); publishChat(had, false); }
-  }
-  function ircSend(line) {
-    try { if (chatSock && chatSock.readyState === 1) chatSock.send(line + '\r\n'); }
-    catch { /* closed under us */ }
   }
 
   function pushChat(entry) {
     entry.seq = ++chatSeq;   // lets an SDK widget tell new lines from a repeated snapshot
     chatLines.push(entry);
     if (chatLines.length > CHAT_MAX) chatLines.shift();
-    document.querySelectorAll('.tww-chat-log').forEach(log => appendChatLine(log, entry));
+    if (!chatFrame) chatFrame = requestAnimationFrame(drawChat);
     // The first line ends the wait. Left to the next paint, "Waiting for the first
     // message" sat above a chat that was already talking.
     if (chatLines.length === 1) document.querySelectorAll('.tww-chat-note').forEach(n => { n.style.display = 'none'; });
     publishChatSoon();
   }
+  // A busy chat is dozens of lines a second. Drawn one by one, each line made the
+  // page measure the log again, and the chat fell behind; now every log takes what
+  // it has not shown yet once per frame, with one measure and one scroll.
+  function drawChat() {
+    chatFrame = 0;
+    document.querySelectorAll('.tww-chat-log').forEach(log => { appendChatLines(log, chatLines); });
+  }
   // Names, message text and the colour all come from strangers in a public chat.
   // Text goes in as text, the colour was validated against a strict hex pattern
   // and an emote id against a strict character set before it became a URL, so
   // none of it can turn into markup, a style or a path.
-  function appendChatLine(log, entry) {
-    const near = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  function chatLineEl(entry) {
     const line = el('div', 'tww-chat-line');
     const u = el('span', 'tww-chat-user', entry.name + ':');
     if (entry.color) u.style.setProperty('--name', entry.color);
@@ -590,8 +573,18 @@
       } else body.appendChild(document.createTextNode(p.text));
     });
     line.appendChild(body);
-    log.appendChild(line);
+    return line;
+  }
+  function appendChatLines(log, lines) {
+    const shown = Number(log.dataset.chatSeq || 0);
+    const fresh = lines.filter(e => e.seq > shown);
+    if (!fresh.length) return;
+    const near = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    const frag = document.createDocumentFragment();
+    fresh.forEach(e => { frag.appendChild(chatLineEl(e)); });
+    log.appendChild(frag);
     while (log.childElementCount > CHAT_MAX) log.removeChild(log.firstChild);
+    log.dataset.chatSeq = String(fresh[fresh.length - 1].seq);
     if (near) log.scrollTop = log.scrollHeight;   // follow only if already at the end
   }
 
@@ -812,7 +805,8 @@
       if (log.dataset.twwChat !== want) {
         log.dataset.twwChat = want;
         log.replaceChildren();
-        if (want) chatLines.forEach(e => appendChatLine(log, e));
+        log.dataset.chatSeq = '0';
+        if (want) appendChatLines(log, chatLines);
       }
     });
     manageChat();

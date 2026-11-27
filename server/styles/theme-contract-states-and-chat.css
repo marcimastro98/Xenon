@@ -140,11 +140,8 @@
    keeps its own contrast contract. The accent is already token-based, so it
    carries through unchanged. */
 [data-chatf="pane"] :is(.ai-msg-bubble, .ai-msg-assistant .ai-msg-bubble) { color: var(--text); }
-[data-chatf="pane"] .ai-msg-user .ai-msg-bubble {
-  color: var(--text);
-  background: rgba(var(--accent-rgb), .15);
-  border-color: rgba(var(--accent-rgb), .28);
-}
+/* The person's words stay plain: the colour in the chat is Bit's (AIPanelConversation.css). */
+[data-chatf="pane"] .ai-msg-user .ai-msg-bubble { color: var(--text); }
 [data-chatf="pane"] .ai-status { color: var(--muted-text); }
 
 /* Composer field + icon buttons */

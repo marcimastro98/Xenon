@@ -117,6 +117,33 @@
 /* A tablet has no thumb dock and a roomier topbar, so the band a tile may fill
    is taller — the number is the chrome above and below it, not a guess. */
 .is-tablet { --ph-chrome: 108px; }
+/* On a tablet the two columns keep the grid's own rows: a tile spans as many rows
+   as it has on the PC, and a row is the screen's share of the page
+   (--ph-page-rows, js/phone/phone-view.js), between 34px and 88px. The flat 34px a row
+   was wrong here because the grid stretches its rows to fill the page, so on a
+   page of 8 rows (the default layout) a row is 90px and more: measured at
+   1080x810 and 810x1080 (an iPad held either way) a half-height tile got the
+   180px floor, the system tile drew 178px of its 385, the cameras showed half
+   their pictures, and a tall tile beside two short ones left a hole as tall as
+   one of them. Spanning rows with `dense` packs the short ones beside the tall
+   one the way the PC does. A row stops at 88px: on an upright iPad Pro the share
+   came to 150px a row, and a half-page tile 623px tall was mostly empty glass;
+   at 88px a 4-row tile holds the system tile's 385px whole. A stretched item in definite tracks has a definite
+   height, so the `height: 100%` chain inside every widget still works. The phone
+   keeps 34px a row: one column there is a scroll, and a screen per widget is
+   mostly empty space. */
+.is-tablet .dashboard.grid-stack {
+  grid-auto-flow: row dense;
+  /* Only implicit rows: the dashboard's own two-row template made the first two
+     rows shorter than the rest. */
+  grid-template-rows: none;
+  grid-auto-rows: clamp(34px, calc((100dvh - var(--ph-chrome, 108px) - (var(--ph-page-rows, 8) - 1) * 12px) / var(--ph-page-rows, 8)), 88px);
+  align-items: stretch;
+}
+.is-tablet .dashboard.grid-stack > .grid-stack-item {
+  grid-row: span var(--ph-rows, 8);
+  height: auto !important;
+}
 .is-stacked .grid-stack-item > .grid-stack-item-content {
   position: static !important;
   inset: auto !important;

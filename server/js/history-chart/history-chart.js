@@ -122,6 +122,8 @@
     xAxis.setAttribute('aria-hidden', 'true');
     const dayOf = (t) => String(t || '').slice(0, 10);
     const crossesDay = n > 1 && String(buckets[0].t).includes('T') && dayOf(buckets[0].t) !== dayOf(buckets[n - 1].t);
+    // The ends then carry the day too, so a narrow chart drops its middle tick sooner (GuardianHistory.css).
+    if (crossesDay) xAxis.dataset.days = '';
     tickIndexes(n).forEach(({ i, rank }) => {
       const tick = el('span', 'guardian-xtick', tickText(buckets[i].t, crossesDay && rank === 0));
       tick.dataset.rank = String(rank);

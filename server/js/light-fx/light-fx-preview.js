@@ -77,6 +77,8 @@
   // A canvas the page drew over goes, so a page redrawn for hours keeps no old ones.
   const prune = () => { for (const s of shows) if (!s.canvas.isConnected) shows.delete(s); };
 
+  let idle = 0;
+  const IDLE_CHECK_MS = 1000;
   function loop(at) {
     frame = 0;
     prune();
@@ -84,7 +86,10 @@
     if (at - last >= FRAME_MS) {
       last = at;
       const now = Date.now();
-      for (const s of shows) draw(s, now);
+      // Only what has a box: Settings closed or another tab open keeps the page in the DOM, hidden.
+      const seen = [...shows].filter((s) => !s.canvas.getClientRects || s.canvas.getClientRects().length);
+      for (const s of seen) draw(s, now);
+      if (!seen.length) { if (!idle) idle = setTimeout(() => { idle = 0; go(); }, IDLE_CHECK_MS); return; }
     }
     if (!still()) frame = requestAnimationFrame(loop);
   }

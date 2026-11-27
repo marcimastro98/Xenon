@@ -120,13 +120,23 @@ test('installed only in the app, keeping the constants callers compare with', ()
   assert.equal(app.EventSource.CLOSED, 2);
 });
 
+// Found 26 Nov 2026: pump-face.html was missing from a list written by hand, so the pump preview in
+// Settings held a plain stream and its widget page waited behind it, blank. The list is read from the pages.
 test('every page that opens the feed loads the socket first', () => {
-  for (const page of ['index', 'layer-lite', 'menu', 'scene', 'sdk-service', 'deck-popup', 'shell-driver', 'screen-alerts']) {
-    const html = readFileSync(path.join(SERVER_DIR, `${page}.html`), 'utf8');
-    const at = html.indexOf('<script src="js/streaming/live-stream.js">');
-    assert.ok(at > 0, `${page}.html does not load live-stream.js`);
-    assert.ok(at < html.indexOf('<script src="js/utils.js">'), `${page}.html loads it too late`);
+  const pages = fs.readdirSync(SERVER_DIR).filter((f) => f.endsWith('.html'));
+  let checked = 0;
+  for (const page of pages) {
+    const html = readFileSync(path.join(SERVER_DIR, page), 'utf8');
+    const scripts = [...html.matchAll(/<script (?:type="module" )?src="(js\/[^"]+\.js)"><\/script>/g)].map((m) => m[1]);
+    const opener = scripts.findIndex((src) => src !== 'js/streaming/live-stream.js' && /new EventSource\((?:SERVER \+ |server \+ )?'\/sse'\)/
+      .test(fs.readFileSync(path.join(SERVER_DIR, src), 'utf8')));
+    if (opener < 0) continue;
+    checked += 1;
+    const at = scripts.indexOf('js/streaming/live-stream.js');
+    assert.ok(at >= 0, `${page} does not load live-stream.js`);
+    assert.ok(at < opener, `${page} loads it after ${scripts[opener]}`);
   }
+  assert.ok(checked >= 10, `only ${checked} pages open the feed: the reading of the pages broke`);
 });
 
 test('the server side looks like an HTTP stream to sseClients', () => {

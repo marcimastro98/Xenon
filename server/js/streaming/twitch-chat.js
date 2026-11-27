@@ -13,11 +13,10 @@
 // join as an anonymous `justinfan` nick and the messages arrive. No cookies, no
 // consent, no third-party page, and the lines are ours to draw.
 //
-// Only the PARSING lives here, deliberately. The two callers own their own socket
-// because they open it under different conditions (one follows the user's own
-// channel, the other whatever is being watched), but the tag/PRIVMSG parsing is
-// the part that is fiddly, easy to get subtly wrong and worth testing once — see
-// server/test/twitch-chat.test.mjs.
+// The parsing and the connection live here; the two callers decide only WHEN a
+// channel is read (one follows the user's own channel, the other whatever is being
+// watched) and how a line is drawn. Both parts are easy to get subtly wrong and
+// worth testing once: see server/test/twitch-chat.test.mjs.
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
@@ -28,6 +27,7 @@
   const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
   const EMOTE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
   const EMOTE_CDN = 'https://static-cdn.jtvnw.net/emoticons/v2/';
+  const RECONNECT_RE = /^(?::\S+ )?RECONNECT\b/;
 
   // Turn a message plus its `emotes` tag into drawable parts.
   //
@@ -86,12 +86,13 @@
   }
 
   // Parse one WebSocket frame, which can hold several IRC lines.
-  // Returns { ping, messages: [{ name, text, color }] }.
-  //   ping     — the server asked for a PONG; the caller must answer or be dropped
+  // Returns { ping, reconnect, messages: [{ name, text, color }] }.
+  //   ping      — the server asked for a PONG; the caller must answer or be dropped
+  //   reconnect — the server is about to restart and asks to be joined again
   //   messages — chat lines, already bounded and with the colour validated, so a
   //              caller can hand `color` straight to a style without re-checking
   function parseIrcLines(raw) {
-    const out = { ping: false, messages: [] };
+    const out = { ping: false, reconnect: false, messages: [] };
     String(raw == null ? '' : raw).split('\r\n').forEach(line => {
       if (!line) return;
       if (line.startsWith('PING')) { out.ping = true; return; }
@@ -106,6 +107,7 @@
         });
         rest = line.slice(sp + 1);
       }
+      if (RECONNECT_RE.test(rest)) { out.reconnect = true; return; }
       const pm = rest.indexOf(' PRIVMSG ');
       if (pm === -1) return;
       const nick = (rest.slice(0, pm).match(/:?([^!]+)!/) || [])[1] || tags['display-name'] || '?';
@@ -125,5 +127,96 @@
     return out;
   }
 
-  return { parseIrcLines, emoteParts, anonNick, MAX_NAME, MAX_TEXT, EMOTE_CDN };
+  // ── The connection ──────────────────────────────────────────────────────────
+  // A socket can die without ever closing: the PC slept, the network changed, a
+  // router dropped a connection it thought idle. No `close` event comes, the chat
+  // simply stops, and only reloading the page brought it back. So the line is
+  // watched: after a quiet minute it sends its own PING, and with no answer in the
+  // next 20 s it is dropped and opened again. Twitch's RECONNECT (sent before a
+  // server restart) is followed at once, and failed attempts wait longer each time
+  // instead of knocking every four seconds.
+  const IRC_URL = 'wss://irc-ws.chat.twitch.tv:443';
+  const QUIET_MS = 60000;
+  const ANSWER_MS = 20000;
+  const CHECK_MS = 10000;
+  const RETRY_MS = [4000, 8000, 15000, 30000, 60000];
+
+  // Read one channel until close(). onMessages gets each frame's chat lines.
+  // deps (tests): { WebSocket, timers: { setTimeout, clearTimeout, setInterval, clearInterval }, now }
+  function openChat(channel, onMessages, deps) {
+    const d = deps || {};
+    const WS = d.WebSocket || globalThis.WebSocket;
+    const t = d.timers || globalThis;
+    const now = d.now || Date.now;
+    let sock = null;
+    let retry = null;
+    let fails = 0;
+    let heardAt = 0;
+    let probed = false;
+    let ended = false;
+
+    const send = (line) => {
+      try { if (sock && sock.readyState === 1) sock.send(line + '\r\n'); } catch { /* closed under us */ }
+    };
+    function detach() {
+      if (!sock) return;
+      const s = sock;
+      sock = null;
+      s.onopen = s.onmessage = s.onclose = s.onerror = null;
+      try { s.close(); } catch { /* already gone */ }
+    }
+    function later(ms) {
+      if (ended || retry) return;
+      const wait = typeof ms === 'number' ? ms : RETRY_MS[Math.min(fails, RETRY_MS.length - 1)];
+      fails += 1;
+      retry = t.setTimeout(connect, wait);
+    }
+    function drop(ms) { detach(); later(ms); }
+    function heard(raw) {
+      heardAt = now();
+      probed = false;
+      fails = 0;
+      const r = parseIrcLines(raw);
+      if (r.ping) send('PONG :tmi.twitch.tv');
+      if (r.messages.length) onMessages(r.messages);
+      if (r.reconnect) drop(0);
+    }
+    function connect() {
+      retry = null;
+      if (ended) return;
+      heardAt = now();
+      probed = false;
+      try { sock = new WS(IRC_URL); } catch { sock = null; later(); return; }
+      sock.onopen = () => {
+        send('CAP REQ :twitch.tv/tags');
+        send('NICK ' + anonNick());
+        send('JOIN #' + channel);
+      };
+      sock.onmessage = (e) => { heard(String(e.data || '')); };
+      sock.onclose = () => { sock = null; later(); };
+      sock.onerror = () => { try { sock.close(); } catch { /* already gone */ } };
+    }
+    // Also covers a connect that hangs: heardAt starts when the attempt does.
+    function check() {
+      if (!sock) return;
+      const quiet = now() - heardAt;
+      if (quiet >= QUIET_MS + ANSWER_MS) drop();
+      else if (quiet >= QUIET_MS && !probed) { probed = true; send('PING :tmi.twitch.tv'); }
+    }
+    const watch = t.setInterval(check, CHECK_MS);
+    connect();
+
+    return {
+      channel,
+      close() {
+        ended = true;
+        t.clearInterval(watch);
+        if (retry) t.clearTimeout(retry);
+        retry = null;
+        detach();
+      },
+    };
+  }
+
+  return { parseIrcLines, emoteParts, anonNick, openChat, MAX_NAME, MAX_TEXT, EMOTE_CDN, QUIET_MS, ANSWER_MS, CHECK_MS, RETRY_MS };
 });
