@@ -32,6 +32,8 @@ function reader({ signs = true } = {}) {
   vm.runInNewContext(readFileSync(new URL('../js/custom-widget/stream-readers.js', import.meta.url), 'utf8'), { window });
   return (d, played, signal) => JSON.parse(JSON.stringify(window.CustomWidgetStreamReaders.bit(d, played, signal)));
 }
+// The shape GET /api/bit answers with.
+const reply = (view) => ({ ok: true, bit: view });
 
 test('SDK: a bit stream and a bit category with the move alone', () => {
   assert.ok(SDK.SDK_STREAMS.includes('bit'));
@@ -63,7 +65,7 @@ test('SDK: every page that hosts widgets loads the stream readers before the bri
 test('SDK: the stream draws the Bit and nothing it learned about the person', () => {
   const view = hatchedView();
   assert.ok(view.traits && view.owned && view.genes, 'the app\'s own view has more than a widget gets');
-  const out = reader()({ ok: true, ...view, seed: SEED }, { clip: 'wave', at: 5 });
+  const out = reader()(reply({ ok: true, ...view, seed: SEED }), { clip: 'wave', at: 5 });
   assert.deepEqual(Object.keys(out).sort(), ['everywhere', 'founder', 'genes', 'hatched', 'items', 'name', 'number', 'ok', 'played', 'signal', 'stage', 'worn']);
   assert.equal(out.number, 7);
   assert.deepEqual(out.played, { clip: 'wave', at: 5 });
@@ -72,21 +74,21 @@ test('SDK: the stream draws the Bit and nothing it learned about the person', ()
 });
 
 test('SDK: the sign over its head reaches the widget as its kind alone', () => {
-  const view = { ok: true, ...hatchedView() };
+  const view = reply(hatchedView());
   for (const kind of bitSigns.KINDS) assert.equal(reader()(view, null, kind).signal, kind);
   for (const odd of [undefined, '', 'Done', '<b>', 'claude finished in xenon', 7, { kind: 'done' }]) assert.equal(reader()(view, null, odd).signal, null);
   assert.equal(reader({ signs: false })(view, null, 'done').signal, null, 'no table, no sign');
-  assert.ok(!('signal' in reader()({ ok: true, hatched: false }, null, 'done')), 'an egg has none');
+  assert.ok(!('signal' in reader()(reply({ ok: true, hatched: false }), null, 'done')), 'an egg has none');
 });
 
 test('SDK: an egg, a bad reply and odd fields', () => {
   const read = reader();
-  assert.deepEqual(read({ ok: true, hatched: false }), { ok: true, hatched: false, stage: 'egg' });
+  assert.deepEqual(read(reply({ ok: true, hatched: false })), { ok: true, hatched: false, stage: 'egg' });
   assert.deepEqual(read({ ok: false, error: 'boom' }), { ok: false, error: 'failed' });
   assert.deepEqual(read(null), { ok: false, error: 'failed' });
   const view = hatchedView();
-  assert.deepEqual(read({ ...view, ok: true, genes: { ...view.genes, palette: '<b>' } }), { ok: true, hatched: false, stage: 'egg' });
-  const odd = read({ ...view, ok: true, name: 'n'.repeat(80), number: -3, stage: 'boss', worn: ['scarf', '../x', 7, ...Array(20).fill('cap')] },
+  assert.deepEqual(read(reply({ ...view, ok: true, genes: { ...view.genes, palette: '<b>' } })), { ok: true, hatched: false, stage: 'egg' });
+  const odd = read(reply({ ...view, ok: true, name: 'n'.repeat(80), number: -3, stage: 'boss', worn: ['scarf', '../x', 7, ...Array(20).fill('cap')] }),
     { clip: 'Not A Clip', at: 1 });
   assert.equal(odd.name.length, 24);
   assert.equal(odd.number, null);
@@ -133,7 +135,7 @@ test('kit: draws the egg, then the Bit, the classic one on request, and plays on
   };
   const b = ctx.XenonBit.mount(el(), { label: 'Bit' });
   b.set({ ok: true, hatched: false, stage: 'egg' });
-  const out = reader()({ ok: true, ...hatchedView() }, { clip: 'dance', at: 5 });
+  const out = reader()(reply(hatchedView()), { clip: 'dance', at: 5 });
   b.set(out);
   assert.deepEqual(played, [], 'a move from before is not replayed');
   assert.ok(lookNow(), 'their own look');
@@ -162,7 +164,7 @@ test('kit: the sign over its head comes, changes and goes with data.signal, and 
   ctx.document.createElementNS = (ns, tag) => node(tag);
   vm.createContext(ctx);
   new vm.Script(await bitKit()).runInContext(ctx);
-  const out = reader()({ ok: true, ...hatchedView() }, null, 'ask');
+  const out = reader()(reply(hatchedView()), null, 'ask');
   const b = ctx.XenonBit.mount(node('div'), { label: 'Bit' });
   const g = made.find((n) => n.attrs.class === 'xbit-sign');
   const drawn = () => g.kids.map((r) => [r.attrs.x, r.attrs.y, r.attrs.fill].join(' ')).sort();
@@ -197,7 +199,7 @@ test('kit: the sign over its head comes, changes and goes with data.signal, and 
 test('SDK and kit: a hub item the Bit wears reaches the widget as a drawing and goes on', async (t) => {
   const [crown, cape] = JSON.parse(readDisk(new URL('./fixtures/bit-hub-items.json', import.meta.url), 'utf8'));
   const view = { ok: true, ...hatchedView(), worn: ['crown'], items: [{ ...crown, offered: true }, { ...cape, offered: true }] };
-  const out = reader()(view);
+  const out = reader()(reply(view));
   assert.deepEqual(out.items, [{ id: 'crown', slot: 'head', source: 'supporter', month: '2026-12', layers: crown.layers }]);
   const { ctx, el } = fakePage();
   vm.createContext(ctx);
@@ -226,6 +228,7 @@ test('MCP: the Bit starter carries the kit, installs, and check_widget asks for 
   assert.equal(file('bit-kit.js'), await bitKit());
   assert.ok(file('index.html').indexOf('bit-kit.js') < file('index.html').indexOf('main.js'), 'the kit loads first');
   assert.ok(file('main.js').includes('textContent') && !file('main.js').includes('innerHTML'));
+  assert.ok(file('main.js').includes("type: 'refresh', id: Date.now(), stream: 'bit'"), 'the stream is pulled: nothing comes unasked');
   assert.equal(sdk.validateWidgetPayload({ id: 'my-bit', files: r.files }).ok, true);
   const checked = await T.runOp('check_widget', { id: 'my-bit', files: r.files }, deps);
   assert.equal(checked.bitHint, undefined);

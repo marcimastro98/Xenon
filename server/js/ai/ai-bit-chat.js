@@ -1,13 +1,13 @@
 'use strict';
 
-// Bit in the chat tile: the live Bit in each chat pane's head (the primary and
-// every duplicated copy), its mood following the turn, the still Bit beside
-// each reply, the way to more Scintille when they run low, and the attach menu
-// (a file, or the screen). ai.js owns the session; this file only shows it.
+// Bit in the chat tile: the live Bit at the foot of each chat pane (the primary
+// and every duplicated copy, built by bit-floor.js), its mood following the turn
+// and the typing, the still Bit beside each reply, the way to more Scintille
+// when they run low, and the attach menu (a file, or the screen). ai.js owns the session; this file only shows it.
 // A reply shows no Scintille spent: the head's balance follows on its own, and
 // a number next to "Annulla" read like a refund (30 Oct 2026).
 (function () {
-  const AVATAR_PX = 18;
+  const AVATAR_PX = 44;
   // setAiStatus() states -> the mood Bit loops while the chat is in it.
   const STATUS_MOOD = { thinking: 'think', connecting: 'think', working: 'work', listening: 'listen', error: 'worry' };
   // A reply's mood -> the pose beside it: done is Bit happy, in the done colour.
@@ -16,12 +16,22 @@
   const tr = (k) => (typeof t === 'function' ? t(k) : k);
   const heads = () => document.querySelectorAll('[data-chatf="bit"]');
 
+  let statusNow = '';
+  let typingNow = false;
+
   // Every chat pane gets its live Bit; a copy made later is picked up on the
-  // next sync (mirrorChatCopies calls this).
+  // next sync (mirrorChatCopies calls this). The one beside the composer is calm:
+  // it fidgets less, right where the eyes are.
   function mountHeads() {
+    if (window.BitFloor) BitFloor.ensure();
     if (!window.BitApp) return;
-    heads().forEach((host) => BitApp.mount(host, { mood: 'idle' }));
+    heads().forEach((host) => BitApp.mount(host, { mood: moodNow(), calm: host.classList.contains('bit-floor-bit') }));
     BitApp.sweep();
+  }
+
+  // Between turns Bit listens while something is being typed.
+  function moodNow() {
+    return STATUS_MOOD[statusNow] || (typingNow ? 'listen' : 'idle');
   }
 
   function eachPlayer(fn) {
@@ -33,7 +43,16 @@
   }
 
   function setStatus(state) {
-    const mood = STATUS_MOOD[state] || 'idle';
+    statusNow = state || '';
+    if (window.BitFloor) BitFloor.status(statusNow);
+    const mood = moodNow();
+    eachPlayer((p) => p.setMood(mood));
+  }
+
+  function typing(on) {
+    if (typingNow === !!on) return;
+    typingNow = !!on;
+    const mood = moodNow();
     eachPlayer((p) => p.setMood(mood));
   }
 
@@ -166,5 +185,5 @@
   paintLauncher();
   mountHeads();
 
-  window.BitChat = { mountHeads, setStatus, react, avatarHtml, buyRow, crossedLow, closeAttachMenu, voiceState };
+  window.BitChat = { mountHeads, setStatus, typing, react, avatarHtml, buyRow, crossedLow, closeAttachMenu, voiceState };
 })();

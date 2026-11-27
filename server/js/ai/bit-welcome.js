@@ -1,11 +1,11 @@
-// Bit's chat when it is empty: Bit, a short hello for the time of day, one line
-// on what it can do, and three things to ask that fit this PC right now. One
-// tap sends the starter (the click is delegated, so a chat copy, which mirrors
+// Bit's chat when it is empty: Bit at the foot of the chat says hello in its
+// bubble (bit-floor.js), and above it wait four things to ask that fit this PC
+// right now, on the person's side of the chat, as their own words would sit.
+// One tap sends the starter (the click is delegated, so a chat copy, which mirrors
 // the log as HTML, works too). Specific starters get used where generic ones
 // are ignored (NN/g, "Prompt Suggestions", 2024). starters() is pure, shared
 // by the browser (window.BitWelcome) and the unit tests.
 (function (root) {
-  const FACE_PX = 56;
   // Hour of the day -> the hello: from 5 the morning, from 13 the afternoon,
   // from 18 the evening, from 23 the night.
   const HELLO_FROM = [[23, 'night'], [18, 'evening'], [13, 'afternoon'], [5, 'morning'], [0, 'night']];
@@ -79,18 +79,23 @@
     };
   }
 
+  // Bit's hello: one of its own lines for the time of day, or without them the
+  // plain hello and what it does.
+  function hello(hour) {
+    const line = window.BitApp ? BitApp.greeting() : '';
+    return line || tr(helloKey(hour)) + ' ' + tr('bit_welcome_line');
+  }
+
   function build() {
     const ctx = context();
     const box = el('div', 'bit-welcome');
     box.dataset.bitWelcome = '';
-    const face = el('span', 'bit-welcome-face');
-    face.setAttribute('aria-hidden', 'true');
-    if (window.BitApp) face.innerHTML = BitApp.still('idle', FACE_PX) || '';
     const list = el('div', 'bit-starters');
     list.setAttribute('role', 'group');
     list.setAttribute('aria-label', tr('bit_start_label'));
     starters(ctx).forEach((s) => list.appendChild(starterButton(s)));
-    box.append(face, el('h2', 'bit-welcome-title', tr(helloKey(ctx.hour))), el('p', 'bit-welcome-line', tr('bit_welcome_line')), list);
+    box.append(list);
+    if (window.BitFloor) BitFloor.hold(hello(ctx.hour));
     return box;
   }
 
@@ -105,12 +110,11 @@
     return true;
   }
 
-  // Never a scroll in an empty chat. A log too short for the whole welcome
-  // drops Bit's face first (the chat head already shows Bit), then the line,
-  // the hello and the starters from the last, until the rest fits; what each
-  // name hides is in MediaPanel.css. Every log is fitted on its own: a copy
-  // mirrors the welcome's markup, not the room it has.
-  const FIT_DROPS = ['face', 'line', 'title', 'starter3', 'starter2', 'welcome'];
+  // Never a scroll in an empty chat. A log too short for every starter drops
+  // them from the last until the rest fits; what each name hides is in
+  // MediaPanel.css. Every log is fitted on its own: a copy mirrors the welcome's
+  // markup, not the room it has.
+  const FIT_DROPS = ['starter4', 'starter3', 'starter2', 'welcome'];
   const fitWatched = new WeakSet();
   let fitObserver = null;
   let fitQueued = false;

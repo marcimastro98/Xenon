@@ -61,6 +61,7 @@
     claudeDone: { clips: ['allDone', 'nod'], priority: 2, cooldown: 5 * 60000 },
     notification: { clips: ['sign', 'surprised'], priority: 1, cooldown: 5 * 60000 },
     calendarSoon: { clips: ['watch', 'surprised'], priority: 2, cooldown: 10 * 60000 },
+    doorbell: { clips: ['surprised'], priority: 3, cooldown: 20000 },
     download: { clips: ['catchBox', 'nod'], priority: 1, cooldown: 15 * 60000 },
     update: { clips: ['wrench', 'nod'], priority: 1, cooldown: 60 * 60000 },
     storeDrop: { clips: ['unbox', 'celebrate'], priority: 2, cooldown: 60 * 60000 },

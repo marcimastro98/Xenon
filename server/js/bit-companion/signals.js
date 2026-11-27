@@ -41,9 +41,21 @@
   let list = read();
   const fresh = (s, now) => s.kind === 'ask' || now - s.at < TTL[s.kind];
 
+  // A sign that runs out is taken down then, not at the next piece of news.
+  let expiry = 0;
+  function watch() {
+    if (typeof setTimeout !== 'function') return;
+    clearTimeout(expiry);
+    const now = Date.now();
+    const ends = list.filter((s) => s.kind !== 'ask' && fresh(s, now)).map((s) => s.at + TTL[s.kind] - now);
+    if (!ends.length) return;
+    expiry = setTimeout(() => { dispatchEvent(new CustomEvent('xenon-bit-signals')); watch(); }, Math.min(...ends) + 50);
+  }
+
   function told() {
     try { store()?.setItem(KEY, JSON.stringify(list)); } catch { /* full or blocked: this page still has them */ }
     dispatchEvent(new CustomEvent('xenon-bit-signals'));
+    watch();
   }
 
   function put(kind, vars) {
@@ -109,7 +121,9 @@
     if (e.key !== KEY) return;
     list = read();
     dispatchEvent(new CustomEvent('xenon-bit-signals'));
+    watch();
   });
+  watch();
 
   window.BitSignals = Object.freeze({
     heard, all, top: () => all()[0] || null,

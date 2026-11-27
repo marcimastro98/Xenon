@@ -27,9 +27,9 @@ function brief(view) {
 
 /**
  * @param {{ store: import('./store.js').BitStore, broadcast: (event: string, data: object) => void,
- *   now?: () => Date, random?: () => number }} deps
+ *   now?: () => Date, random?: () => number, publish?: { refresh: () => Promise<boolean> } }} deps
  */
-function createBitActions({ store, broadcast, now = () => new Date(), random = Math.random }) {
+function createBitActions({ store, broadcast, now = () => new Date(), random = Math.random, publish = null }) {
   // The app writes the egg the first time it asks (handlers.js); before that there is nothing to change.
   // onDisk is known only once the file was read.
   async function current() {
@@ -37,7 +37,7 @@ function createBitActions({ store, broadcast, now = () => new Date(), random = M
     return store.onDisk() ? model : null;
   }
 
-  async function change(stepOf) {
+  async function change(stepOf, { onSite = false } = {}) {
     if (!(await current())) return { ok: false, error: 'egg' };
     let out;
     try {
@@ -48,6 +48,9 @@ function createBitActions({ store, broadcast, now = () => new Date(), random = M
     if (out?.error) return { ok: false, error: out.error, ...(out.perk ? { perk: out.perk } : {}) };
     const view = Model.view(await store.ready(), now());
     if (!out?.unchanged) broadcast('bit', view);
+    // A name or outfit its public page shows goes to the hub too, as from the wardrobe (handlers.js);
+    // true back means the hub took the page down, and every surface hears it.
+    if (onSite && !out?.unchanged) publish?.refresh().then((off) => off && broadcast('bit', Model.view(store.peek(), now())), () => {});
     return { ok: true, bit: brief(view) };
   }
 
@@ -78,8 +81,8 @@ function createBitActions({ store, broadcast, now = () => new Date(), random = M
       case 'bitPlace': return change((m) => Model.setPrefs(m, { place: action.place }));
       case 'bitDesk': return change((m) => Model.setPrefs(m, { desk: action.desk }));
       case 'bitWarp': return change((m) => Model.setPrefs(m, { warp: action.warp }));
-      case 'bitRename': return change((m) => Model.rename(m, String(action.name ?? '')));
-      case 'bitWear': return change((m) => wearOne(m, action));
+      case 'bitRename': return change((m) => Model.rename(m, String(action.name ?? '')), { onSite: true });
+      case 'bitWear': return change((m) => wearOne(m, action), { onSite: true });
       default: return { ok: false, error: 'unsupported' };
     }
   }

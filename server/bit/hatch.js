@@ -33,7 +33,7 @@ function createHatch({ store, scopedId, post, now = () => new Date() }) {
   function birthOf(out) {
     if (out?.ok !== true || typeof out.seed !== 'string' || !SEED.test(out.seed)) return null;
     if (!Number.isSafeInteger(out.number) || out.number < 1) return null;
-    return { seed: out.seed, number: out.number, born: typeof out.born === 'string' ? out.born : now().toISOString(), sig: out.sig };
+    return { seed: out.seed, number: out.number, born: typeof out.born === 'string' && Number.isFinite(Date.parse(out.born)) ? out.born : now().toISOString(), sig: out.sig };
   }
 
   async function askHub(model) {

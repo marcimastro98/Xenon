@@ -66,7 +66,7 @@ function createBitStore({ dataDir, warn = (_msg) => {}, now = () => new Date() }
     if (count) out.model = counted(cur, out.model);
     model = out.model;
     try { await write(model); }
-    catch (e) { if (model === out.model) model = cur; throw e; }
+    catch (e) { if (model === out.model) model = cur; dirty = true; throw e; }   // what remember() counted is still unsaved
     return out;
   }
 

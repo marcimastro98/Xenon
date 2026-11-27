@@ -47,6 +47,26 @@
 .cst-sparks-pack b { display: flex; align-items: center; gap: 5px; font-size: 19px; font-weight: 700; color: var(--cst-text); }
 .cst-sparks-pack svg { flex: none; width: 17px; height: 17px; }
 .cst-sparks-go { flex: none; font-size: 15px; font-weight: 700; }
+/* This month's supporters' item on the person's own Bit (js/bit-companion/store-band.js): the Bit on its
+   stage colour, then the words, then the way in. */
+.cst-bit-band {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px 24px;
+  width: 100%; padding: 14px 24px 14px 14px; border: 0; border-radius: 10px;
+  text-align: left; color: var(--cst-text); background: color-mix(in srgb, var(--cst-key) 12%, var(--cst-solid)); cursor: pointer;
+}
+.cst-bit-band:hover { background: color-mix(in srgb, var(--cst-key) 18%, var(--cst-solid)); }
+.cst-bit-band:focus-visible { outline: 2px solid var(--cst-key); outline-offset: 3px; }
+.cst-bit-art {
+  display: grid; place-items: center; width: 104px; aspect-ratio: 1; border-radius: 8px;
+  background: var(--bit-wall, var(--cst-well)); box-shadow: inset 0 -6px 0 var(--bit-brass, transparent);
+}
+.cst-bit-art svg { width: 100%; height: 100%; }
+.cst-bit-band:hover .cst-bit-go { filter: brightness(1.06); }
+.cst-bit-words { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cst-bit-words b { font-size: clamp(20px, 1.6vw, 26px); line-height: 1.15; font-weight: 700; overflow-wrap: anywhere; }
+.cst-bit-words > span:last-child { font-size: 15px; line-height: 1.35; color: var(--cst-muted); }
+.cst-bit-words .broom-tag { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: var(--cst-key); }
+.cst-bit-words .broom-tag svg { width: 14px; height: 14px; fill: currentColor; }
 .cst-key {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   flex: none; height: 44px; padding: 0 22px;
@@ -77,3 +97,20 @@
 .cst-meter-fill { height: 100%; background: currentColor; }
 .cst-meter-left { font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .cgal-until { font-size: 13.5px; font-weight: 600; opacity: 0.86; }
+
+/* The person's Bit dressed for the shop (store-band.js shelf), more cards across than the posters: each
+   card is the Bit's own stage, and a supporters' item sits on brass as it does in the Bit's room. */
+.cst-stage .cst-shelf.is-bit .cst-row { --cols: var(--cst-bit-cols, 6); }
+.cst-bit-card {
+  display: flex; flex-direction: column; min-width: 0; padding: 0; border: 0; border-radius: 10px; overflow: hidden;
+  text-align: left; color: var(--cst-text); background: var(--cst-well); cursor: pointer;
+}
+.cst-bit-card:hover { background: var(--cst-on); }
+.cst-bit-card:focus-visible { outline: 2px solid var(--cst-key); outline-offset: 3px; }
+.cst-bit-card .cst-bit-art { width: 100%; border-radius: 0; }
+.cst-bit-card-words { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 10px 12px 12px; }
+.cst-bit-card-words b { font-size: 16px; line-height: 1.2; overflow-wrap: anywhere; }
+.cst-bit-card .broom-price { color: inherit; }
+.cst-bit-card.is-supporter { color: var(--bit-wall); background: var(--bit-brass); }
+.cst-bit-card.is-supporter:hover { background: color-mix(in oklab, var(--bit-brass) 88%, white); }
+.cst-bit-card.is-supporter .cst-bit-art { background: color-mix(in oklab, var(--bit-brass) 22%, var(--bit-wall)); }

@@ -118,8 +118,8 @@ test('the view carries the recap to this person\'s screens; a widget\'s reader n
   const vm = await import('node:vm');
   const window = {};
   vm.runInNewContext(readFileSync(new URL('../js/custom-widget/stream-readers.js', import.meta.url), 'utf8'), { window });
-  const seen = JSON.stringify(window.CustomWidgetStreamReaders.bit(JSON.parse(JSON.stringify(v))));
-  assert.ok(!seen.includes('recap') && !seen.includes('240'), 'no month reaches a widget');
+  const seen = JSON.stringify(window.CustomWidgetStreamReaders.bit(JSON.parse(JSON.stringify({ ok: true, bit: v }))));
+  assert.ok(seen.includes('"hatched":true') && !seen.includes('recap') && !seen.includes('240'), 'no month reaches a widget');
   const told = require('../bit/actions.js').brief(v);
   assert.deepEqual(told.cards, ['2026-11'], 'Bit in the chat hears which card is ready');
   assert.ok(!JSON.stringify(told).includes('240'), 'never what it counts');

@@ -16,15 +16,15 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.ScreenBit = api;
 })(typeof window !== 'undefined' ? window : globalThis, function () {
-  const CSS = Object.freeze(['components/AIPanel/AIPanel.css', 'components/AIPanel/AIPanelConversation.css', 'components/AIPanel/AIPanelInput.css', 'components/AIPanel/AIPanelVoice.css', 'components/AIPanel/AIPanelAmbientVoice.css', 'components/AIPanel/AIPanelPickers.css', 'components/AIPanel/AIPanelReplies.css']);
+  const CSS = Object.freeze(['components/AIPanel/AIPanel.css', 'components/AIPanel/AIPanelConversation.css', 'components/AIPanel/AIPanelInput.css', 'components/AIPanel/AIPanelVoice.css', 'components/AIPanel/AIPanelAmbientVoice.css', 'components/AIPanel/AIPanelPickers.css', 'components/AIPanel/AIPanelReplies.css', 'components/Toast/Toast.css', 'components/Toast/ToastContent.css']);
   // index.html's order. No ai-live.js: Voce Live needs the dashboard's
   // full-duplex audio path, so on the screen Bit talks turn by turn.
   const SCRIPTS = Object.freeze([
     'shared/src/bit-clips.js', 'shared/src/bit-color.js', 'shared/src/bit-genes.js', 'shared/src/bit-genome.js', 'shared/src/bit-look.js', 'shared/src/bit-wardrobe.js',
     'shared/src/bit.js', 'shared/src/bit-clips-life.js', 'shared/src/bit-director.js', 'shared/src/bit-player.js', 'shared/src/bit-icon.js',
-    'shared/src/bit-phrases.js', 'shared/src/bit-spark.js', 'js/dialog-focus.js',
-    'js/store-supporters/xenon-credits.js', 'js/ai/ai-turn-wait.js', 'js/ai/bit-app.js', 'js/ai/ai-bit-chat.js',
-    'js/ai/ai-reply-choices.js', 'js/ai/ai-ask-card.js',
+    'shared/src/bit-phrases.js', 'shared/src/bit-spark.js', 'js/alerts/door-card.js', 'js/dialog-focus.js',
+    'js/store-supporters/xenon-credits.js', 'js/ai/ai-turn-wait.js', 'js/ai/bit-app.js', 'js/ai/bit-floor.js', 'js/ai/ai-bit-chat.js',
+    'js/ai/ai-reply-choices.js', 'js/ai/reply-controls.js', 'js/ai/reply-camera.js', 'js/ai/ai-ask-card.js', 'js/ai/bit-composer.js', 'js/ai/bit-welcome.js',
     'js/ai/providers-and-errors.js',
     'js/ai/panel.js',
     'js/ai/turns.js',

@@ -67,7 +67,7 @@ async function founder(fresh, dataDir = DATA_DIR, now = Date.now()) {
 // The Bit's part of a settings backup (server.js buildBackup / applyBackup).
 const backup = createBitBackup({ store });
 // Bit in the chat, the Deck and a phone (capabilities/index.js run).
-const actions = createBitActions({ store, broadcast: broadcastSSE });
+const actions = createBitActions({ store, broadcast: broadcastSSE, publish });
 
 let timer = null;
 let minutes = 0;
@@ -84,7 +84,7 @@ async function tick() {
     if (out && !out.unchanged && out.model) {
       broadcastSSE('bit', Model.view(out.model, now));
       // A new stage shows on its page too: one call a day at most, only while it is shown.
-      if (out.model.shown) publish.refresh().catch(() => {});
+      if (out.model.shown) publish.refresh().then((off) => off && broadcastSSE('bit', Model.view(store.peek(), new Date())), () => {});
     }
   }
   if (++minutes % FLUSH_EVERY === 0) await store.flush();

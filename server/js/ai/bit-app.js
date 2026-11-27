@@ -10,8 +10,7 @@
   // own list without overlay-frozen. The person's own Bit (a host marked data-own-bit) moves at
   // the pace moments.js reads instead: slower, never frozen, by those same states.
   const TILE_HOLD = ['overlay-frozen', 'ambient-idle', 'game-mode', 'low-power-gpu', 'perf-mode'];
-  const HOT_C = 28;
-  const COLD_C = 3;
+  const HOT_C = 28, COLD_C = 3;
   const CHIP_HOT_C = 85; // a CPU or GPU this warm makes Bit fan itself
   const BORN = /^(\d{4})-(\d{2})-(\d{2})/;
   const RECENT_LINES = 6;
@@ -147,10 +146,7 @@
     }
   }
 
-  /**
-   * Bit as an icon: the still pose cropped to a square around it, sized by CSS
-   * (bit-icon.js). @returns {string} SVG markup, or '' without the engine
-   */
+  // Bit as an icon: the still pose cropped to a square around it, sized by CSS (bit-icon.js); '' without the engine.
   function icon(clipId, tint) {
     const I = window.Xenon?.bitIcon;
     const svg = I ? I.icon(clipId, { tint, look }) : '';
@@ -162,12 +158,8 @@
     host.innerHTML = icon(clipId, tint);
   }
 
-  /**
-   * Bit as a one-colour glyph (currentColor) with its face cut out, for a
-   * button that carries its own fill: it reads on any accent the way the
-   * other topbar icons do, where Bit's own colours would clash with it.
-   * @returns {string} SVG markup, or '' without the engine
-   */
+  // Bit as a one-colour glyph (currentColor) with its face cut out, for a button with its own fill:
+  // it reads on any accent like the other topbar icons, where Bit's colours would clash. '' without the engine.
   function glyph(clipId) {
     const I = window.Xenon?.bitIcon;
     const svg = I ? I.glyph(clipId, { look }) : '';
@@ -176,8 +168,8 @@
 
   // ── The person's own Bit (server/bit/, GET /api/bit) ──
   // Every Bit this page draws wears it: the live players (bitPlayer.useLook),
-  // the stills, icons and glyphs (redrawMarks). Until it hatches, or with the
-  // classic Bit chosen for the app, every place keeps the classic Bit.
+  // the stills, icons and glyphs (redrawMarks), its bubbles in the chat and the game card (paintTint).
+  // Until it hatches, or with the classic Bit chosen for the app, every place keeps the classic Bit.
 
   function ownOf(raw) {
     if (!raw || typeof raw !== 'object' || typeof raw.seed !== 'string' || !SEED.test(raw.seed)) return null;
@@ -194,6 +186,14 @@
     const root = document.documentElement;
     const light = !!(root?.style && root.style.colorScheme === 'light');
     return X.bitLook.lookOf(X.bitGenome.decode(o.seed), { worn: X.bitWardrobe.outfit(o.worn), background: light ? BACKGROUND.light : BACKGROUND.dark });
+  }
+
+  function paintTint() {
+    const root = document.documentElement?.style;
+    if (typeof root?.setProperty !== 'function') return;
+    const body = look?.body;
+    if (typeof body === 'string' && /^#[0-9a-f]{6}$/i.test(body)) root.setProperty('--bit-body', body);
+    else root.removeProperty('--bit-body');
   }
 
   function remember(o) {
@@ -220,6 +220,7 @@
     if (keep) remember(own);
     if (X?.bitPlayer?.useLook) X.bitPlayer.useLook(look);
     redrawMarks();
+    paintTint();
     return own;
   }
 

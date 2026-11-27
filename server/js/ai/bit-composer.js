@@ -21,15 +21,23 @@
     row.classList.toggle('has-draft', hasDraft(input && input.value, pendingCount()));
   }
 
+  // Bit beside the composer listens while there is a draft (ai-bit-chat.js).
+  function tellBit() {
+    if (root.BitChat) root.BitChat.typing(!!document.querySelector(ROW + '.has-draft'));
+  }
+
   function sync() {
     if (typeof document === 'undefined') return;
     document.querySelectorAll(ROW).forEach(syncRow);
+    tellBit();
   }
 
   if (typeof document !== 'undefined') {
     document.addEventListener('input', (e) => {
       const row = e.target && e.target.closest && e.target.closest(ROW);
-      if (row) syncRow(row);
+      if (!row) return;
+      syncRow(row);
+      tellBit();
     });
   }
 

@@ -29,6 +29,9 @@ test('Bit brings the dashboard\'s own files, in the dashboard\'s order, and no V
   assert.equal(ScreenBit.SCRIPTS.at(-3), 'js/ai/ai.js');
   // The chat's confirm cards open here too: a command Bit proposes on the main screen.
   for (const f of ['js/dialog-focus.js', 'js/ai/ai-deck-confirm.js']) assert.ok(ScreenBit.SCRIPTS.includes(f), f);
+  // The search window's chat is the tile's: Bit at its foot, Send while typing, the hello and starters.
+  for (const f of ['js/ai/bit-floor.js', 'js/ai/bit-composer.js', 'js/ai/bit-welcome.js']) assert.ok(ScreenBit.SCRIPTS.includes(f), f);
+  assert.ok(ScreenBit.CSS.includes('components/AIPanel/AIPanelReplies.css'), 'the look of the hello rides with the chat');
   assert.equal(ScreenBit.IDLE_RELOAD_MS, 60000);
 });
 

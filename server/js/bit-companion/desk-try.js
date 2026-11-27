@@ -9,6 +9,7 @@
   let trial = null;  // { ids, until } while it lasts
   let timer = 0;
   let left = [];     // what had its ten minutes, for the next room (once)
+  let made = { key: null, look: null }; // the look last dressed, and what it wore
   let lastIds = [];  // what was tried last: its keep bar's support link says it came from here
 
   const app = () => window.BitApp;
@@ -37,7 +38,11 @@
   function look() {
     if (!trial || Date.now() >= trial.until) return null;
     const worn = app()?.state?.()?.worn;
-    return app()?.dressed?.([...(Array.isArray(worn) ? worn : []), ...trial.ids]) || null;
+    const ids = [...(Array.isArray(worn) ? worn : []), ...trial.ids];
+    // The same object while the outfit is the same: the desktop Bit keeps its drawn frames by look (desk-frames.js).
+    const key = ids.join(',');
+    if (key !== made.key) made = { key, look: app()?.dressed?.([...ids]) || null };
+    return made.look;
   }
 
   /** The keep bar's "Try it on the desktop", while the desktop Bit is out; null otherwise. */

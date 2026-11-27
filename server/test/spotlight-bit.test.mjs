@@ -158,7 +158,8 @@ test('one Bit: the separate AI search is gone from the client and the server', (
 test('the chat heads show the face and keep the name for screen readers', () => {
   const html = read('../index.html');
   assert.match(html, /id="ai-panel-title"><span class="ai-header-face" data-chatf="bit" aria-hidden="true"><\/span><span class="ai-header-name">Bit<\/span>/);
-  assert.match(read('../components/MediaPanel/MediaPanel.css'), /\.bit-chat-face:not\(:empty\) \+ \.bit-chat-name \{[^}]*clip-path/);
+  // The tile's head says the name; its live Bit stands by the composer (bit-floor.test.mjs).
+  assert.match(html, /<strong class="bit-chat-name">Bit<\/strong>/);
   assert.match(read('../components/AIPanel/AIPanel.css'), /\.ai-header-face:not\(:empty\) \+ \.ai-header-name \{[^}]*clip-path/);
   // The search window and the alerts window never run media.js, so the panel fills its own head.
   assert.match(read('../js/ai/ai-bit-chat.js'), /paintLauncher\(\);\n\s*mountHeads\(\);/);

@@ -1,7 +1,7 @@
 'use strict';
 // What makes the person's own Bit move by itself, and how much it moves.
 // Moments of the live stream: a game starts or ends, the PC runs hot or stutters, a new track, a
-// return after a while away, Claude Code or Codex starting, finishing or
+// ring at the door, a return after a while away, Claude Code or Codex starting, finishing or
 // asking, a calendar reminder, an update, a file from the phone, something new from the Store, a
 // notification opening on the island (the class js/alerts/toast.js sets, not each place that shows one);
 // and of its life (it hatches, it reaches a new stage, the first look of the day, its birthday).
@@ -181,13 +181,23 @@
   // The dashboard's live stream (grid/data-stream.js) hands its EventSource here;
   // a layer page feeds the same handlers through the Bit tile (tile.js).
   function listen(es) {
-    const on = (name, fn) => es.addEventListener(name, (e) => {
-      try { fn(JSON.parse(e.data)); } catch { /* a broken event changes nothing */ }
-    });
+    // One listener and one parse per event name, however many hear it ('system' comes every second).
+    const heardBy = new Map();
+    const on = (name, fn) => {
+      if (heardBy.has(name)) { heardBy.get(name).push(fn); return; }
+      const fns = [fn];
+      heardBy.set(name, fns);
+      es.addEventListener(name, (e) => {
+        let d;
+        try { d = JSON.parse(e.data); } catch { return; } // a broken event changes nothing
+        for (const f of fns) { try { f(d); } catch { /* one hearer's fault is not the next one's */ } }
+      });
+    };
     on('status', api.onStatus);
     on('system', api.onSystem);
     on('media', api.onMedia);
     on('bit_play', api.onPlay);
+    on('home_ring', () => react('doorbell'));   // someone at the door (server/smart-home/doorbell.js)
     on('claude', guarded((d) => agentMoment('claude', d)));
     on('codex', guarded((d) => agentMoment('codex', d)));
     on('calendar_reminder', () => react('calendarSoon'));

@@ -1,15 +1,25 @@
 'use strict';
-// The tabs over the rail of the Bit's room (bit-companion/wardrobe.js): all the items, its own, the
-// supporters' ones, then each place on the body that has something. Each tab is a picture over its
-// word: a hanger for all of them, the Bit as it stands for its own, the Store's heart in pixels for
-// the supporters', the Bit wearing one item of that place for the others (what it wears there, else
-// what it owns, else the first on the list). The supporters' items have their own tab and show
-// elsewhere only once owned. A wide rail lays the tabs in even rows.
+// The tabs over the rail of the Bit's room (bit-companion/wardrobe.js): all the items, its own, then
+// how the others come (the supporters', the shop's for Sparks, the free ones), then each place on the
+// body that has something. Each tab is a picture over its word: a hanger for all of them, the Bit as
+// it stands for its own, the Store's heart for the supporters', the Spark for the shop, a parcel for
+// the free ones, the Bit wearing one item of that place for the others (what it wears there, else
+// what it owns, else the first on the list). Each way in has its own mark and colour on its tab and
+// under its cards, so a glance says what an item costs. The supporters' items show elsewhere only
+// once owned. A wide rail lays the tabs in even rows. A way-in tab opens with what its items are.
 (() => {
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const HANGER = ['.....##......', '....#..#.....', '.......#.....', '......#......', '....##.##....', '..##.....##..', '##.........##', '#############'];
   const HEART = ['.##...##.', '####.####', '#########', '#########', '.#######.', '..#####..', '...###...', '....#....'];
+  const PARCEL = ['..##.##..', '...#.#...', '#########', '#...#...#', '#########', '.#..#..#.', '.#..#..#.', '.#######.'];
+  const SPARK = ['....#....', '....#....', '...###...', '#########', '...###...', '....#....', '....#....'];
   const WHOLE = [-3, -5, 18, 16]; // the Bit from its hat to the floor
+  // How an item comes, in the order of the tabs: the ones to pay for first, as a shop shows them.
+  const WAYS = ['supporter', 'shop', 'free'];
+  const WAY_WORD = { supporter: 'mybit_group_supporter', shop: 'mybit_group_shop', free: 'mybit_tab_free' };
+
+  /** @param {{ source: string }} it @returns {'supporter'|'shop'|'free'} traits, seasons and the founders' are free */
+  const wayOf = (it) => (it.source === 'supporter' || it.source === 'shop' ? it.source : 'free');
 
   // A pixel glyph in the text's colour, centred in the same 17x16 box as the Bit's pictures.
   function glyph(rows) {
@@ -42,13 +52,26 @@
     return svg;
   }
 
+  // The mark of a way in: the Spark as the Store draws it, the others in pixels.
+  function mark(way) {
+    const spark = way === 'shop' && typeof window.XenonCredits?.spark === 'function' ? window.XenonCredits.spark({ still: true }) : null;
+    return spark?.namespaceURI === SVG_NS ? spark : glyph(way === 'supporter' ? HEART : way === 'shop' ? SPARK : PARCEL);
+  }
+
+  /** A free item's tag under its card: the parcel, then what brings it (its season, its trait). */
+  function freeTag(text, cls = '') {
+    const tag = makeEl('span', `broom-tag is-free ${cls}`.trim());
+    tag.append(mark('free'), makeEl('span', '', text));
+    return tag;
+  }
+
   /**
    * Whether a tab holds an item: the supporters' tab only theirs, which elsewhere show once owned.
    * @param {string} id the tab
    * @param {{ it: { source: string, slot: string }, owned: boolean }} e
    */
   function holds(id, e) {
-    if (id === 'supporter') return e.it.source === 'supporter';
+    if (WAYS.includes(id)) return wayOf(e.it) === id;
     if (id === 'mine') return e.owned;
     if (!e.owned && e.it.source === 'supporter') return false;
     return id === 'all' || e.it.slot === id;
@@ -65,7 +88,7 @@
   function list(entries, bit, W, say) {
     const tabs = [{ id: 'all', word: say('mybit_tab_all'), item: null }];
     if (entries.some((e) => e.owned)) tabs.push({ id: 'mine', word: say('mybit_mine'), item: null });
-    if (entries.some((e) => holds('supporter', e))) tabs.push({ id: 'supporter', word: say('mybit_group_supporter'), item: null });
+    for (const way of WAYS) if (entries.some((e) => holds(way, e))) tabs.push({ id: way, word: say(WAY_WORD[way]), item: null });
     const worn = new Set(Array.isArray(bit.worn) ? bit.worn : []);
     for (const slot of W.PLACES) {
       const here = entries.filter((e) => holds(slot, e));
@@ -80,7 +103,7 @@
   function picture(tab, bit, art) {
     if (tab.item) return art.thumb(bit, tab.item);
     if (tab.id === 'mine') return art.figure(window.BitApp?.dressed(bit.worn) || null, WHOLE);
-    return glyph(tab.id === 'supporter' ? HEART : HANGER);
+    return WAYS.includes(tab.id) ? mark(tab.id) : glyph(HANGER);
   }
 
   /**
@@ -96,7 +119,7 @@
     box.setAttribute('aria-label', o.label);
     box.style.setProperty('--broom-tab-cols', String(columnsOf(tabs.length)));
     for (const tab of tabs) {
-      const b = makeEl('button', tab.id === 'supporter' ? 'broom-tab is-supporter' : 'broom-tab');
+      const b = makeEl('button', WAYS.includes(tab.id) ? `broom-tab is-${tab.id}` : 'broom-tab');
       b.type = 'button';
       b.dataset.tab = tab.id;
       b.setAttribute('aria-pressed', String(tab.id === o.current));
@@ -112,5 +135,26 @@
     return box;
   }
 
-  window.BitTabs = { list, row, holds, moveArt };
+  /**
+   * A way-in tab opens with what its items are; the supporters' one offers the pass when this PC has
+   * none (a paired phone never: the pass is used on the PC). Null for the other tabs.
+   * @param {string} id the tab
+   * @param {{ say: (key: string) => string, signal: AbortSignal }} ctx
+   */
+  function intro(id, ctx) {
+    if (!WAYS.includes(id)) return null;
+    const note = makeEl('p', `broom-intro is-${id}`);
+    const head = makeEl('span', 'broom-intro-head');
+    head.append(mark(id), makeEl('span', '', ctx.say(WAY_WORD[id])));
+    note.append(head, makeEl('span', '', ctx.say(`mybit_group_${id}_line`)));
+    const join = id === 'supporter' && !window.RemoteSurface?.isRemote?.() ? window.BitKeep?.join?.(ctx) : null;
+    if (join) {
+      Promise.resolve(window.XenonCredits?.supporterSaved?.() ?? false).then((saved) => {
+        if (!saved && !ctx.signal.aborted) note.append(join);
+      }, () => {});
+    }
+    return note;
+  }
+
+  window.BitTabs = { list, row, holds, intro, freeTag, wayOf, moveArt };
 })();

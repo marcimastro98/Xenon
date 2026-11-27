@@ -290,8 +290,8 @@ test('the items: tabs by place on the body, the shop first with its prices; tryi
   r.tell(dressed());
   r.ctx.BitSheet.open();
   const tabs = r.sheet().querySelectorAll('.broom-tab');
-  assert.deepEqual(tabs.slice(0, 3).map((b) => b.textContent), ['mybit_tab_all', 'mybit_mine', 'mybit_group_supporter']);
-  assert.ok(tabs.slice(3).length >= 4 && tabs.slice(3).every((b) => /^mybit_slot_/.test(b.textContent)), 'then each place on the body');
+  assert.deepEqual(tabs.slice(0, 5).map((b) => b.textContent), ['mybit_tab_all', 'mybit_mine', 'mybit_group_supporter', 'mybit_group_shop', 'mybit_tab_free'], 'then each way they come');
+  assert.ok(tabs.slice(5).length >= 4 && tabs.slice(5).every((b) => /^mybit_slot_/.test(b.textContent)), 'then each place on the body');
   assert.equal(tabs[0].getAttribute('aria-pressed'), 'true');
 
   const cards = r.sheet().querySelectorAll('.broom-card');
@@ -540,6 +540,19 @@ test('the own Bit keeps its look on its places even with the classic Bit chosen 
   assert.equal(r.ctx.BitApp.own(), null, 'the rest of the app is classic');
   assert.ok(r.ctx.BitApp.personal(), 'the companion still has its own look');
   assert.ok(r.ctx.BitApp.director(), 'and its own rhythm');
+});
+
+test("the bubbles Bit talks from wear its body colour, the classic Bit the theme's green", () => {
+  const r = rig();
+  const tint = () => r.document.documentElement.style._props['--bit-body'];
+  r.tell(born());
+  assert.match(tint(), /^#[0-9a-f]{6}$/i);
+  assert.equal(tint(), r.ctx.BitApp.look().body, 'the chat, the search window and the game card read it (bit-floor no longer paints)');
+  r.tell(born({ classic: true }, { everywhere: false }));
+  assert.equal(tint(), undefined, 'the classic Bit chosen for the app takes it off');
+  for (const css of ['components/AIPanel/AIPanelConversation.css', 'components/GameCompanion/GameCompanion.css']) {
+    assert.ok(src(css).includes('--bit-tint: var(--bit-body, var(--bit-action, #6ee787))'), css);
+  }
 });
 
 // A tile of the dashboard, as index.html holds it.

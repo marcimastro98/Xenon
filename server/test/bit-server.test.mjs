@@ -7,6 +7,7 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
 const Model = require('../bit/model.js');
@@ -187,6 +188,20 @@ test('GET /api/bit writes the egg once and tells whether it hatched', async (t) 
   assert.equal(r.bit.founder, false);
   assert.equal(h.asked(), true, 'the fresh start was handed to the founder test');
   assert.equal(h.store.onDisk(), true);
+});
+
+// Pump Bit drew the classic Bit on a real PC: the reader was tested on the view alone, while
+// the route answers { ok, bit: view }. This runs the route's own answer through it.
+test('a widget draws the hatched Bit from what GET /api/bit really answers', async (t) => {
+  const h = harness(t);
+  await h.call('POST /api/bit/hatch');
+  const answer = JSON.parse(JSON.stringify(await h.call('GET /api/bit')));
+  const window = {};
+  const src = new URL('../js/custom-widget/stream-readers.js', import.meta.url);
+  vm.runInNewContext(readFileSync(src, 'utf8'), { window });
+  const seen = window.CustomWidgetStreamReaders.bit(answer);
+  assert.equal(seen.hatched, true);
+  assert.equal(seen.genes.palette, answer.bit.genes.palette);
 });
 
 test('hatch, wear and name through the routes; bad bodies are refused', async (t) => {

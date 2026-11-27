@@ -73,7 +73,8 @@
   // A hub item it wears (server/bit/items.js, already checked there), as the kit draws it: no names, no price.
   const drawn = (it) => ({ id: it.id, slot: it.slot, source: it.source, month: it.month, price: it.price, layers: it.layers });
 
-  function bit(d, played, signal) {
+  function bit(answer, played, signal) {
+    const d = answer?.bit; // the route answers { ok, bit }
     if (!d || typeof d !== 'object' || d.ok !== true) return { ok: false, error: 'failed' };
     const g = d.genes && typeof d.genes === 'object' ? d.genes : null;
     if (d.hatched !== true || !g || GENES.some((k) => !ID.test(g[k]))) return { ok: true, hatched: false, stage: 'egg' };
@@ -96,5 +97,17 @@
     };
   }
 
-  window.CustomWidgetStreamReaders = { netPath, airflow, bit };
+  // The home log (server/smart-home/home-events.js, GET /api/home/events): what happened, where and
+  // when (ms), newest first. Never a picture or who; log_off when the person switched it off.
+  const HOME_KINDS = ['ring', 'person', 'vehicle', 'package', 'animal', 'opened'];
+
+  function homeEvents(d) {
+    if (!d || typeof d !== 'object' || d.ok !== true) return { ok: false, error: d && d.error === 'log_off' ? 'log_off' : 'failed' };
+    const events = (Array.isArray(d.events) ? d.events : []).slice(0, 30)
+      .filter((e) => e && one(e.kind, HOME_KINDS) && num(e.at) != null)
+      .map((e) => ({ kind: e.kind, place: typeof e.place === 'string' ? e.place.slice(0, 80) : '', at: e.at }));
+    return { ok: true, events };
+  }
+
+  window.CustomWidgetStreamReaders = { netPath, airflow, bit, homeEvents };
 })();

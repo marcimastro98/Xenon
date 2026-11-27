@@ -16,7 +16,7 @@ const SERVER = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 const BIT_ENGINE = require('./fixtures/bit-engine.json');
 const src = (p) => readFileSync(join(SERVER, p), 'utf8');
-const ROOM = ['wardrobe-keep', 'wardrobe-tabs', 'wardrobe', 'card-dna', 'card', 'recap', 'clip', 'room-scenery', 'room-panels', 'room'];
+const ROOM = ['wardrobe-keep', 'wardrobe-tabs', 'wardrobe', 'card-dna', 'card', 'recap', 'clip', 'room-scenery', 'room-panels', 'room', 'store-band'];
 const FILES = [...BIT_ENGINE, 'js/ai/bit-app.js', ...ROOM.map((f) => `js/bit-companion/${f}.js`)];
 // The supporters' items come with the view, as the hub made them (server/bit/items.js).
 const HUB_ITEMS = require('./fixtures/bit-hub-items.json').map((it) => ({ ...it, offered: true }));
@@ -250,7 +250,7 @@ test("the rail's tabs: a picture of this Bit over each word, a place shown by wh
   assert.deepEqual(tabs.slice(0, 2).map((b) => b.dataset.tab), ['all', 'mine']);
   for (const b of tabs) {
     assert.ok(b.querySelector('.broom-tab-art svg rect'), `${b.dataset.tab}: a picture`);
-    assert.match(b.querySelector('.broom-tab-word').textContent, /^mybit_(tab_all|mine|group_supporter|slot_\w+)$/);
+    assert.match(b.querySelector('.broom-tab-word').textContent, /^mybit_(tab_all|mine|group_(supporter|shop)|tab_free|slot_\w+)$/);
   }
   const n = tabs.length;
   assert.equal(r.view.querySelector('.broom-tabs').style.getPropertyValue('--broom-tab-cols'), String(Math.ceil(n / Math.ceil(n / 4))), 'even rows on a wide rail, four across at most');
@@ -286,4 +286,143 @@ test('the share drawer: one choice on top, then only what it makes; its page on 
   assert.deepEqual(opened.map((o) => o.source), ['setup']);
   r.view.querySelector('.broom-top .broom-tools .broom-icon').click();
   assert.ok(r.view.querySelector('.broom-drawer .bitc-site input'), 'its page on the site, in its settings');
+});
+
+test('the ways in: supporters, shop and free each have a tab, a mark and a colour, and open with what they are', async (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-10T12:00:00Z') });
+  const r = rig();
+  r.tell(born({ owned: ['cap'], seasons: ['winter'] }));
+  r.ctx.Xenon.constants = { supportUrl: (source) => `https://example.com/support?src=${source}` };
+  let saved = false;
+  r.ctx.XenonCredits = { supporterSaved: async () => saved };
+  r.open();
+  const ids = r.view.querySelectorAll('.broom-tab').map((b) => b.dataset.tab);
+  assert.deepEqual(ids.slice(0, 5), ['all', 'mine', 'supporter', 'shop', 'free'], 'what it costs, right after its own');
+  for (const way of ['supporter', 'shop', 'free']) {
+    assert.ok(r.tab(way).classList.contains(`is-${way}`) && r.tab(way).querySelector('svg rect'), `${way}: its mark`);
+  }
+  const W = r.ctx.Xenon.bitWardrobe;
+  r.tab('shop').click();
+  const shop = r.view.querySelectorAll('.broom-card[data-item]');
+  assert.ok(shop.length && shop.every((c) => W.item(c.dataset.item).source === 'shop'), 'only the Sparks ones, owned or not');
+  assert.equal(r.view.querySelector('.broom-intro.is-shop').textContent, 'mybit_group_shopmybit_group_shop_line');
+  r.tab('free').click();
+  const free = r.view.querySelectorAll('.broom-card[data-item]');
+  assert.ok(free.length && free.every((c) => ['trait', 'season', 'founder'].includes(W.item(c.dataset.item).source)), 'only what costs nothing');
+  assert.ok(r.card('scarf').querySelector('.broom-tag.is-free svg rect'), 'the parcel under a free card');
+  assert.equal(r.card('scarf').querySelector('.broom-tag').textContent, 'mybit_season_winter');
+  r.tab('supporter').click();
+  await settle();
+  const join = r.view.querySelector('.broom-intro.is-supporter a.broom-btn');
+  assert.ok(join, 'no pass on this PC: the way to get one');
+  assert.equal(join.dataset.supportSource, 'bit-wardrobe');
+  saved = true;
+  r.tab('all').click();
+  r.tab('supporter').click();
+  await settle();
+  assert.equal(r.view.querySelector('.broom-intro.is-supporter a'), null, 'a supporter is not asked again');
+  const css = src('components/BitCompanion/BitCompanion.css');
+  assert.match(css, /\.broom-tag\.is-free > svg, \.broom-intro\.is-free svg, \.broom-tab\.is-free \.broom-tab-art \{ color: var\(--broom-free\); \}/);
+  assert.match(css, /\.broom-price \{[^}]*color: var\(--text\);/, "brass is the supporters' colour only");
+});
+
+test("a paired phone is never offered the pass, and the Store's band opens the room on the supporters' tab", async (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-10T12:00:00Z') });
+  const r = rig();
+  r.tell(born());
+  r.ctx.Xenon.constants = { supportUrl: () => 'https://example.com/support' };
+  r.ctx.RemoteSurface = { isRemote: () => true };
+  r.open();
+  r.tab('supporter').click();
+  await settle();
+  assert.equal(r.view.querySelector('.broom-intro a'), null, 'the pass is used on the PC');
+
+  const views = [];
+  const band = r.ctx.BitStoreBand.band({ goView: (id) => { views.push(id); r.open(); } });
+  assert.ok(band.querySelector('.cst-bit-art svg rect'), 'its own Bit wearing it');
+  assert.equal(band.querySelector('.cst-bit-words b').textContent, 'mybit_band_title');
+  assert.ok(band.querySelector('.broom-tag.is-supporter svg path'), 'the heart, as on the card');
+  assert.ok(band.querySelector('.cst-key.cst-bit-go'), 'one key, as the Store draws them');
+  band.click();
+  assert.deepEqual(views, ['__bit']);
+  assert.equal(r.tab('supporter').getAttribute('aria-pressed'), 'true', 'the room opens on that tab');
+  assert.deepEqual(Array.from(r.ctx.BitWardrobe.tried(), (it) => it.id), ['crown'], 'with the item already on its Bit');
+  r.open();
+  assert.equal(r.tab('all').getAttribute('aria-pressed'), 'true', 'once: the next visit starts from all');
+});
+
+test("the Store's band: this month's item only, never next month's, gone once owned or with no Bit yet", (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-10T12:00:00Z') });
+  const r = rig();
+  const { current } = r.ctx.BitStoreBand;
+  const at = (iso) => new Date(iso);
+  const items = [
+    { id: 'a', source: 'supporter', month: '2026-11' }, { id: 'b', source: 'supporter', month: '2026-12' },
+    { id: 'c', source: 'supporter', month: '2027-01' }, { id: 'd', source: 'shop' },
+  ];
+  assert.equal(current(items, at('2026-12-10T12:00:00Z')).id, 'b');
+  assert.equal(current(items, at('2026-11-30T12:00:00Z')).id, 'a');
+  assert.equal(current([{ ...items[1], offered: false }], at('2026-12-10T12:00:00Z')), null, 'one taken off the hub');
+  assert.equal(current(items.slice(2), at('2026-12-10T12:00:00Z')), null);
+  r.tell(born({ owned: ['cap', 'crown'] }));
+  assert.equal(r.ctx.BitStoreBand.band({ goView() {} }), null, 'owned: nothing to offer');
+  r.tell({ ok: true, hatched: false });
+  assert.equal(r.ctx.BitStoreBand.band({ goView() {} }), null, 'an egg');
+  const gallery = src('js/community-gallery/community-gallery.js');
+  assert.equal((gallery.match(/window\.BitStoreBand\?\.band\(\{ goView \}\)/g) || []).length, 1, 'on the Supporters view');
+  assert.equal((gallery.match(/window\.BitStoreBand\?\.shelf\(\{ goView, shelf \}\)/g) || []).length, 1, "the home's supporters stage has the shelf");
+});
+
+test("the Store's Bit shelf: this month's supporters' item first, then the shop's in a new order each day, never what it owns", (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['Date'], now: new Date('2026-12-10T12:00:00Z') });
+  const r = rig();
+  const { offered } = r.ctx.BitStoreBand;
+  const items = [
+    { id: 'n', source: 'supporter', month: '2027-01' }, { id: 's', source: 'supporter', month: '2026-12' },
+    ...['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, source: 'shop', price: 50 })), { id: 'g', source: 'shop', offered: false },
+    { id: 'w', source: 'season' }, { id: 't', source: 'trait' },
+  ];
+  const day = (iso, owned = []) => Array.from(offered(items, owned, new Date(iso)), (it) => it.id);
+  const today = day('2026-12-10T12:00:00Z');
+  assert.equal(today[0], 's', "this month's supporters' item leads");
+  assert.deepEqual([...today].sort(), ['a', 'b', 'c', 'd', 'e', 'f', 's'], 'only what can be kept: no next month, no free item, none taken off');
+  assert.deepEqual(day('2026-12-10T20:00:00Z'), today, 'the same order all day');
+  const days = new Set(['11', '12', '13', '14'].map((d) => day(`2026-12-${d}T09:00:00Z`).join()));
+  assert.ok(days.size > 1, 'another order on other days');
+  assert.deepEqual(day('2026-12-10T12:00:00Z', ['s', 'a']).filter((id) => id === 's' || id === 'a'), [], 'never what it owns');
+  assert.equal(offered(items, [], new Date('2026-12-10T12:00:00Z'), 3).length, 3);
+
+  r.tell(born());
+  const views = [];
+  let built = null;
+  const fakeShelf = (title, list, opts) => {
+    built = { title, list, opts };
+    const wrap = r.ctx.document.createElement('section');
+    list.forEach((it) => wrap.appendChild(opts.card(it)));
+    return wrap;
+  };
+  const shelf = r.ctx.BitStoreBand.shelf({ goView: (id) => { views.push(id); r.open(); }, shelf: fakeShelf });
+  assert.ok(shelf.classList.contains('is-bit'));
+  assert.equal(built.title, 'mybit_title');
+  assert.equal(built.opts.more, '__bit', 'see all opens the Bit');
+  assert.equal(built.opts.lead, 'mybit_store_lead');
+  assert.ok(built.list.length > 1 && built.list.length <= 10);
+  const cards = [...shelf.querySelectorAll('.cst-bit-card')];
+  assert.equal(cards[0].dataset.item, 'crown');
+  assert.ok(cards[0].classList.contains('is-supporter') && cards[0].querySelector('.broom-tag.is-supporter svg'), "the supporters' card, with the heart");
+  const shop = cards.find((c) => c.classList.contains('is-shop'));
+  assert.ok(shop.querySelector('.cst-bit-art svg rect') && shop.querySelector('.broom-price'), 'the Bit wearing it, and its price');
+  assert.ok(shop.style.getPropertyValue('--bit-wall'), "the card takes the Bit's stage colours");
+  shop.click();
+  assert.deepEqual(views, ['__bit']);
+  assert.equal(r.tab('shop').getAttribute('aria-pressed'), 'true', 'the room opens on the shop');
+  assert.deepEqual(Array.from(r.ctx.BitWardrobe.tried(), (it) => it.id), [shop.dataset.item], 'with that item already on its Bit');
+  r.tell({ ok: true, hatched: false });
+  assert.equal(r.ctx.BitStoreBand.shelf({ goView() {}, shelf: fakeShelf }), null, 'an egg has no shelf');
+  const css = src('components/CommunityStore/CommunityStoreSupporters.css');
+  assert.match(css, /\.cst-stage \.cst-shelf\.is-bit \.cst-row \{ --cols: var\(--cst-bit-cols, 6\); \}/);
 });

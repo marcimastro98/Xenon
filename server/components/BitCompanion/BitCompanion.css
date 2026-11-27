@@ -15,6 +15,8 @@ html:not(.is-phone) .bitc-sprite { touch-action: none; }
 .bitc.is-dragging .bitc-sprite { cursor: grabbing; }
 body[data-panel] .bitc,
 body.layout-editing .bitc { display: none; }
+/* Over a chat, where Bit already stands by the composer (js/ai/bit-floor.js). */
+body.bit-chat-under-corner .bitc { visibility: hidden; }
 /* On a phone PhoneViewDock.css lifts it over the dock and the ticker. */
 html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: calc(52px + var(--bitc-fy, 0) * (100dvh - 126px)); }
 
@@ -108,8 +110,10 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: calc(52p
 .broom-tick b { color: var(--broom-text); font-weight: 600; }
 
 /* The rail: tabs and its Sparks, then a card per item with the Bit wearing it. It is the stalls of the same
-   theatre, so it takes the stage's colours whatever the theme. */
+   theatre, so it takes the stage's colours whatever the theme. Each way an item comes has its colour: brass
+   for the supporters', the Spark's own for the shop, green for the free ones. */
 .broom-side {
+  --broom-free: color-mix(in oklab, var(--color-success, #45d483) 78%, var(--broom-text));
   --text: var(--broom-text); --muted-text: var(--broom-muted); --line: var(--broom-seam);
   --control-bg: color-mix(in oklab, var(--broom-text) 9%, var(--broom-wall));
   min-width: 0; min-height: 0; background: color-mix(in oklab, var(--broom-wall) 80%, black); color: var(--text); border-top: 1px solid var(--line);
@@ -147,7 +151,12 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: calc(52p
 .broom-card[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--broom-brass); }
 .broom-tag { font-size: 12px; font-weight: 600; color: var(--muted-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .broom-tag.is-owned { color: color-mix(in oklab, var(--color-success, #45d483) 60%, var(--text)); }
-.broom-tag.is-trait { display: grid; gap: 4px; }
+/* A free item's tag: the parcel in green, then its season or trait (and how far the trait is). */
+.broom-tag.is-free { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 5px; color: var(--muted-text); }
+.broom-tag.is-free > span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.broom-tag.is-free > svg, .broom-intro.is-free svg, .broom-tab.is-free .broom-tab-art { color: var(--broom-free); }
+.broom-tag.is-free > svg { flex: none; width: 13px; height: 13px; }
+.broom-tag.is-trait .bitc-bar { flex-basis: 100%; }
 /* Supporters' items: a brass card with the Store's heart; the one still to come is blurred until its day. */
 .broom-card.is-supporter { background: var(--broom-brass); color: var(--broom-wall); }
 .broom-card.is-supporter[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--broom-text); }
@@ -161,12 +170,17 @@ html:not(.is-phone) body.xe-has-ticker.xe-ticker-bottom .bitc { bottom: calc(52p
 .broom-card.is-soon .broom-tag.is-supporter span { white-space: normal; }
 .broom-card[aria-disabled='true'] { cursor: default; }
 .broom-tab.is-supporter .broom-tab-art { color: var(--broom-brass); }
+.broom-tab-art .xspark { width: 60%; height: 60%; } /* the Spark fills its box; the pixel marks sit in a 17x16 one */
 /* The supporters' tab opens with what their items are: one a month, theirs for good. */
 .broom-intro { flex: none; display: grid; align-content: center; gap: 6px; width: 200px; margin: 0; padding: 0 6px; font-size: 13px; line-height: 1.35; scroll-snap-align: start; }
-.broom-intro .broom-tag.is-supporter { color: var(--broom-brass); }
+.broom-intro-head { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.broom-intro-head svg { flex: none; width: 16px; height: 16px; }
+.broom-intro.is-supporter .broom-intro-head { color: var(--broom-brass); }
+.broom-intro .broom-btn { justify-self: start; margin-top: 4px; }
+.broom:has(.broom-keep [data-support-source]) .broom-intro [data-support-source] { display: none; } /* one way to the pass on screen */
 .broom-price {
   display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
-  color: var(--broom-brass);
+  color: var(--text);
 }
 .broom-price .xspark, .broom-btn svg { width: 16px; height: 16px; flex: none; }
 .broom-btn .broom-price { color: inherit; }

@@ -26,7 +26,7 @@ const SEED = '0123456789abcdef';
 const TYPES = ['bitGet', 'bitReact', 'bitPlace', 'bitDesk', 'bitWarp', 'bitWear', 'bitRename'];
 const NOW = new Date(2026, 11, 3, 12);
 
-function setup({ hatched = true, extra = {} } = {}) {
+function setup({ hatched = true, extra = {}, publish = null } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'bit-actions-'));
   if (hatched !== null) {
     const egg = Model.normalize({ eggAt: '2026-01-01T00:00:00.000Z' });
@@ -36,7 +36,7 @@ function setup({ hatched = true, extra = {} } = {}) {
   }
   const sent = [];
   const store = createBitStore({ dataDir: dir });
-  const actions = createBitActions({ store, broadcast: (event, data) => sent.push({ event, data }), now: () => NOW, random: () => 0 });
+  const actions = createBitActions({ store, broadcast: (event, data) => sent.push({ event, data }), now: () => NOW, random: () => 0, publish });
   return { actions, sent, store, done: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
@@ -142,5 +142,20 @@ test('place and name go through the model\'s rules; the answer has no seed', asy
     assert.equal(got.bit.number, 7);
     assert.equal(JSON.stringify(got).includes(SEED), false, 'the seed stays on the PC');
     for (const t2 of got.bit.traits) assert.deepEqual(Object.keys(t2).sort(), ['earned', 'id', 'item', 'progress']);
+  } finally { t.done(); }
+});
+
+test('a new name from the chat goes to its public page; a place on the screen does not', async () => {
+  let refreshed = 0;
+  const t = setup({ publish: { refresh: async () => { refreshed += 1; return true; } } });
+  try {
+    await t.actions.run({ type: 'bitPlace', place: Catalog.PLACES.find((p) => p !== (t.store.peek()?.prefs?.place)) });
+    assert.equal(refreshed, 0);
+    await t.actions.run({ type: 'bitRename', name: 'Pixel' });
+    await new Promise((ok) => setImmediate(ok));
+    assert.equal(refreshed, 1);
+    assert.equal(t.sent.filter((e) => e.event === 'bit').length >= 2, true, 'the page taken down by the hub is told to every surface');
+    await t.actions.run({ type: 'bitRename', name: 'Pixel' });
+    assert.equal(refreshed, 1, 'the same name again sends nothing');
   } finally { t.done(); }
 });

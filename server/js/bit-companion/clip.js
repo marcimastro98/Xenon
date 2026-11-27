@@ -19,6 +19,7 @@
   const FPS = 30;
   const BITRATE = 6e6;
   const MIN_MS = 6000;
+  const STALL_MS = 3000; // past the clip's length by this much, no frame is being drawn
   // MP4 first: it is what every app takes; WebM where the browser records nothing else.
   const TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
   const FILL = ['hop', 'spin', 'dance'];
@@ -160,17 +161,23 @@
       stopped.catch(() => { failed = true; });
       rec.start();
       const t0 = performance.now();
+      // A hidden page draws no frame: the recording ends as failed instead of waiting for the page to come back.
+      let stalled = false;
+      let guard = 0;
       await new Promise((resolve) => {
+        guard = setTimeout(() => { stalled = true; resolve(); }, total + STALL_MS);
         const tick = () => {
           const t = performance.now() - t0;
-          if (t >= total || signal.aborted || failed) { resolve(); return; }
+          if (t >= total || signal.aborted || failed || stalled) { resolve(); return; }
           paintAt(t);
           requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
       });
+      clearTimeout(guard);
       if (rec.state !== 'inactive') rec.stop();
       await stopped;
+      if (stalled) throw new Error('record_failed');
       if (signal.aborted) throw new Error('aborted');
       if (!chunks.length) throw new Error('record_failed');
       return new Blob(chunks, { type: type.split(';')[0] });

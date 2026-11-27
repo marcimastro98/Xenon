@@ -287,7 +287,7 @@
   }
 
   window.BitKeep = {
-    listed, name, line, how, bar, firstDay, soon, tag,
+    listed, name, line, how, bar, firstDay, soon, tag, join: joinLink,
     /** The room closed: the next one asks the PC again. */
     reset: () => { pass = null; copies.clear(); },
   };

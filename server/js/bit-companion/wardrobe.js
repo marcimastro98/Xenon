@@ -1,6 +1,6 @@
 'use strict';
 // The items of the person's own Bit, as the rail of its room (bit-companion/room.js): tabs for all
-// of them, its own, the supporters' and each place on the body (wardrobe-tabs.js), then one card per
+// of them, its own, each way they come and each place on the body (wardrobe-tabs.js), then one card per
 // item with the Bit wearing it. A tap on an item it owns puts it on or takes it off (POST /api/bit/wear);
 // a tap on any other tries it on the big Bit for free, one per place on the body, until it is kept
 // (bit-companion/wardrobe-keep.js) or taken off; next month's supporters' item is only shown, blurred.
@@ -15,6 +15,7 @@
   let tried = []; // ids tried on the big Bit, one per place on the body, until kept or taken off
   let look = null; // the look the big Bit wears while something is tried on
   let tab = 'all';
+  let startOn = null; // the tab the next rail opens on (the Store's supporters' band), kept through a reset
   let busy = false;
   let shown = null; // the list of cards on screen, marked again when a try-on changes
   const thumbs = new Map(); // seed|item → drawing, cloned for each card
@@ -122,10 +123,10 @@
   function footOf(it, owned, bit, ctx) {
     if (owned) return makeEl('span', 'broom-tag is-owned', ctx.say('mybit_shelf_owned'));
     if (it.source === 'shop') return priceTag(it, ctx);
-    if (it.source === 'season') return makeEl('span', 'broom-tag', ctx.say(`mybit_season_${it.season}`));
+    if (it.source === 'season') return window.BitTabs.freeTag(ctx.say(`mybit_season_${it.season}`));
     if (it.source === 'trait') {
       const tr = (Array.isArray(bit.traits) ? bit.traits : []).find((x) => x.item === it.id);
-      const foot = makeEl('span', 'broom-tag is-trait', tr ? ctx.say(`mybit_trait_${traitKey(tr.id)}`) : '');
+      const foot = window.BitTabs.freeTag(tr ? ctx.say(`mybit_trait_${traitKey(tr.id)}`) : '', 'is-trait');
       const bar = makeEl('span', 'bitc-bar');
       bar.style.setProperty('--bitc-fill', String(Math.max(0, Math.min(1, Number(tr?.progress) || 0))));
       foot.append(bar);
@@ -225,19 +226,13 @@
     return btn;
   }
 
-  // The supporters' tab opens with what their items are.
-  function supporterNote(ctx) {
-    const note = makeEl('p', 'broom-intro');
-    note.append(window.BitKeep?.tag({ source: 'supporter' }, ctx) || '', makeEl('span', '', ctx.say('mybit_group_supporter_line')));
-    return note;
-  }
-
   function fillList(list, entries, bit, ctx) {
     const shown = entries.filter((e) => window.BitTabs.holds(tab, e));
     const shopLeft = entries.filter((e) => !e.owned && e.it.source === 'shop').length;
     const cards = shown.map((e) => card(e, bit, ctx));
     if (tab === 'all' && shopLeft > 1) cards.unshift(randomCard(bit, ctx));
-    if (tab === 'supporter') cards.unshift(supporterNote(ctx));
+    const note = window.BitTabs.intro(tab, ctx);
+    if (note) cards.unshift(note);
     list.replaceChildren(...cards);
     const at = scrolled.get(tab);
     queueMicrotask(() => { list.scrollLeft = at?.left || 0; list.scrollTop = at?.top || 0; });
@@ -260,6 +255,7 @@
     look = tried.length ? window.BitApp?.dressed([...bit.worn, ...tried]) || null : null;
     const entries = entriesOf(bit, W);
     const tabs = window.BitTabs.list(entries, bit, W, ctx.say);
+    if (startOn) [tab, startOn] = [startOn, null];
     if (!tabs.some((t) => t.id === tab)) tab = 'all';
     const box = makeEl('section', 'broom-rail');
     box.setAttribute('aria-label', ctx.say('mybit_wardrobe'));
@@ -293,6 +289,8 @@
       tried = ids ? tried.filter((id) => !ids.includes(id)) : [];
       restyle(bit, ctx, null);
     },
+    /** The next room opens on this tab (the Store's supporters' band). */
+    openOn: (id) => { startOn = id; },
     /** The room closed: nothing stays tried on. */
     reset: () => { tried = []; look = null; tab = 'all'; shown = null; thumbs.clear(); scrolled.clear(); window.BitKeep?.reset(); },
   };

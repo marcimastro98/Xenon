@@ -383,12 +383,11 @@ test('inside the Game Companion card Bit waits, looks at the screen, answers and
   ctx.fetch = async (url) => (url === '/network' ? { json: async () => ({}) } : reply);
   vm.runInContext(read('../js/game-companion/game-companion.js'), ctx, { filename: 'game-companion.js' });
   const head = () => ctx.BitApp.playerFor(els['gc-bit']);
-  const pose = (clipId, tint) => ctx.BitApp.still(clipId, 18, tint);
 
   ctx.GameCompanion.openOverlay();
   assert.equal(els['gc-insight'].textContent, 'gc_waiting');
   assert.equal(head().mood, 'idle');
-  assert.equal(els['gc-reply-bit'].innerHTML, pose('idle'));
+  assert.equal(els['gc-reply-bit'], undefined, 'one live Bit: no still pose painted by the answer');
   // the card is in front while open: game mode does not stop this Bit, the low-GPU choices do
   const holds = [];
   const real = head().setPace.bind(head());
@@ -402,18 +401,15 @@ test('inside the Game Companion card Bit waits, looks at the screen, answers and
   head().play = (id) => { played.push(id); return realPlay(id); };
   const looking = ctx.GameCompanion.analyze();
   assert.equal(head().mood, 'think');
-  assert.equal(els['gc-reply-bit'].innerHTML, pose('think', 'think'));
   await looking;
   assert.equal(els['gc-insight'].textContent, 'Prendi la torre a nord.');
   assert.equal(head().mood, 'idle', 'a nod, then back to waiting');
   assert.deepEqual(played, ['nod']);
-  assert.equal(els['gc-reply-bit'].innerHTML, pose('happy', 'done'));
 
   reply = { ok: false, json: async () => ({ error: 'x' }) };
   await ctx.GameCompanion.analyze();
   assert.equal(els['gc-insight'].textContent, 'gc_error');
   assert.equal(head().mood, 'worry');
-  assert.equal(els['gc-reply-bit'].innerHTML, pose('worry'));
 
   // an AI that cannot see, or no Sparks left: said in words, Bit worried
   reply = { ok: false, json: async () => ({ error: 'no_vision' }) };
@@ -432,25 +428,23 @@ test('inside the Game Companion card Bit waits, looks at the screen, answers and
   await ctx.GameCompanion.analyze();
   assert.equal(els['gc-insight'].textContent, 'gc_need_key');
   assert.equal(head().mood, 'worry');
-  assert.equal(els['gc-reply-bit'].innerHTML, pose('worry'));
-  // reopened, the card shows the Bit of the answer it still holds
+  // reopened, Bit keeps the mood of the answer the card still holds
   ctx.GameCompanion.closeOverlay();
-  els['gc-reply-bit'].innerHTML = '';
   ctx.GameCompanion.openOverlay();
-  assert.equal(els['gc-reply-bit'].innerHTML, pose('worry'));
-  assert.equal(els['gc-bit'].children.length, 1, 'one Bit in the head, mounted once');
+  assert.equal(head().mood, 'worry');
+  assert.equal(els['gc-bit'].children.length, 1, 'one Bit at the foot, mounted once');
 });
 
-test('the Game Companion card is Bit: a name, the game, the answer beside Bit', () => {
+test('the Game Companion card is Bit: a name, the game, the answer in a bubble over Bit', () => {
   const html = read('../index.html');
   const card = html.slice(html.indexOf('id="gc-overlay"'), html.indexOf('id="gc-analyze"'));
   assert.match(card, /id="gc-bit"/);
   assert.match(card, /class="gc-name">Bit</);
-  assert.match(card, /id="gc-reply-bit"/);
+  assert.doesNotMatch(card, /id="gc-reply-bit"/);
   assert.doesNotMatch(card, /🎮|style="/);
   // the card itself: theme colours, no glow or pulse (the pill keeps its own look)
   const css = read('../components/GameCompanion/GameCompanion.css');
-  assert.doesNotMatch(css.slice(css.indexOf('.gc-card {')), /gradient|@keyframes|animation/);
+  assert.doesNotMatch(css.slice(css.indexOf('.gc-card {')).replace('linear-gradient(var(--bit-fill) 0 0)', ''), /gradient|@keyframes|animation/);
   const i18n = appStringsSource();
   for (const key of ['gc_ask_placeholder']) {
     const all = strings(i18n, key);

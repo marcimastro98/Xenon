@@ -123,10 +123,12 @@ test('a language change rebuilds a shown welcome in the new words and leaves a t
   const words = { bit_welcome_line: 'one', bit_start_label: 'l' };
   let shown = null;
   let mirrored = 0;
+  let held = '';
   const ctx = {
     document: { createElement: make, addEventListener() {}, querySelector: () => shown },
     t: (k) => words[k] || k, mirrorChatCopies: () => { mirrored++; }, console,
     requestAnimationFrame() {},
+    BitFloor: { hold: (text) => { held = text; } },
   };
   ctx.window = ctx;
   vm.runInNewContext(read('../js/ai/bit-welcome.js'), ctx);
@@ -136,16 +138,16 @@ test('a language change rebuilds a shown welcome in the new words and leaves a t
   shown = { replaceWith(n) { fresh = n; } };
   words.bit_welcome_line = 'two';
   assert.equal(ctx.BitWelcome.refresh(), true);
-  const line = fresh.children.find((c) => c.className === 'bit-welcome-line');
-  assert.equal(line.textContent, 'two');
+  assert.ok(fresh.children.some((c) => c.className === 'bit-starters'), 'the starters are drawn again');
+  assert.match(held, / two$/, "Bit's bubble says the hello in the new words");
   assert.equal(mirrored, 1, 'the chat copies follow');
   assert.match(appStringsSource(), /if \(window\.BitWelcome\) window\.BitWelcome\.refresh\(\);/);
 });
 
 // The empty chat must never scroll (he saw it scroll on a short tile, 7 Nov 2026).
-// A stand-in log: each part of the welcome takes this much room, in the order
-// the fit drops them; 'welcome' is what is left (one starter and the padding).
-const PARTS = { face: 66, line: 50, title: 30, starter3: 54, starter2: 54, welcome: 74 };
+// A stand-in log: each starter takes this much room, in the order the fit drops
+// them; 'welcome' is what is left (one starter and the padding).
+const PARTS = { starter4: 54, starter3: 54, starter2: 54, welcome: 74 };
 function fakeLog(clientHeight, { welcome = true, connected = true } = {}) {
   return {
     isConnected: connected, clientHeight, dataset: {},
@@ -170,27 +172,25 @@ function fitSandbox(logs) {
   return { fit: ctx.BitWelcome.fit, frames };
 }
 
-test('a short log drops the face, the line, the hello, then starters, and keeps what fits', () => {
-  const heights = [400, 300, 230, 190, 140, 80, 40];
+test('a short log drops the starters from the last and keeps what fits', () => {
+  const heights = [400, 220, 170, 120, 40];
   const logs = heights.map((h) => fakeLog(h));
   const { fit, frames } = fitSandbox(logs);
   fit();
   frames.shift()();
   assert.deepEqual(logs.map((l) => l.dataset.welcomeFit), [
     '',
-    'face',
-    'face line',
-    'face line title',
-    'face line title starter3',
-    'face line title starter3 starter2',
-    'face line title starter3 starter2 welcome',
+    'starter4',
+    'starter4 starter3',
+    'starter4 starter3 starter2',
+    'starter4 starter3 starter2 welcome',
   ]);
   for (const log of logs) assert.ok(log.scrollHeight <= log.clientHeight, `${log.clientHeight}px scrolls`);
 });
 
 test('the fit leaves a talk, a hidden log and a removed copy alone, and runs once a frame', () => {
   const talk = fakeLog(100, { welcome: false });
-  talk.dataset.welcomeFit = 'face line';
+  talk.dataset.welcomeFit = 'starter4 starter3';
   const hidden = fakeLog(0);
   const gone = fakeLog(100, { connected: false });
   const { fit, frames } = fitSandbox([talk, hidden, gone]);
@@ -206,16 +206,20 @@ test('the fit leaves a talk, a hidden log and a removed copy alone, and runs onc
 });
 
 test('every part the fit names is hidden by its own rule, and the old two-height query is gone', () => {
-  const css = read('../components/MediaPanel/MediaPanel.css');
-  assert.doesNotMatch(css, /container: bitlog/);
+  // The chat's own sheet, so every window with the chat has it (the search window loads no MediaPanel.css).
+  const css = read('../components/AIPanel/AIPanelReplies.css');
+  const media = read('../components/MediaPanel/MediaPanel.css');
+  assert.doesNotMatch(css + media, /container: bitlog/);
+  assert.doesNotMatch(media, /\.bit-starter|\.bit-welcome/, 'the welcome is not the media tile\'s');
   const hides = {
-    face: '.bit-welcome-face', line: '.bit-welcome-line', title: '.bit-welcome-title',
-    starter3: '.bit-starter:nth-child(n+3)', starter2: '.bit-starter:nth-child(n+2)', welcome: '.bit-welcome',
+    starter4: '.bit-starter:nth-child(n+4)', starter3: '.bit-starter:nth-child(n+3)',
+    starter2: '.bit-starter:nth-child(n+2)', welcome: '.bit-welcome',
   };
   assert.deepEqual(Object.keys(hides), Object.keys(PARTS), 'the stand-in drops in the same order');
   for (const [name, part] of Object.entries(hides)) assert.ok(css.includes(`[data-welcome-fit~="${name}"] ${part}`), name);
-  assert.ok(css.includes('[data-chatf="pane"]:has([data-bit-welcome]) .ai-status:empty { display: none; }'),
-    'the idle status line gives its room to the welcome, and only in an empty chat');
+  // The hello is Bit's to say, in its bubble by the composer (bit-floor.js).
+  assert.doesNotMatch(css, /bit-welcome-(face|title|line)/);
+  assert.doesNotMatch(read('../js/ai/bit-welcome.js'), /bit-welcome-(face|title|line)/);
 });
 
 test('the welcome is fitted wherever it is drawn or copied', () => {
