@@ -8202,6 +8202,8 @@ module.exports = {
   mybit_doing_idle_1: 'PC를 지켜보고 있어요. 모두 조용해요.',
   mybit_doing_idle_2: '새로운 소식은 없어요. 경치를 즐기는 중이에요.',
   mybit_doing_idle_3: '여긴 다 조용해요. 뭐 할까요?',
+  mybit_doing_game_1: '같이 게임하는 중이에요. 같은 팀이에요.',
+  mybit_doing_game_2: '저도 플레이 중. 제 점수는 보지 마세요.',
   mybit_pocket_ask: 'Bit에게 물어보기',
   mybit_pocket_room: 'Bit의 방',
   mybit_pocket_edit: '키 바꾸기',

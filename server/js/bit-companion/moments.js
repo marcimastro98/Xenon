@@ -111,8 +111,9 @@
   function onStatus(d) {
     if (d.gaming != null || d.gameRunning != null) {
       const gaming = !!d.gaming;
-      if (seen.gaming !== null && gaming !== seen.gaming) react(gaming ? 'gameStart' : 'gameEnd');
+      const changed = seen.gaming !== null && gaming !== seen.gaming;
       seen.gaming = gaming;
+      if (changed) { react(gaming ? 'gameStart' : 'gameEnd'); atWork(); }
     }
     const idle = Number(d.idleSec);
     if (Number.isFinite(idle)) {
@@ -168,20 +169,29 @@
     if (name) react(name);
   }
 
-  // While Claude Code or Codex work, Bit works with them at its own laptop (the 'code' loop), on every
-  // own Bit resting and on the desktop (desk.js asks rest()); it stops when none runs.
+  // While Claude Code or Codex work, Bit works with them at its own computer (the 'code' loop); while the
+  // person plays it games beside them ('gamer'). Every own Bit at rest takes it, a new one from its first
+  // frame (bit-app.js mount), and the desktop Bit too (desk.js asks rest()); it gets up when it ends.
   let working = false;
+  let resting = 'idle';
+  const RESTS = ['idle', 'code', 'gamer'];
   const AGENT_NAMES = Object.freeze({ claude: 'Claude Code', codex: 'Codex' }); // product names, never translated
   // Who Bit codes with now (pocket.js says it), '' when none works.
   const workingWith = () => Object.keys(agents).filter((k) => !!agents[k] && [...agents[k].values()].includes('running')).map((k) => AGENT_NAMES[k]).join(' + ');
   const coding = () => workingWith() !== '';
-  const rest = () => (working && hatched() && window.Xenon?.bit?.clip('code') ? 'code' : 'idle');
+  function rest() {
+    const X = window.Xenon?.bit;
+    if (!hatched()) return 'idle';
+    if (seen.gaming && X?.clip('gamer')) return 'gamer';
+    return working && X?.clip('code') ? 'code' : 'idle';
+  }
   function atWork() {
-    const was = working;
     working = coding();
     const want = rest();
-    for (const p of players()) if ((p.mood === 'idle' || p.mood === 'code') && p.mood !== want) p.setMood(want);
-    if (was !== working && typeof dispatchEvent === 'function') dispatchEvent(new CustomEvent('xenon-bit-work'));
+    for (const p of players()) if (RESTS.includes(p.mood) && p.mood !== want) p.setMood(want);
+    if (want === resting) return;
+    resting = want;
+    if (typeof dispatchEvent === 'function') dispatchEvent(new CustomEvent('xenon-bit-work'));
   }
 
   function onTransfer(d) {
@@ -242,7 +252,7 @@
   // A move asked from the chat, a Deck key or a phone (server/bit/actions.js): played as asked, past the hourly cap.
   const onPlay = (d) => { if (typeof d.clip === 'string') play(d.clip); };
   const api = {
-    listen, react, play, pace, woke, rest, working: () => working, workingWith, lastPlayed: () => played,
+    listen, react, play, pace, woke, rest, working: () => working, workingWith, gaming: () => seen.gaming === true, lastPlayed: () => played,
     onStatus: guarded(onStatus), onSystem: guarded(onSystem), onMedia: guarded(onMedia), onPlay: guarded(onPlay),
   };
   window.BitMoments = api;

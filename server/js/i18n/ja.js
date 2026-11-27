@@ -8202,6 +8202,8 @@ module.exports = {
   mybit_doing_idle_1: 'きみのPCを見守ってるよ。異常なし。',
   mybit_doing_idle_2: '新しいことはないよ。景色を楽しんでる。',
   mybit_doing_idle_3: 'ここは静か。何かしようか？',
+  mybit_doing_game_1: '一緒にゲーム中。きみのチームだよ。',
+  mybit_doing_game_2: 'ぼくもプレイ中。スコアは見ないで。',
   mybit_pocket_ask: 'Bit に聞く',
   mybit_pocket_room: 'Bit の部屋',
   mybit_pocket_edit: 'キーを変更',

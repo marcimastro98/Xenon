@@ -8066,6 +8066,8 @@ module.exports = {
   mybit_doing_idle_1: 'Ich behalte deinen PC im Auge. Alles ruhig.',
   mybit_doing_idle_2: 'Nichts Neues. Ich genieße die Aussicht.',
   mybit_doing_idle_3: 'Hier ist alles ruhig. Soll ich etwas tun?',
+  mybit_doing_game_1: 'Ich zocke mit dir. Ich bin in deinem Team.',
+  mybit_doing_game_2: 'Ich spiele mit. Schau nicht auf meinen Punktestand.',
   mybit_pocket_ask: 'Bit fragen',
   mybit_pocket_room: 'Sein Zimmer',
   mybit_pocket_edit: 'Tasten ändern',

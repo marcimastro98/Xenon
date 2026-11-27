@@ -426,3 +426,17 @@ test("the Store's Bit shelf: this month's supporters' item first, then the shop'
   const css = src('components/CommunityStore/CommunityStoreSupporters.css');
   assert.match(css, /\.cst-stage \.cst-shelf\.is-bit \.cst-row \{ --cols: var\(--cst-bit-cols, 6\); \}/);
 });
+
+test('a newly drawn own Bit starts in the rest of the moment (at its desk), any other Bit as asked', () => {
+  const r = rig();
+  r.tell(born());
+  r.ctx.BitMoments = { rest: () => 'think', pace: () => 'live' }; // any mood clip of this engine stands in for 'code'
+  const own = r.ctx.document.createElement('span');
+  own.setAttribute('data-own-bit', '');
+  const other = r.ctx.document.createElement('span');
+  assert.equal(r.ctx.BitApp.mount(own).mood, 'think', 'not idle until the next news');
+  assert.equal(r.ctx.BitApp.mount(other).mood, 'idle');
+  const asked = r.ctx.document.createElement('span');
+  asked.setAttribute('data-own-bit', '');
+  assert.equal(r.ctx.BitApp.mount(asked, { mood: 'listen' }).mood, 'listen', 'a mood asked for wins');
+});

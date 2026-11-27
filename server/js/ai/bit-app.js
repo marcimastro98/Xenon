@@ -100,7 +100,8 @@
     host.replaceChildren();
     const mine = typeof host.hasAttribute === 'function' && host.hasAttribute('data-own-bit');
     const player = X.bitPlayer.mount(host, {
-      mood: opts.mood, label: opts.label, fidgets: opts.fidgets, calm: opts.calm, context: () => context(),
+      // The person's own Bit starts in the rest of the moment (at its desk while Claude Code works), not behind it.
+      mood: mine && (!opts.mood || opts.mood === 'idle') ? window.BitMoments?.rest?.() || opts.mood : opts.mood, label: opts.label, fidgets: opts.fidgets, calm: opts.calm, context: () => context(),
       director: () => (opts.look || own ? director : null), look: opts.look, home: opts.home, onWake: mine ? () => window.BitMoments?.woke() : undefined,
     });
     const entry = { player, hold: Array.isArray(opts.hold) ? opts.hold : TILE_HOLD, own: mine };

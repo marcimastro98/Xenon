@@ -201,7 +201,7 @@
   // A short way along the bar from its place, at the live or slow pace only.
   function stroll() {
     const calm = pace() === 'live' || pace() === 'slow';
-    const busy = window.BitMoments?.working?.(); // at its laptop with Claude Code or Codex
+    const busy = (window.BitMoments?.rest?.() || 'idle') !== 'idle'; // at its desk: coding or gaming
     if (!out || walk || sitting || busy || still() || spots().busy() || reduced() || prefs().roam === 'stay' || !calm) return armStroll();
     const from = spot().x;
     const d = between(REACH);

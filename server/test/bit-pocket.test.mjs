@@ -434,6 +434,7 @@ test('with nothing to tell it says what it is doing: coding with whoever works, 
     ['mybit_doing_code_1 Claude Code + Codex', 'mybit_doing_code_4 Claude Code + Codex']);
   assert.deepEqual(says({ working: () => false, pace: () => 'asleep' }), ['mybit_doing_sleep_1', 'mybit_doing_sleep_2']);
   assert.deepEqual(says(undefined), ['mybit_doing_idle_1', 'mybit_doing_idle_3'], 'no moments (the menu window): keeping watch');
+  assert.deepEqual(says({ gaming: () => true, working: () => true, workingWith: () => 'Codex' }), ['mybit_doing_game_1', 'mybit_doing_game_2'], 'a game first');
   const r = pocketRig({ signal: { kind: 'done', vars: {} } });
   r.ctx.BitMoments = { working: () => true, workingWith: () => 'Codex' };
   r.P.open();

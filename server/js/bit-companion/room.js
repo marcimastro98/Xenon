@@ -18,8 +18,7 @@
 
   async function post(path, body) {
     try {
-      const base = typeof SERVER === 'string' ? SERVER : '';
-      const res = await fetch(`${base}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+      const res = await fetch(`${typeof SERVER === 'string' ? SERVER : ''}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
       return (await res.json().catch(() => null)) || { ok: false, error: 'offline' };
     } catch { return { ok: false, error: 'offline' }; }
   }
@@ -39,8 +38,7 @@
   }
 
   function button(cls, text, onClick, signal) {
-    const b = makeEl('button', cls, text);
-    b.type = 'button';
+    const b = Object.assign(makeEl('button', cls, text), { type: 'button' });
     b.addEventListener('click', onClick, { signal });
     return b;
   }
@@ -189,13 +187,11 @@
       const built = bit && window.BitPanels?.build(kind, bit, hands);
       if (!built) return;
       if (!room.panel) room.opener = document.activeElement;
-      // The same drawer drawn again after a choice keeps where it was scrolled to, never back at the top.
-      const kept = room.panel === kind ? drawer.querySelector('.broom-panel-body')?.scrollTop || 0 : 0;
+      const kept = room.panel === kind ? drawer.querySelector('.broom-panel-body')?.scrollTop || 0 : 0; // redrawn after a choice
       const bar = makeEl('div', 'broom-drawer-head');
       bar.append(makeEl('h3', 'broom-drawer-title', built.title), iconButton(CROSS, say('close'), closePanel, signal));
       drawer.replaceChildren(bar, built.body);
-      const body = drawer.querySelector('.broom-panel-body');
-      if (kept && body) body.scrollTop = kept;
+      if (kept) (drawer.querySelector('.broom-panel-body') || {}).scrollTop = kept; // ...keeps its place, never the top
       room.panel = kind;
       drawer.setAttribute('aria-label', built.title);
       if (drawer.hidden) {

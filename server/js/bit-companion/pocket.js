@@ -26,6 +26,7 @@
 
   // What it is doing, in a line of its own, when it has nothing to tell: one picked at random each time.
   const DOING = Object.freeze({
+    game: ['mybit_doing_game_1', 'mybit_doing_game_2'],
     code: ['mybit_doing_code_1', 'mybit_doing_code_2', 'mybit_doing_code_3', 'mybit_doing_code_4'],
     sleep: ['mybit_doing_sleep_1', 'mybit_doing_sleep_2'],
     idle: ['mybit_doing_idle_1', 'mybit_doing_idle_2', 'mybit_doing_idle_3'],
@@ -34,6 +35,7 @@
 
   function doing() {
     const moments = window.BitMoments;
+    if (moments?.gaming?.()) return t(pick(DOING.game));
     const who = moments?.working?.() ? moments.workingWith?.() : '';
     if (who) return say(pick(DOING.code), { who });
     return t(pick(moments?.pace?.() === 'asleep' ? DOING.sleep : DOING.idle));

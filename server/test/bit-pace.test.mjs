@@ -247,3 +247,39 @@ test('who Bit codes with is named for its pocket: Claude Code, Codex, or both', 
   send('codex', { id: 'c', state: 'idle' });
   assert.equal(M.workingWith(), 'Claude Code');
 });
+
+test('while a game runs every resting own Bit games beside the person, before coding; the desktop is told', () => {
+  const mood = (m) => ({ running: true, mood: m, plays: [], play() {}, setMood(id) { this.mood = id; } });
+  const p = mood('code');
+  const { M, ctx } = bootMoments({ players: [p] });
+  ctx.Xenon.bit = { clip: (id) => (id === 'code' || id === 'gamer' ? { id } : null) };
+  const flips = [];
+  ctx.dispatchEvent = (e) => flips.push(e.type);
+  ctx.CustomEvent = class { constructor(type) { this.type = type; } };
+  const handlers = {};
+  M.listen({ addEventListener: (name, fn) => { (handlers[name] ||= []).push(fn); } });
+  const tell = (name, data) => handlers[name].forEach((fn) => fn({ data: JSON.stringify(data) }));
+  tell('status', { gaming: false });
+  tell('claude', { live: { sessions: [{ id: 'a', state: 'running' }] } });
+  assert.equal(p.mood, 'code');
+  tell('status', { gaming: true });
+  assert.equal(p.mood, 'gamer', 'gaming wins over coding');
+  assert.equal(M.gaming(), true);
+  tell('status', { gaming: false });
+  assert.equal(p.mood, 'code', 'back at its code');
+  assert.deepEqual(flips, ['xenon-bit-work', 'xenon-bit-work', 'xenon-bit-work']);
+});
+
+test('the gamer loop is calm and fits the desktop; it plays on the game pace, the usual rest does not', () => {
+  const { clock, Xenon } = bootPlayer();
+  Xenon.bit.addPack(require('../../packages/core/src/bit-clips-move.js'));
+  const gamer = Xenon.bit.clip('gamer');
+  assert.ok(gamer.calm && gamer.frames.length <= 24);
+  const p = Xenon.bitPlayer.mount(new FakeEl('span'), { reducedMotion: false });
+  p.setPace('game');
+  p.setMood('gamer');
+  assert.ok(frameTimers(clock).length > 0);
+  p.setMood('idle');
+  assert.equal(frameTimers(clock).length, 0);
+  p.destroy();
+});

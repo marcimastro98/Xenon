@@ -112,7 +112,7 @@
 
   async function stroll() {
     const btn = corner();
-    if (!btn || walking || !free(btn) || window.BitMoments?.working?.()) return; // it stays at its laptop
+    if (!btn || walking || !free(btn) || (window.BitMoments?.rest?.() || 'idle') !== 'idle') return; // it stays at its desk
     const node = btn.parentNode;
     const box = node.getBoundingClientRect();
     const room = { left: Math.min(0, EDGE_PX - box.left), right: Math.max(0, innerWidth - EDGE_PX - box.right) };
