@@ -58,11 +58,12 @@ function speedFor(f, duty) {
 
 /**
  * @param {ReturnType<typeof defaultBench>} [spec]
- * @param {{ latencyMs?: number, seed?: number }} [opts]
+ * @param {{ latencyMs?: number, seed?: number, start?: number }} [opts]
+ *   start: the clock's first reading, so runs one after another on the same disk see time go on
  */
-export function createBench(spec = defaultBench(), { latencyMs = 1500, seed = 3 } = {}) {
+export function createBench(spec = defaultBench(), { latencyMs = 1500, seed = 3, start = 0 } = {}) {
   const rng = seeded(seed);
-  let t = 0;
+  let t = start;
   const controls = spec.controls.map((c) => ({
     ...c, applied: FIRMWARE_DUTY, held: false, queue: [],
     fans: c.fans.map((f) => ({ ...f, rpm: f.startRpm ?? f.maxRpm * 0.4, spinning: true })),

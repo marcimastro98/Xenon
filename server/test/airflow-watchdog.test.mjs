@@ -127,3 +127,15 @@ test('engine side: started on the first hold with an argv (no shell), and starte
   w.hold('b', [[`${ROOT}/hwmon1/pwm2`, 1]]);
   assert.equal(started.length, 2, 'stopped stays stopped');
 });
+
+test('keeper: a lapsed lease writes the originals back and still holds them', () => {
+  const written = [];
+  const k = createKeeper(ROOT, (file, value) => written.push([file, value]));
+  k.handle(hold('a', [[`${ROOT}/hwmon1/pwm1`, 120], [`${ROOT}/hwmon1/pwm1_enable`, 2]]));
+  k.restoreAll(true);
+  assert.deepEqual(written, [[`${ROOT}/hwmon1/pwm1`, '120'], [`${ROOT}/hwmon1/pwm1_enable`, '2']]);
+  assert.equal(k.size(), 1, 'an engine that wakes and dies later is still covered');
+  assert.equal(k.handle(JSON.stringify({ op: 'beat' })), false, 'a beat holds nothing');
+  k.restoreAll();
+  assert.equal(k.size(), 0);
+});

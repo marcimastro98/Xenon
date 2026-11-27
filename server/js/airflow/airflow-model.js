@@ -6,7 +6,9 @@
 //   { v: 1, drive: 'off'|'shadow'|'on', mode: 'auto'|'quiet'|'balanced'|'cool'|'pc',
 //     slider: 0-100, options: { night: { on, from, to }, callQuiet, allowZero, linkHub, riseAlert },
 //     fans: { '<driver>:<chip>:<channel>': { place, leave, pump, calib } },
-//     check: { at, problems: { '<id>': 'no-start'|'no-speed'|'pump-stopped' } } | null }
+//     check: { at, problems: { '<id>': 'no-start'|'no-speed'|'pump-stopped'|'no-handback'|'changed' } } | null }
+//   'changed' is not the check's: a fan that turned far from its check while driven
+//   (server/airflow/loop-learning.js), left to the PC until checked again.
 //
 // check: how the last fan check ended, for the fans it could not set up (the menu
 // says why and what to do).
@@ -36,7 +38,7 @@
   // Speed readings one control moves: more than one behind a hub or a card's shared control.
   const MAX_TACHS = 8;
   const RPM_MAX = 10000;
-  const CHECK_PROBLEMS = Object.freeze(['no-start', 'no-speed', 'pump-stopped', 'no-handback']);
+  const CHECK_PROBLEMS = Object.freeze(['no-start', 'no-speed', 'pump-stopped', 'no-handback', 'changed']);
 
   const isObject = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
   const bool = (v, fallback) => (typeof v === 'boolean' ? v : fallback);

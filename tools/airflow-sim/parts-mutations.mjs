@@ -59,5 +59,13 @@ export default {
     m('health: gain told too early', HE, ' || after.length < AFTER_CLEANING_DAYS', ''),
     m('health: broken saved wear kept', HE, 'w.ratio > 0 && w.ratio < 3', 'w.ratio < 3'),
     m('health: a checked-again fan keeps its wear', HE, 'delete wear[id]; held.delete(id);', 'held.delete(id);'),
+    // A fan replaced on its header, a new part (25 Nov 2026).
+    m('health: replaced from one reading', HE, 'n >= SWAP_READINGS', 'n >= 1'),
+    m('health: a worn fan read as replaced', HE, 'Math.abs(r - 1) > SWAP_OFF', 'Math.abs(r - 1) > 0.1'),
+    m('health: a reading in line keeps the count', HE, '(off.get(id) || 0) + 1 : 0', '(off.get(id) || 0) + 1 : (off.get(id) || 0)'),
+    m('health: a checked-again fan still replaced', HE, 'held.delete(id); off.delete(id);', 'held.delete(id);'),
+    m("health: a new part wipes the other's history", HE, '({ ...d, [node]: null })', '({ day: d.day, cpu: null, gpu: null })'),
+    m("health: a new part's day not kept", HE, '      parts[node] = day;\n', ''),
+    m('health: a broken part day kept', HE, "typeof raw?.[n] === 'string' && DAY_RE.test(raw[n])", "typeof raw?.[n] === 'string'"),
   ],
 };

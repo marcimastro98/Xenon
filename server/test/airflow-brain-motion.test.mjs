@@ -200,6 +200,8 @@ test('reasons: the most important code leads', () => {
   const stall = explain({ safety: { mode: 'brain', channels: { a: firmware('stall'), b: { action: 'set' } } }, context: { reasons: ['call-quiet'] } });
   assert.deepEqual(stall.all, ['stall', 'call-quiet']);
   assert.deepEqual(explain({ plan: { binding: ['gpu', 'cpu'], impossible: [] } }).all, ['heat-gpu', 'heat-cpu']);
+  // The heat codes follow the binding, which brain.js orders by the source closest to its limit.
+  assert.deepEqual(explain({ plan: { binding: ['cpu', 'gpu'], impossible: [] } }).all, ['heat-cpu', 'heat-gpu']);
   assert.equal(explain({ plan: { binding: ['cpu'], impossible: ['cpu'] } }).primary, 'impossible');
   assert.deepEqual(explain({}).all, ['idle']);
   assert.deepEqual(explain({ confidence: 0.1 }).all, ['learning', 'idle']);

@@ -19,10 +19,10 @@ const { statusOf } = require('./loop-status.js');
 const { createSaves, SAVE_EVERY_MS } = require('./loop-save.js');
 const { createAvailability, AVAILABLE_EVERY_MS } = require('./loop-available.js');
 const { createDriverCalls } = require('./loop-drivers.js');
+const { createLearning, localDay } = require('./loop-learning.js');
 
 const TICK_MS = 1000;
-// Health's daily note is tried at most this often (it returns at once when done).
-const DAILY_EVERY_MS = 3600000;
+const STUCK_MS = 10000;   // a tick still running after this hangs: the fans go back to the PC
 // A check asked for while no driver answers yet waits this long, then says so.
 const CHECK_WAIT_MS = 15000;
 // The Windows sensor service reads the fans only while the engine asks: a hello wakes
@@ -31,20 +31,15 @@ const CHECK_WAIT_MS = 15000;
 const WAKE_MS = 15000;
 const WAKE_RETRY_MS = 1500;
 
-const localDay = (ms) => {
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
 /**
  * @param {{ drivers: any[], none?: string|null, store: any, labels?: () => Record<string, string>,
- *   situation?: (now: number) => any, cpuName?: string, clock?: () => number,
+ *   situation?: (now: number) => any, cpuName?: string, parts?: () => any, clock?: () => number,
  *   timers?: { setInterval: Function, clearInterval: Function, setTimeout?: Function, clearTimeout?: Function },
  *   warn?: (msg: string) => void, onStatus?: (status: any) => void, onDriving?: (on: boolean) => void }} opts
  */
 function createAirflowLoop({
   drivers, none = null, store, labels = () => ({}), situation = (now) => ({ hour: new Date(now).getHours() }),
-  cpuName = '', clock = Date.now, timers = globalThis, warn = (_msg) => {}, onStatus = (_s) => {}, onDriving = (_on) => {},
+  cpuName = '', parts, clock = Date.now, timers = globalThis, warn = (_msg) => {}, onStatus = (_s) => {}, onDriving = (_on) => {},
 }) {
   const safety = createSafety({ cpuName, clock });
   const saves = createSaves({ store, warn });
@@ -52,11 +47,12 @@ function createAirflowLoop({
   const calls = createDriverCalls({ clock });
   const release = (d) => calls.run(d, (x) => x.release());
   const availability = createAvailability({ drivers, letGo: release });
+  const learning = createLearning({ store, parts, warn });
   const st = {
     learned: null, last: null, brain: null, brainKey: '', health: null, shadow: null,
     check: null, wantedAt: null, ended: null, channels: [],
     timer: null, ticking: null, stopping: false, driving: false, restDue: false,
-    dailyAt: -Infinity, availAt: -Infinity, usable: [], unavailable: {}, failing: new Set(),
+    availAt: -Infinity, usable: [], unavailable: {}, failing: new Set(),
     untrusted: [], status: null, wake: null, again: null,
   };
 
@@ -94,13 +90,7 @@ function createAirflowLoop({
     });
     st.untrusted = verdict.untrusted;
     if (out && model.drive === 'shadow') st.shadow.observe({ at: now, channels, rpm, duties: out.duties, predicted: out.predicted, targets: out.targets });
-    if (out && !watching) {
-      for (const c of driven) {
-        const v = verdict.channels[c.id];
-        if (v?.action === 'set') st.health.observeFan({ id: c.id, duty: v.duty, rpm: c.rpm, curve: c.curve, now });
-      }
-    }
-    if (st.brain && now - st.dailyAt >= DAILY_EVERY_MS) { st.dailyAt = now; st.health.daily({ day: localDay(now), models: st.brain.models }); }
+    learning.observe(st, out && !watching ? driven : [], verdict, now);
     return { verdict, out };
   }
 
@@ -175,6 +165,8 @@ function createAirflowLoop({
     const model = await store.ready();
     const { snap, channels } = await sense(now, model);
     if (st.wantedAt != null) beginCheck(snap, channels, model, now);
+    // During the fan check too: a new card first named then must count from before the check.
+    await learning.settle(st, channels, now);
     let verdict;
     let out = null;
     let view = null;
@@ -195,17 +187,20 @@ function createAirflowLoop({
   }
 
   function tick() {
+    if (st.ticking && !st.stuck && clock() - st.tickAt > STUCK_MS) { st.stuck = true; warn('airflow: a tick hangs, the fans go back to the PC'); letGoAll(); }
     if (st.ticking || st.stopping) return st.ticking;
+    Object.assign(st, { tickAt: clock(), stuck: false });
     st.ticking = tickOnce()
-      .catch((e) => warn(`airflow: a tick failed (${e.message})`))
+      // A tick that broke moved no fan: off Windows nothing else hands them back (no lease there).
+      .catch((e) => { warn(`airflow: a tick failed (${e.message})`); return letGoAll(); })
       .finally(() => { st.ticking = null; refresh(); });
     return st.ticking;
   }
 
   // Every fan back to the PC, what was learned kept.
+  const letGoAll = () => Promise.all(drivers.map((d) => release(d).catch(() => {}))).then(() => holding(false));
   async function rest() {
-    await Promise.all(drivers.map((d) => release(d).catch(() => {})));
-    holding(false);
+    await letGoAll();
     await saves.all(st, clock());
   }
 
@@ -272,11 +267,15 @@ function createAirflowLoop({
     recheck() { st.availAt = -Infinity; },
     /** Whether a fan check is asked for or running. */
     checking: () => st.check != null || st.wantedAt != null,
-    cancelCheck() {
-      st.wantedAt = null;
-      st.check?.cancel('cancel');
-    },
+    cancelCheck() { st.wantedAt = null; st.check?.cancel('cancel'); },
     status: () => st.status,
+    /** Learns this PC again from scratch (a new cooler, case or fans): the choices and fan checks stay. */
+    async relearn() {
+      await st.ticking;
+      await load();
+      learning.forgetAll(st);
+      await saves.learned(st, clock());
+    },
     /** The person cleaned the dust filters today: what cleaning gained is measured from here. */
     cleaned() {
       if (!st.health) return false;
@@ -288,8 +287,7 @@ function createAirflowLoop({
       st.stopping = true;
       if (st.timer) timers.clearInterval(st.timer);
       if (st.again) timers.clearTimeout?.(st.again);
-      st.timer = null;
-      st.again = null;
+      Object.assign(st, { timer: null, again: null });
       st.check?.cancel('stop');
       await st.ticking;
       await rest();

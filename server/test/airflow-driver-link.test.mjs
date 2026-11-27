@@ -246,6 +246,16 @@ test('busy on Linux: an OpenLinkHub process; a /proc that cannot be read counts 
   assert.deepEqual(await createLinkBusy({ platform: 'linux', fsp, procRoot: '/proc' })(), []);
   assert.deepEqual(await createLinkBusy({ platform: 'linux', fsp, procRoot: '/nope' })(), ['unknown']);
   assert.deepEqual(await createLinkBusy({ platform: 'darwin' })(), []);
+  // One checker asked again: a name two looks agree on is not read a third time; a new process is.
+  const reads = [];
+  const counted = { readdir: fsp.readdir, readFile: async (p) => { reads.push(p.replaceAll('\\', '/')); return fsp.readFile(p); } };
+  const busy = createLinkBusy({ platform: 'linux', fsp: counted, procRoot: '/proc' });
+  await busy(); await busy();
+  reads.length = 0;
+  files['/proc'] = ['1', '22', '30'];
+  files['/proc/30/comm'] = 'OpenLinkHub\n';
+  assert.deepEqual(await busy(), ['OpenLinkHub']);
+  assert.deepEqual(reads, ['/proc/30/comm']);
 });
 
 test('an AIO kit (one pump, up to three fans) puts its fans on the radiator; a longer chain guesses nothing', async () => {

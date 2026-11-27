@@ -139,7 +139,8 @@ function createSafety({ cpuName = '', clock = Date.now } = {}) {
       if (hot) { out[ch.id] = writeVerdict(ch, 100, now); continue; }
       if (silent) { firmware('brain'); continue; }
       const deps = (ch.deps?.length ? ch.deps : seen).filter((d) => seen.includes(d));
-      if (!deps.length && seen.length) { firmware('sensor'); continue; }
+      // No temperature ever read: heat could not be seen, so the fan stays the PC's.
+      if (!deps.length) { firmware('sensor'); continue; }
       if (deps.some((d) => bad.has(d))) { firmware('sensor'); continue; }
       if (deps.some((d) => late.has(d))) {
         const last = written.get(ch.id);

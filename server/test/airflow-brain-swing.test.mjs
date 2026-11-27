@@ -177,3 +177,17 @@ test('anchor: a moment still creeping by more than a quarter of its heat is not 
   hold(settling, { from: 0, to: 400, S: (t) => 40 + 0.001 * t, F: [0.5, 0.5], now: ready(0.1) });
   assert.equal(settling.kept(), true);
 });
+
+test('anchor: a real liquid a few degrees over its air is kept, and replaces a moment kept warm', () => {
+  // A 360 AIO at 50 W sits 4 K over its air, under a third of an X3D's R x P (0.49 x 50):
+  // read through R the moment could be half error, read on a real liquid it is the moment.
+  const read = createAnchor({ theta: () => THETA, windowMs: 5000 });
+  hold(read, { from: 0, to: 400, S: 34, P: 50, F: [0.5, 0.5], now: ready(0.49) });
+  assert.equal(read.kept(), false);
+  const real = createAnchor({ theta: () => THETA, windowMs: 5000 });
+  real.load({ rise: 16.2, P: 41.3, F: [0.25, 0.35], R: 0.34 }, 2, (r) => r);
+  const stale = real.cal(ready(0.49, true));
+  hold(real, { from: 0, to: 400, S: 34, P: 50, F: [0.5, 0.5], now: ready(0.49, true) });
+  assert.deepEqual(real.save()?.F, [0.5, 0.5], 'the moment kept warm and early was never replaced');
+  assert.ok(real.cal(ready(0.49, true)) < stale);
+});

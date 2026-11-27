@@ -312,3 +312,18 @@ test('poll: every fanN reading, under a pwm or not, for the fan check to pair', 
       'pwm3 has no fan3 reading');
   } finally { r.done(); }
 });
+
+test('a held fan whose chip got its own curve back (the watchdog, while the engine hung) is taken again', async () => {
+  const r = rig();
+  try {
+    await r.driver.poll();
+    await r.driver.apply({ [CPU_FAN]: { action: 'set', duty: 30 } });
+    const dir = join(r.base, 'hwmon', 'hwmon1');
+    writeFileSync(join(dir, 'pwm1_enable'), '5\n');
+    await r.driver.poll();
+    await r.driver.apply({ [CPU_FAN]: { action: 'set', duty: 30 } });
+    assert.equal(r.read(1, 'pwm1_enable'), '1');
+    await r.driver.release();
+    assert.notEqual(r.read(1, 'pwm1_enable'), '1', 'the first original goes back, not the 5 seen later');
+  } finally { r.done(); }
+});

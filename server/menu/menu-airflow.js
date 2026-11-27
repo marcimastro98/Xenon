@@ -171,6 +171,8 @@ function optionsTab(v) {
       sub: v.lastCheck ? { pair: [k('airflow_last_check'), agoText(v.at - v.lastCheck.at)] } : k('airflow_never_checked'),
       action: k('airflow_btn_recheck'), act: run(CHECK),
     },
+    // After a new cooler, case or fans: the fan checks and the choices above stay.
+    { kind: 'button', id: 'airflow-relearn', label: k('airflow_relearn'), sub: k('airflow_relearn_sub'), action: k('airflow_btn_relearn'), act: run(set({ relearn: true })) },
   );
   return rows;
 }

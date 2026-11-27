@@ -1,6 +1,6 @@
 // Breaks each rule of Airflow's engine once and checks the tests notice:
 //   node tools/mutate/mutate.mjs tools/airflow-sim/loop-mutations.mjs
-// Rerun after any change to server/airflow/loop*.js (loop-drivers.js too), sense.js, shadow.js,
+// Rerun after any change to server/airflow/loop*.js (loop-drivers.js, loop-learning.js too), sense.js, shadow.js,
 // situation.js or drivers.js; every mutation must be caught.
 const LOOP = 'server/airflow/loop.js';
 const CHECK = 'server/airflow/loop-check.js';
@@ -15,6 +15,7 @@ const SAVE = 'server/airflow/loop-save.js';
 const AVAIL = 'server/airflow/loop-available.js';
 const INDEX = 'server/airflow/index.js';
 const CALLS = 'server/airflow/loop-drivers.js';
+const LEARN = 'server/airflow/loop-learning.js';
 const m = (file, name, from, to) => ({ name, file, from, to });
 
 export default {
@@ -22,7 +23,8 @@ export default {
     'server/test/airflow-loop.test.mjs', 'server/test/airflow-shadow.test.mjs',
     'server/test/airflow-platform.test.mjs', 'server/test/airflow-store.test.mjs',
     'server/test/airflow-priority.test.mjs', 'server/test/airflow-available.test.mjs',
-    'server/test/airflow-loop-drivers.test.mjs',
+    'server/test/airflow-loop-drivers.test.mjs', 'server/test/airflow-loop-learning.test.mjs',
+    'server/test/airflow-actions.test.mjs',
   ],
   mutations: [
     // What the engine writes, and when.
@@ -33,7 +35,7 @@ export default {
     m(LOOP, 'a failing driver reported every second', 'if (!st.failing.has(d.id)) warn(', 'warn('),
     m(LOOP, 'watching judged like driving', 'const judged = watching ? driven.map((c) => ({ ...c, hasTach: false })) : driven;', 'const judged = driven;'),
     m(LOOP, 'shadow scored while driving', "if (out && model.drive === 'shadow') st.shadow", 'if (out) st.shadow'),
-    m(LOOP, 'wear learned from the BIOS', '    if (out && !watching) {', '    if (out) {'),
+    m(LOOP, 'wear learned from the BIOS', 'out && !watching ? driven : []', 'out ? driven : []'),
     m(AVAIL, 'a dropped driver keeps its fans', '      for (const d of before) if (!st.usable.includes(d)) letGo(d).catch(() => {});\n', ''),
     m(LOOP, 'learning not saved at rest', '    holding(false);\n    await saves.all(st, clock());', '    holding(false);'),
     m(SAVE, 'learning saved only at the end', '      if (now - learnedAt >= SAVE_EVERY_MS) await learned(st, now);\n', ''),
@@ -125,6 +127,30 @@ export default {
     m(CALLS, 'a slow command holds the tick', 'await within(Promise.all(flights), waitMs);', 'await Promise.all(flights);'),
     m(CALLS, 'a command piled on a busy driver', 'drivers.filter((d) => queue || !busy(d))', 'drivers'),
     m(CALLS, 'letting go skips a busy driver (calls)', 'drivers.filter((d) => queue || !busy(d))', 'drivers.filter((d) => !busy(d))'),
-    m(INDEX, 'the engine not wired to it', '  onDriving: enginePriority.holding,\n', ''),
+    m(INDEX, 'the engine not wired to it', 'onDriving: enginePriority.holding, cpuName', 'cpuName'),
+    // When the learning stops being true (loop-learning.js, 25 Nov 2026).
+    m(LEARN, 'a replaced fan never noticed', '...st.health.swapped(), ', ''),
+    m(LEARN, 'a replaced fan keeps its check', 'fans[id] = { ...fans[id], calib: null }; ', ''),
+    m(LEARN, 'a replaced fan not told', " problems[id] = 'changed';", ''),
+    m(LEARN, 'the last check time lost', 'at: m.check?.at ?? now', 'at: now'),
+    m(LOOP, 'new parts not looked for during the check', '    await learning.settle(st, channels, now);', '    if (!st.check) await learning.settle(st, channels, now);'),
+    m(LEARN, "a new card's fans checked since lose it", ' && !(m.fans[id].calib.at >= (checkedSince[id] ?? Infinity))', ''),
+    m(LEARN, "a new card's first sighting forgotten", 'const since = again && Number.isFinite(prev.at) ? prev.at : now;', 'const since = now;'),
+    m(LEARN, 'a new part never noticed', '      if (gone.length) forgetParts(st, gone.map((g) => g.node), now);\n', ''),
+    m(LEARN, 'a new card counts at once', 'gpu: 2 }', 'gpu: 1 }'),
+    m(LEARN, 'a card named another way is a new one', '!a.includes(b) && !b.includes(a)', 'a !== b'),
+    m(LEARN, 'a name with no model number compared', '/\\d/.test(a) && /\\d/.test(b) && ', ''),
+    m(LEARN, 'a card seen once, then the old one, still waits', '      delete next.pending[n];\n', ''),
+    m(LEARN, 'a new part forgets every part', 'for (const n of gone) { delete brain[n];', 'for (const n of PARTS) { delete brain[n];'),
+    m(LEARN, 'a new part keeps the brain', "    st.brain = null;\n    st.brainKey = '';\n    const brain", '    const brain'),
+    m(LEARN, 'game heat kept after a new part', 'brain, games: {} }', 'brain }'),
+    m(LEARN, "a new card's fans keep their check", "const card = gone.find((g) => g.node === 'gpu');", 'const card = undefined;'),
+    m(LEARN, "a new processor's fans lose their check", "const card = gone.find((g) => g.node === 'gpu');", 'const card = gone[0];'),
+    m(LEARN, 'learning from scratch keeps the brain', 'st.learned = { parts: st.learned?.parts };', 'st.learned = { ...st.learned };'),
+    m(LEARN, "learning from scratch forgets the parts' names", 'st.learned = { parts: st.learned?.parts };', 'st.learned = {};'),
+    m(LEARN, 'learning from scratch keeps the health', '      st.health = createHealth();\n', ''),
+    m(LOOP, 'learning from scratch not saved', '      learning.forgetAll(st);\n      await saves.learned(st, clock());', '      learning.forgetAll(st);'),
+    m(INDEX, 'the processor not named to the engine', 'onDriving: enginePriority.holding, cpuName,', 'onDriving: enginePriority.holding,'),
+    m(INDEX, "the parts' names not given to the engine", ', parts: () => ({ cpu: cpuName, gpu: sensorReads.gpuCache.gpuName })', ''),
   ],
 };

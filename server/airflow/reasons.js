@@ -1,7 +1,9 @@
 'use strict';
 // Why the fans are doing what they are doing, as short codes the menu, the
 // widget and Bit turn into a sentence ("airflow_why_<code>" in server/js/i18n).
-// The first code in PRIORITY that applies is the headline; the rest are details.
+// The first code in PRIORITY that applies is the headline; the rest are details. The heat
+// codes share one rank and follow the binding's order, the source closest to its limit first
+// (brain.js): a fixed order named a card at 33 C for fans bought for a busy CPU (25 Nov 2026).
 const PRIORITY = Object.freeze([
   'hot', 'stall', 'sensor', 'brain', 'impossible', 'game-prepare', 'heat-gpu', 'heat-cpu',
   'call-quiet', 'night-quiet', 'spike-ignored', 'learning', 'idle',
@@ -13,6 +15,8 @@ const PRIORITY = Object.freeze([
 const SPIKE_JUMP = 5;
 const SPIKE_SLOW_MOVE = 1;
 const LEARNING_BELOW = 0.3;
+const HEAT = Object.freeze(['heat-gpu', 'heat-cpu']);
+const heatOf = (node) => (node === 'gpu' ? 'heat-gpu' : 'heat-cpu');
 
 /**
  * @param {{ safety?: { mode: string, channels: Record<string, any>, alerts?: any[] },
@@ -26,12 +30,14 @@ function explain({ safety, plan, context, spike = false, confidence = 1 }) {
   const whys = Object.values(safety?.channels || {}).filter((v) => v.action === 'firmware').map((v) => v.why);
   for (const why of whys) all.add(why);
   if (plan?.impossible?.length) all.add('impossible');
-  for (const node of plan?.binding || []) all.add(node === 'gpu' ? 'heat-gpu' : 'heat-cpu');
+  const heat = [...new Set((plan?.binding || []).map(heatOf))];
+  for (const code of heat) all.add(code);
   for (const r of context?.reasons || []) all.add(r);
   if (spike) all.add('spike-ignored');
   if (confidence < LEARNING_BELOW) all.add('learning');
   if (!all.size || (all.size === 1 && all.has('learning'))) all.add('idle');
-  const ordered = PRIORITY.filter((c) => all.has(c));
+  let h = 0;
+  const ordered = PRIORITY.filter((c) => all.has(c)).map((c) => (HEAT.includes(c) ? heat[h++] : c));
   return { primary: ordered[0], all: ordered };
 }
 

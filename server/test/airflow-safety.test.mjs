@@ -398,3 +398,9 @@ test('reset() forgets every state', () => {
   assert.deepEqual(v.untrusted, []);
   assert.equal(v.mode, 'brain');
 });
+
+test('no temperature ever read: every fan stays with the PC, none is driven blind', () => {
+  const s = rig();
+  const v = s.check({ temps: {} });
+  for (const c of Object.values(v.channels)) assert.deepEqual(c, { action: 'firmware', why: 'sensor' });
+});

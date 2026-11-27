@@ -205,6 +205,8 @@ function createLinkDriver({ hid, openReports, leadingZero, busy, wanted = () => 
   async function tookBack(link, at) {
     const retakes = link.retakes();
     const other = retakes > seenRetakes && at - lastAt < OWN_SILENCE_MS;
+    // Taken again, the hub forgot its speeds: the next write sends every one, changed or not.
+    if (retakes > seenRetakes) sent.clear();
     seenRetakes = retakes;
     lastAt = at;
     if (!other) return false;

@@ -37,11 +37,21 @@ async function windowsBusy(run, table) {
   return WINDOWS_APPS.filter((app) => lower.includes(`"${app.toLowerCase()}"`));
 }
 
-async function linuxBusy(fsp, root) {
+// `known` keeps a process's name once two looks agree (a new one still has its launcher's
+// name until it execs), so a look every few seconds reads only what started since.
+async function linuxBusy(fsp, root, known = new Map()) {
   let names;
   try { names = await fsp.readdir(root); } catch { return ['unknown']; }
   const pids = names.filter((n) => /^\d+$/.test(n)).slice(0, MAX_PIDS);
-  const comms = await Promise.all(pids.map((p) => fsp.readFile(path.join(root, p, 'comm'), 'utf8').then((s) => s.trim(), () => '')));
+  const live = new Set(pids);
+  for (const p of known.keys()) if (!live.has(p)) known.delete(p);
+  const comms = await Promise.all(pids.map(async (p) => {
+    const k = known.get(p);
+    if (k?.settled) return k.comm;
+    const comm = await fsp.readFile(path.join(root, p, 'comm'), 'utf8').then((s) => s.trim(), () => '');
+    known.set(p, { comm, settled: k?.comm === comm });
+    return comm;
+  }));
   return LINUX_APPS.filter((app) => comms.some((c) => c.toLowerCase() === app.toLowerCase()));
 }
 
@@ -53,7 +63,8 @@ async function linuxBusy(fsp, root) {
  */
 function createLinkBusy({ platform = process.platform, run = runFile, fsp = fs.promises, procRoot = '/proc', table } = {}) {
   if (platform === 'win32') return () => windowsBusy(run, table);
-  if (platform === 'linux') return () => linuxBusy(fsp, procRoot);
+  const known = new Map();
+  if (platform === 'linux') return () => linuxBusy(fsp, procRoot, known);
   return async () => [];
 }
 

@@ -32,7 +32,10 @@ const CAL_MIN_RISE = 2;
 // The rise is read through S = die - R P, so R a sixth off moves it by a sixth of
 // R P: a moment whose rise is under RISE_SHARE of R P could be half error, and is not
 // kept (an AIO in a simulated game showed 4 degrees under 27 of R P, and its scale
-// swung from half to double with each new moment).
+// swung from half to double with each new moment). A real liquid is read, not derived
+// through R, and is kept whatever its share: a 360 AIO at 50 W sits 3-4 K over its air,
+// under a third of an X3D's R P, so no new moment was ever kept on it and one kept warm and
+// early held its radiator and a case fan at 80 % for good (25 Nov 2026).
 const RISE_SHARE = 0.3;
 // A new moment replaces the kept one only when it moves the scale by more than
 // this share: in a long game a moment a minute, each a hair off the last, kept
@@ -109,7 +112,7 @@ function createAnchor({ theta, windowMs }) {
       const creep = (Sslow - still[0].slow) / span;
       if (Math.abs(creep) * span > STEADY_DRIFT) return;
       const heat = (theta()[0] / 1e5) * Pslow;
-      if (!(Sslow - Ta > Math.max(CAL_MIN_RISE, RISE_SHARE * now.R * Pslow)) || !(heat > 0) || Math.abs(creep) > CREEP_MAX * heat) return;
+      if (!(Sslow - Ta > Math.max(CAL_MIN_RISE, now.real ? 0 : RISE_SHARE * now.R * Pslow)) || !(heat > 0) || Math.abs(creep) > CREEP_MAX * heat) return;
       const seen = { rise: ((Sslow - Ta) * heat) / (heat - creep), P: Pslow, F, R: now.R };
       if (!anchor || Math.abs(calFor(seen, now) / calFor(anchor, now) - 1) > ANCHOR_BAND) anchor = seen;
     },

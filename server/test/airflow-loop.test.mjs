@@ -547,3 +547,25 @@ test('sense: two drivers make one reading, the fresher temperature wins', () => 
   assert.deepEqual(snap.answering, ['x', 'y']);
   assert.deepEqual(snap.found.map((x) => [x.id, x.driver]), [['x:a:1', 'x'], ['y:a:1', 'y']]);
 });
+
+test('loop: a tick that hangs hands the fans back instead of holding their last speed', async (t) => {
+  const { fans } = await checkedFans(t);
+  const { loop, run, driver, store, bench, timers, warnings } = await rig(t, { model: { drive: 'on', fans } });
+  await loop.start();
+  await run(20);
+  let free;
+  const hung = new Promise((ok) => { free = ok; });
+  const real = { saveLast: store.saveLast, saveLearned: store.saveLearned };
+  store.saveLast = () => hung;
+  store.saveLearned = () => hung;
+  try {
+  // Ticks until one waits on the save that never ends.
+  for (let i = 0; i < 400 && !warnings.some((w) => /hangs/.test(w)); i += 1) {
+    timers.fn?.();
+    await new Promise((ok) => setImmediate(ok));
+    bench.advance(1000);
+  }
+  assert.ok(warnings.some((w) => /hangs/.test(w)), 'the hang is noticed');
+  await waitFor(() => calls(driver, 'release').length > 0);
+  } finally { Object.assign(store, real); free(); }
+});

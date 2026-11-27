@@ -316,3 +316,26 @@ test('brain: an idle PC it has not calibrated never hears a fan above the speed 
   assert.ok(loudest <= 900 / 2000 + 1e-9, `ran at ${loudest}`);
   assert.ok(Math.max(...outs.map((o) => o.fractions.case1)) <= 1000 / 3700 + 1e-9, 'the case fan climbed');
 });
+
+// A CPU cooler's own fans move with the case fans, and without a board sensor the air is
+// guessed from the liquid itself: the windows cannot always tell which of them cools. A
+// 360 AIO's fans were learned down to 2 % of their prior and a case fan ran at 80 % in their
+// place (25 Nov 2026). A cooler's fans keep COOLER_KEEP of their prior; a case fan that does
+// nothing for the CPU can still be learned to almost nothing.
+test('model: a cooler\'s own fan is never learned away; a case fan that does nothing is', () => {
+  const channels = [{ id: 'rad', place: 'radiator' }, { id: 'case', place: 'case' }];
+  for (const [cools, idle] of [['case', 'rad'], ['rad', 'case']]) {
+    const m = createNodeModel({ node: 'cpu', channels });
+    const prior = m.coefficients().b[idle];
+    let S = 40;
+    for (let t = 0; t < 7200; t += 1) {
+      const fr = { [cools]: Math.floor(t / 90) % 2 ? 0.8 : 0.3, [idle]: Math.floor(t / 150) % 2 ? 0.9 : 0.2 };
+      const P = toggle(t);
+      S += (P - (1 + 8 * fr[cools] ** 0.8) * (S - 30)) / 1500;
+      m.observe({ at: (t + 1) * 1000, die: S + 0.3 * P, power: P, ambient: 30, fractions: fr });
+    }
+    const kept = m.coefficients().b[idle] / prior;
+    if (idle === 'rad') assert.ok(kept >= 0.15 - 1e-9 && kept < 0.3, `the radiator kept ${kept.toFixed(3)} of its prior`);
+    else assert.ok(kept < 0.15, `the case fan kept ${kept.toFixed(3)} of its prior, no less than a cooler's`);
+  }
+});

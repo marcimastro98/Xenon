@@ -8,7 +8,9 @@
 // each channel it takes ('hold') and gives back ('free'). When that pipe closes (the
 // engine exited, crashed or was killed) or the watchdog is told to stop by a signal,
 // it writes every original still held back and exits. A clean exit hands everything
-// back first, so the watchdog then has nothing left to do.
+// back first, so the watchdog then has nothing left to do. An engine that is alive but
+// hangs is caught too: it sends a line at every write of the fans ('beat'), and after
+// LEASE_MS without one the originals go back, kept in case the engine wakes.
 //
 // It writes only pwm files under the hwmon root it was started with, only whole
 // numbers 0-255, whatever a line says.
@@ -21,6 +23,7 @@ const MAX_LINE = 4096;
 const MAX_PAIRS = 4;
 // A watchdog that keeps dying is not restarted more often than this.
 const RESPAWN_MS = 5000;
+const LEASE_MS = 15000;
 
 /** The child's state: what to write back, and the rule for what it accepts. */
 function createKeeper(root, write) {
@@ -40,13 +43,13 @@ function createKeeper(root, write) {
     return true;
   }
 
-  function restoreAll() {
+  function restoreAll(keep = false) {
     for (const pairs of held.values()) {
       for (const [file, value] of pairs) {
         try { write(file, String(value)); } catch { /* the next one may still go back */ }
       }
     }
-    held.clear();
+    if (!keep) held.clear();
   }
 
   return { handle, restoreAll, size: () => held.size };
@@ -65,7 +68,16 @@ function runChild(root) {
     process.exit(0);
   };
   process.stdin.setEncoding('utf8');
+  let last = Date.now();
+  let lapsed = false;
+  setInterval(() => {
+    if (lapsed || !keeper.size() || Date.now() - last < LEASE_MS) return;
+    lapsed = true;
+    keeper.restoreAll(true);
+  }, 1000);
   process.stdin.on('data', (chunk) => {
+    last = Date.now();
+    lapsed = false;
     buf += chunk;
     let i = buf.indexOf('\n');
     while (i >= 0) {
@@ -118,6 +130,8 @@ function startWatchdog({ root = ROOT, spawn = childProcess.spawn, node = process
       held.delete(id);
       send({ op: 'free', id });
     },
+    /** The engine wrote the fans just now: the watchdog's lease starts again. */
+    beat() { send({ op: 'beat' }); },
     /** Whether a watchdog is up (the loop starts one again when it is not). */
     alive() {
       if (!child && held.size) start();
@@ -134,4 +148,4 @@ function startWatchdog({ root = ROOT, spawn = childProcess.spawn, node = process
 
 if (require.main === module && process.argv[2] === '--child' && process.argv[3]) runChild(process.argv[3]);
 
-module.exports = { startWatchdog, createKeeper, MAX_HELD };
+module.exports = { startWatchdog, createKeeper, MAX_HELD, LEASE_MS };

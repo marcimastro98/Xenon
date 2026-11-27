@@ -60,6 +60,13 @@ const REACH_NEAR = 1;
 const ema = (prev, x, dt, tau) => (prev == null ? x : prev + (x - prev) * (1 - Math.exp(-dt / tau)));
 const val = (r) => (r && Number.isFinite(r.value) ? r.value : null);
 
+// On a liquid, a rise for the CPU (or a kept plan, which names nothing) reaches the die
+// through the liquid alone, which warms over minutes: the fans climb at the calm rate, about
+// a minute from slow to full, not forty seconds. A test run on every core took an X3D's
+// radiator from quiet to full in forty seconds and it read as a jump (24 Nov 2026). A card
+// wanting air climbs at the usual rate; heat close on any die is urgent and climbs fast.
+const liquidPaced = (binding, readings) => readings.liquidTarget === true && binding.every((n) => n === 'cpu');
+
 /**
  * @param {{ channels: any[], cpuName?: string, memory?: any, saved?: any, last?: any }} opts
  *   last: what the last brain's last() answered (brain-resume.js), for a restart of seconds
@@ -118,7 +125,7 @@ function createBrain({ channels, cpuName = '', memory = {}, saved = {}, last = n
     const fr = measuredFractions(snap);
     const slows = ['cpu', 'gpu'].filter((n) => !untrusted.has(n)).map((n) => models[n].state().S);
     const liquid = val(snap.temps?.liquid) != null && !untrusted.has('cpu');
-    const a = air.update({ now: snap.at, dt, board: val(snap.temps?.board), slows, liquid });
+    const a = air.update({ now: snap.at, dt, board: val(snap.temps?.board), slows, liquid, cardPower: untrusted.has('gpu') ? null : snap.power?.gpu });
     const readings = { ambient: a.smooth, liquidTarget: hasRadiator };
     for (const node of ['cpu', 'gpu']) {
       const die = val(snap.temps?.[node]);
@@ -210,6 +217,9 @@ function createBrain({ channels, cpuName = '', memory = {}, saved = {}, last = n
     const planned = stalled.size ? channels.map((ch) => (stalled.has(ch.id) ? { ...ch, controllable: false } : ch)) : channels;
     const p = makePlan({ channels: planned, models: live, readings, targets, ceilings, anticipate: c.anticipate, correction: correction.factors(), allowZero: ctx.allowZero === true, measured, bias: c.bias, previous: st.plan });
     st.plan = { ...p.fractions };
+    // The source closest to its limit first: the reason names it (reasons.js).
+    const pressure = (n) => correction.overBy(n, targets, readings) ?? -Infinity;
+    const binding = [...p.binding].sort((a, b) => pressure(b) - pressure(a));
     // "Out of reach" is not said on a guess (an idle chip 25 degrees under its target
     // was called that while learning): only of a component already at its target.
     const impossible = p.impossible.filter((n) => (correction.overBy(n, targets, readings) ?? -Infinity) > -REACH_NEAR);
@@ -220,7 +230,7 @@ function createBrain({ channels, cpuName = '', memory = {}, saved = {}, last = n
       : since < WARMUP_MS ? { ...p.fractions, ...start }
         : learning ? Object.fromEntries(Object.entries(p.fractions).map(([id, f]) => [id, Math.min(f, st.out?.[id] ?? Infinity, st.tookAt[id] ?? Infinity)]))
           : p.fractions;
-    const s = smoother.step({ now: snap.at, dtMs: dt, channels: startAt, fractions: held, urgent: p.urgent.length > 0, calm: c.calm, measured: snap.rpm, pumpFraction: pumpFraction(snap, readings.ambient + L.liquidRiseFor(c.bias)) });
+    const s = smoother.step({ now: snap.at, dtMs: dt, channels: startAt, fractions: held, urgent: p.urgent.length > 0, calm: c.calm || liquidPaced(p.binding, readings), measured: snap.rpm, pumpFraction: pumpFraction(snap, readings.ambient + L.liquidRiseFor(c.bias)) });
     st.out = { ...s.fractions };
     const confidence = Math.min(...Object.keys(live).map((n) => models[n].confidence()).concat(1));
     const predicted = {};
@@ -230,7 +240,7 @@ function createBrain({ channels, cpuName = '', memory = {}, saved = {}, last = n
     }
     return {
       duties: s.duties, fractions: s.fractions, planned: p.fractions, targets, predicted, bias: c.bias,
-      binding: p.binding, impossible, urgent: p.urgent, noiseDb: p.noiseDb, confidence, ambient: readings.ambient,
+      binding, impossible, urgent: p.urgent, noiseDb: p.noiseDb, confidence, ambient: readings.ambient,
       spike: R.spiked(st.dies, st.slows), contextReasons: c.reasons,
     };
   }

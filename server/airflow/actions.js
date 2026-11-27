@@ -102,6 +102,8 @@ function createAirflowActions({ store, loop, start = async () => {}, clock = Dat
         if (!p) return { ok: false, error: 'bad_value' };
         // Not a choice but a fact, told once: the filters were cleaned today (health.js).
         if (p.cleaned === true) { await start(); return loop.cleaned() ? { ok: true } : { ok: false, error: 'unavailable' }; }
+        // Not a choice either: learn this PC again from scratch (a new cooler, case or fans).
+        if (p.relearn === true) { await start(); await loop.relearn(); return { ok: true }; }
         // Only a fan this PC has now: the choices kept are capped, and a made-up id would
         // take the place of a real one.
         if (p.fan !== undefined && !((await fresh())?.fans || []).some((f) => f.id === p.fan?.id)) return { ok: false, error: 'unknown_fan' };

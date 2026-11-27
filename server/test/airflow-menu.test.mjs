@@ -27,6 +27,7 @@ const section = (v) => airflowSection({ airflow: v })[0];
 const tab = (row, id) => row.tabs.find((t) => t.id === id);
 const rowOf = (rows, id) => rows.find((r) => r.id === id);
 const keyOf = (t) => t && t.key;
+const dayAgo = (n) => new Date(NOW - n * 86400000).toISOString().slice(0, 10);
 function walk(node, visit) {
   if (Array.isArray(node)) return node.forEach((n) => walk(n, visit));
   if (node && typeof node === 'object') { visit(node); Object.values(node).forEach((v) => walk(v, visit)); }
@@ -49,6 +50,7 @@ function everyView() {
     ...['readonly', 'leave', 'unchecked', 'three-pin', 'blind', 'brain', 'sensor', 'stall'].map((why, i) => ({ ...fans[0], id: 'w' + i, why })),
   ] }));
   views.push(airflowView({ health: { slow: [{ id: 'lhm:chip0:0', ratio: 0.8 }], dust: { cpu: { warmer: 0.12, dusty: true }, gpu: { warmer: 0.01, dusty: false } }, cleaned: '2026-11-20', gain: { cpu: 3.2, gpu: 0.2 } } }));
+  views.push(airflowView({ health: { ...airflowView().health, parts: { cpu: dayAgo(1), gpu: dayAgo(2) } } }));
   views.push(airflowView({ options: { night: { on: false, from: 23, to: 7 }, callQuiet: false, allowZero: true }, lastCheck: null }));
   views.push(airflowView({ unavailable: { link: 'link-off' } }), newView({ unavailable: { link: 'link-off' } }));
   for (const why of ['no-service', 'outdated']) views.push(airflowView({ unavailable: { lhm: why } }));
@@ -328,6 +330,21 @@ test('options: night hours only when night is on, an hour set elsewhere kept amo
   assert.deepEqual(JSON.parse(rise.acts.on.run.patch), { riseAlert: true });
   assert.equal(rowOf(rows, 'airflow-rise').on, true, 'the notice is on unless switched off');
   assert.deepEqual(rowOf(off, 'airflow-recheck').act.run, { type: 'airflowCheck', do: 'start' });
+  const relearn = rowOf(off, 'airflow-relearn');
+  assert.deepEqual(JSON.parse(relearn.act.run.patch), { relearn: true });
+  assert.equal(keyOf(relearn.sub), 'airflow_relearn_sub');
+});
+
+test('health: a new processor or graphics card is told for a week, then no more', () => {
+  const rowsWith = (parts) => tab(section(airflowView({ health: { ...airflowView().health, parts } })), 'health').rows;
+  const fresh = rowsWith({ cpu: null, gpu: dayAgo(2) });
+  assert.equal(keyOf(rowOf(fresh, 'airflow-part-gpu').label), 'airflow_part_new_gpu');
+  assert.equal(keyOf(rowOf(fresh, 'airflow-part-gpu').value), 'airflow_part_relearning');
+  assert.equal(rowOf(fresh, 'airflow-part-cpu'), undefined);
+  assert.equal(fresh[0].id, 'airflow-part-gpu', 'the first thing Health says');
+  const old = rowsWith({ cpu: dayAgo(10), gpu: null });
+  assert.equal(rowOf(old, 'airflow-part-cpu'), undefined);
+  assert.equal(rowOf(rowsWith(undefined), 'airflow-part-cpu'), undefined, 'an older engine says nothing of parts');
 });
 
 test('the LINK hub switch: only on a PC with one or once allowed, saying why it waits', () => {

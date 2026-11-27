@@ -13,14 +13,32 @@ const N = 'server/airflow/brain-noise.js';
 const NE = 'server/airflow/brain-needs.js';
 const R = 'server/airflow/reasons.js';
 const RL = 'server/airflow/brain-rls.js';
+const AI = 'server/airflow/brain-air.js';
 const m = (name, file, from, to) => ({ name, file, from, to });
 export default {
-  tests: ['server/test/airflow-brain-model.test.mjs', 'server/test/airflow-brain-warm-aio.test.mjs', 'server/test/airflow-brain-learn.test.mjs', 'server/test/airflow-brain-plan.test.mjs', 'server/test/airflow-brain-motion.test.mjs', 'server/test/airflow-brain-swing.test.mjs', 'server/test/airflow-sim.test.mjs'],
+  tests: ['server/test/airflow-brain-model.test.mjs', 'server/test/airflow-brain-warm-aio.test.mjs', 'server/test/airflow-brain-learn.test.mjs', 'server/test/airflow-brain-plan.test.mjs', 'server/test/airflow-brain-motion.test.mjs', 'server/test/airflow-brain-swing.test.mjs', 'server/test/airflow-brain-pace.test.mjs', 'server/test/airflow-sim.test.mjs'],
   mutations: [
     m('smooth: a stopped fan started for nothing', S, 'if (s.frac > 0 && (now - s.zeroSince < STOP_AFTER_MS', 'if ((now - s.zeroSince < STOP_AFTER_MS'),
     m('plan: fans bought for what they do not serve', P, 'const served = cons.filter((c) => serves[gi].has(c.node));', 'const served = cons;'),
     m('plan: fans for different components in one group', P, "const key = [...servesOf(c)].sort().join();", "const key = '';"),
     m('plan: the plain curve reaches every fan', P, ' && servesOf(byId[id]).has(node)) floor[id]', ') floor[id]'),
+    // How fast the fans climb (24 Nov 2026): calm for a CPU on a liquid, usual otherwise.
+    m('brain: a liquid climbs at the usual rate', B, 'calm: c.calm || liquidPaced(p.binding, readings),', 'calm: c.calm,'),
+    m('brain: an air cooler climbs at the calm rate', B, "readings.liquidTarget === true && binding.every", 'binding.every'),
+    m('brain: a card on a liquid PC climbs at the calm rate', B, "readings.liquidTarget === true && binding.every((n) => n === 'cpu')", 'readings.liquidTarget === true'),
+    // A cooler's own fans are never learned down to nothing; a real liquid's moment is kept
+    // whatever its share of R x P (25 Nov 2026).
+    m("model: a cooler's own fans learned down to nothing", M, "v * (node === 'cpu' && p.shared[channels[i - 2].place] != null ? COOLER_KEEP : 0.02)", 'v * 0.02'),
+    m("model: every fan held like a cooler's", M, "node === 'cpu' && p.shared[channels[i - 2].place] != null ? COOLER_KEEP", 'COOLER_KEEP'),
+    m('anchor: a real liquid needs its share of R x P', A, 'now.real ? 0 : RISE_SHARE * now.R * Pslow', 'RISE_SHARE * now.R * Pslow'),
+    // The reason names the source closest to its limit first (25 Nov 2026).
+    m('reasons: the heat codes in a fixed order', R, '(HEAT.includes(c) ? heat[h++] : c)', 'c'),
+    m('air: the card warms no guessed air', B, "cardPower: untrusted.has('gpu') ? null : snap.power?.gpu", 'cardPower: null'),
+    m('air: the card warms the air past the coolest slow node', AI, 'Math.min(room, WARM_PER_W * (card - cardRest))', 'WARM_PER_W * (card - cardRest)'),
+    m("air: the card's warmth counted from nothing, not its rest", AI, 'cardRest = Math.min(cardRest, card);', 'cardRest = 0;'),
+    m("air: the card's heat warms the air at once", AI, 'card = ema(card, power, dt, CASE_MS);', 'card = power;'),
+    m('air: a card with no power reading warms the air', AI, "if (!Number.isFinite(power) || power < 0) return 0;", "if (power == null) return WARM_PER_W * 150;"),
+    m('brain: the binding as the plan found it', B, 'const binding = [...p.binding].sort((a, b) => pressure(b) - pressure(a));', 'const binding = p.binding;'),
     m('brain: out of reach said under the target', B, '.filter((n) => (correction.overBy(n, targets, readings) ?? -Infinity) > -REACH_NEAR)', ''),
     m('plan: ignores power swing', NE, 'const P = Math.max(r.Peff + PDEV_K * (r.Pdev || 0), anticipate[node] || 0);', 'const P = r.Peff;'),
     m('plan: no anticipate', NE, 'const P = Math.max(r.Peff + PDEV_K * (r.Pdev || 0), anticipate[node] || 0);', 'const P = r.Peff + PDEV_K * (r.Pdev || 0);'),
@@ -73,7 +91,7 @@ export default {
     m('model: a real liquid moved by R', A, 'const rise = m.rise + (now.real ? 0 : (m.R - now.R) * m.P);', 'const rise = m.rise + (m.R - now.R) * m.P;'),
     m('model: any fan restarts the settle clock', A, 'return F.reduce((s, f, i) => s + th[2 + i] * Math.abs(f - F0[i]), 0) >= FANS_STILL * air;', 'return F.some((f, i) => Math.abs(f - F0[i]) >= FANS_STILL);'),
     m('model: S jumps with R', M, 'Rs = ema(Rs, R, dt, S_SMOOTH_MS);', 'Rs = R;'),
-    m('model: G0 learned away', M, 'i === 1 ? v * G0_KEEP : v * 0.02', 'v * 0.02'),
+    m('model: G0 learned away', M, 'i === 1 ? v * G0_KEEP :', 'i === 1 ? v * 0.02 :'),
     m('model: a hidden cooler not counted', M, "((p.G0 + (hidden ? p.hidden : 0)) / p.C)", '(p.G0 / p.C)'),
     m('model: a fit with the cooler counted the other way kept', M, 'const kept = (saved.hidden === true) === hidden;', 'const kept = true;'),
     m('brain: untrusted observed', B, 'if (die == null || untrusted.has(node)) continue;', 'if (die == null) continue;'),

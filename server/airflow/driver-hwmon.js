@@ -28,6 +28,7 @@ const RESCAN_MS = 60000;
 const CHIP_DIR_RE = /^hwmon\d{1,3}$/;
 const FAN_INPUT_RE = /^fan(\d{1,2})_input$/;
 const MAX_TACH = 12;
+const MAX_TEMP = 8;
 const SUPER_IO_RE = /^(nct|it8|f71|w83)/;
 
 const toRaw = (duty) => Math.round((Math.min(100, Math.max(0, duty)) * 255) / 100);
@@ -60,12 +61,12 @@ async function realDir(fsp, dir) {
   try { return await fsp.realpath(dir); } catch { return null; }
 }
 
-// The fanN_input files a chip has, found once per walk instead of probed every second.
-async function fanIndexes(fsp, dir) {
-  try {
-    return (await fsp.readdir(dir)).map((n) => Number(FAN_INPUT_RE.exec(n)?.[1]))
-      .filter((i) => i >= 1 && i <= MAX_TACH).sort((a, b) => a - b);
-  } catch { return []; }
+// The fanN_input, tempN_input and pwmN files a chip has, found once per walk instead of probed every second.
+const numbered = (names, re, max) => names.map((n) => Number(re.exec(n)?.[1])).filter((i) => i >= 1 && i <= max).sort((a, b) => a - b);
+async function indexes(fsp, dir) {
+  let names = [];
+  try { names = await fsp.readdir(dir); } catch { /* a chip that went away has none */ }
+  return { fans: numbered(names, FAN_INPUT_RE, MAX_TACH), temps: numbered(names, /^temp(\d)_input$/, MAX_TEMP), pwms: numbered(names, /^pwm(\d)$/, MAX_PWM) };
 }
 
 async function listChips(root, fsp) {
@@ -79,7 +80,7 @@ async function listChips(root, fsp) {
     if (!chip || !real) continue;
     let devKey = 'virtual';
     try { devKey = hwmonDevKey(await fsp.realpath(`${dir}/device`)); } catch { /* a virtual chip has no device */ }
-    chips.push({ dir, real, chip, devKey, kind: hwmonKind(chip), fans: await fanIndexes(fsp, dir) });
+    chips.push({ dir, real, chip, devKey, kind: hwmonKind(chip), ...(await indexes(fsp, dir)) });
   }
   return chips;
 }
@@ -87,7 +88,7 @@ async function listChips(root, fsp) {
 // The temperatures safety.js and the brain use, from the chips that carry them.
 async function chipTemps(c, fsp, temps, power, at) {
   const put = (key, value) => { if (value != null && value > -20 && value < 130 && !temps[key]) temps[key] = { value, at }; };
-  for (let i = 1; i <= 8; i += 1) {
+  for (const i of c.temps) {
     const value = celsius(await readLabel(fsp, `${c.dir}/temp${i}_input`));
     if (value == null) continue;
     const label = await readLabel(fsp, `${c.dir}/temp${i}_label`);
@@ -116,7 +117,7 @@ async function chipTachs(c, fsp, tachs) {
 // rename applies; fanN is also its speed until the check pairs the real one.
 async function chipChannels(c, fsp, tachs) {
   const out = [];
-  for (let i = 1; i <= MAX_PWM; i += 1) {
+  for (const i of c.pwms) {
     const files = pwmFiles(c.dir, i);
     const raw = await readNum(fsp, files.pwm);
     if (raw == null || raw < 0 || raw > 255) continue;
@@ -194,15 +195,23 @@ function createHwmonDriver({
     return { ok: true, why: null };
   }
 
+  // c.enable is what the last poll read, so one write is enough until the mode changes again.
+  async function manual(c) {
+    if (c.enable === MANUAL) return;
+    await fsp.writeFile(c.files.enable, String(MANUAL));
+    c.enable = MANUAL;
+  }
+
   // Saved first, written after: a channel whose originals could not be kept is never touched.
   async function take(c) {
-    if (held.has(c.id)) return true;
+    // Held, yet the chip has its own curve again (the watchdog put it back while the engine hung): taken again.
+    if (held.has(c.id)) { await manual(c); return true; }
     held.set(c.id, { files: c.files, raw: c.raw, enable: c.enable });
     let saved = false;
     try { saved = (await saveHeld(await snapshot())) === true; } catch { saved = false; }
     if (!saved) { held.delete(c.id); return false; }
     watchdog?.hold(c.id, [[c.files.pwm, c.raw], [c.files.enable, c.enable]]);
-    if (c.enable !== MANUAL) await fsp.writeFile(c.files.enable, String(MANUAL));
+    await manual(c);
     return true;
   }
 
@@ -248,6 +257,7 @@ function createHwmonDriver({
    */
   async function apply(verdicts) {
     const failed = [];
+    watchdog?.beat?.();
     for (const c of channels) if (!(await drive(c, verdicts?.[c.id]))) failed.push(c.id);
     // Held but no longer listed: the chip went away, nothing left to write.
     const listed = new Set(channels.map((c) => c.id));

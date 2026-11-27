@@ -8,6 +8,8 @@ const { DATA_DIR } = require('../engine/paths.js');
 const { broadcastSSE } = require('../http/sse-clients.js');
 const Sources = require('../capabilities/situation-sources.js');
 const { readHubSettings } = require('../settings/read.js');
+const { getCpuName } = require('../system/cpu.js');
+const { sensorReads } = require('../system/sensor-reads-state.js');
 const { createAirflowStore } = require('./store.js');
 const { createAirflowLoop } = require('./loop.js');
 const { createAirflowLive } = require('./live.js');
@@ -35,9 +37,13 @@ const rise = createRiseNotices({ broadcast: broadcastSSE, cause });
 const onStatus = (status) => { live.push(status); rise.push(status, store.peek()); };
 // While it holds the fans the engine never waits behind the work that heats the PC.
 const enginePriority = createEnginePriority({ warn });
+// The processor's own limit (limits.js tjMax), and which processor and graphics card these
+// are: a new one starts its learning again (loop-learning.js). The card's name is known once
+// something reads the card (the dashboard).
+const cpuName = getCpuName() || '';
 const loop = createAirflowLoop({
   drivers: platform.drivers, none: platform.none, store, labels: labels.get, situation: situation.now, warn, onStatus,
-  onDriving: enginePriority.holding,
+  onDriving: enginePriority.holding, cpuName, parts: () => ({ cpu: cpuName, gpu: sensorReads.gpuCache.gpuName }),
 });
 
 let started = null;

@@ -212,8 +212,8 @@ test('model: the check keeps the readings each control moves, valid ids only, no
 
 test('model: the last fan check keeps only known problems on valid fans', () => {
   const at = 1_700_000_000_000;
-  const check = Model.normalize({ check: { at, problems: { 'lhm:board:control-1': 'no-start', 'lhm:board:control-2': 'boom', '../x': 'no-speed', 'lhm:board:control-3': 'pump-stopped', 'lhm:board:control-4': 'no-handback' } } }).check;
-  assert.deepEqual(check, { at, problems: { 'lhm:board:control-1': 'no-start', 'lhm:board:control-3': 'pump-stopped', 'lhm:board:control-4': 'no-handback' } });
+  const check = Model.normalize({ check: { at, problems: { 'lhm:board:control-1': 'no-start', 'lhm:board:control-2': 'boom', '../x': 'no-speed', 'lhm:board:control-3': 'pump-stopped', 'lhm:board:control-4': 'no-handback', 'lhm:board:control-5': 'changed' } } }).check;
+  assert.deepEqual(check, { at, problems: { 'lhm:board:control-1': 'no-start', 'lhm:board:control-3': 'pump-stopped', 'lhm:board:control-4': 'no-handback', 'lhm:board:control-5': 'changed' } });
   assert.equal(Model.normalize({ check: { problems: {} } }).check, null, 'no time, no check');
   assert.deepEqual(Model.normalize({ check: { at, problems: 'x' } }).check, { at, problems: {} });
 });

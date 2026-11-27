@@ -1,8 +1,9 @@
 'use strict';
 // The Fans and Health tabs of the Xenon menu's Fans section (menu-airflow.js): every fan
 // and pump with its speed, who drives it and why, and its choices (left to the PC, where it
-// sits, a pump); then how the cooling holds up over the weeks (dust, a fan slower than when
-// it was checked, what cleaning gained) and the last fan check. Pure.
+// sits, a pump); then how the cooling holds up over the weeks (a new processor or card being
+// learned, dust, a fan slower than when it was checked, what cleaning gained) and the last fan
+// check. Pure.
 
 const Model = require('../js/airflow/airflow-model.js');
 const { k, run, choiceRow, toggleRow } = require('./menu-rows.js');
@@ -14,6 +15,9 @@ const CHECK = Object.freeze({ type: 'airflowCheck', do: 'start' });
 const codeKey = (prefix, code) => prefix + String(code).replace(/-/g, '_');
 
 const GAIN_FELT = 0.5;
+// A new processor or graphics card is told this long after it was found.
+const NEW_PART_DAYS = 7;
+const DAY_MS = 86400000;
 const FAN_WHYS = Object.freeze(['readonly', 'leave', 'unchecked', 'three-pin', 'blind', 'unproven', 'brain', 'sensor', 'stall']);
 
 // A header that gave no speed and shows none: most likely nothing is plugged in.
@@ -85,10 +89,12 @@ function healthTab(v) {
   const h = v.health || {};
   const names = new Map(v.fans.map((f) => [f.id, f.name || f.id]));
   /** @type {any[]} rows of several kinds */
-  const rows = [
+  const rows = ['cpu', 'gpu'].filter((n) => v.at - Date.parse(h.parts?.[n] + 'T12:00') < NEW_PART_DAYS * DAY_MS)
+    .map((n) => ({ kind: 'status', id: 'airflow-part-' + n, label: k('airflow_part_new_' + n), value: k('airflow_part_relearning'), tone: 'none' }));
+  rows.push(
     dustRow('airflow-dust-cpu', 'airflow_dust_cpu', h.dust?.cpu),
     dustRow('airflow-dust-gpu', 'airflow_dust_gpu', h.dust?.gpu),
-  ];
+  );
   for (const s of h.slow || []) {
     if (!names.has(s.id)) continue;
     rows.push({ kind: 'status', id: 'airflow-slow-' + s.id, label: { text: names.get(s.id) }, value: k('airflow_wear_slow', { n: Math.round((1 - s.ratio) * 100) }), tone: 'warn' });
@@ -107,4 +113,4 @@ function healthTab(v) {
   return rows;
 }
 
-module.exports = { fansTab, healthTab, set, CHECK, codeKey };
+module.exports = { fansTab, healthTab, set, CHECK, codeKey, NEW_PART_DAYS };

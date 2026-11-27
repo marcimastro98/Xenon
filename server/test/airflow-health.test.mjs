@@ -107,9 +107,46 @@ test('saved health comes back; broken parts are dropped', () => {
   runFan(h, { rpm: 750, seconds: 1000 });
   h.daily({ day: day(0), models: { cpu: model(20) } });
   h.cleanedOn(day(0));
+  h.newPart('gpu', day(0));
   const copy = H.createHealth({ saved: JSON.parse(JSON.stringify(h.save())) });
   assert.deepEqual(copy.save(), h.save());
-  const broken = H.createHealth({ saved: { wear: { a: { ratio: -1, n: 3 }, b: { ratio: 1, n: 1.5 }, c: { ratio: 0.9, n: 9 } }, history: [{ day: 'x' }, { day: day(0), cpu: 'hot' }, { day: day(1), cpu: 20 }], cleaned: 5 } });
-  assert.deepEqual(broken.save(), { wear: { c: { ratio: 0.9, n: 9 } }, history: [{ day: day(1), cpu: 20 }], cleaned: null });
-  assert.deepEqual(H.createHealth({ saved: null }).save(), { wear: {}, history: [], cleaned: null });
+  const broken = H.createHealth({ saved: { wear: { a: { ratio: -1, n: 3 }, b: { ratio: 1, n: 1.5 }, c: { ratio: 0.9, n: 9 } }, history: [{ day: 'x' }, { day: day(0), cpu: 'hot' }, { day: day(1), cpu: 20 }], cleaned: 5, parts: { cpu: 'today', gpu: 3, fan: day(0) } } });
+  const none = { cpu: null, gpu: null };
+  assert.deepEqual(broken.save(), { wear: { c: { ratio: 0.9, n: 9 } }, history: [{ day: day(1), cpu: 20 }], cleaned: null, parts: none });
+  assert.deepEqual(H.createHealth({ saved: null }).save(), { wear: {}, history: [], cleaned: null, parts: none });
+});
+
+test('swap: a fan far from its check, reading after reading, is another fan; wear and a day off are not', () => {
+  const h = H.createHealth();
+  // A third faster than checked: past SWAP_OFF, once the duty has settled.
+  runFan(h, { id: 'a', rpm: 1400, seconds: 30 + H.SWAP_READINGS - 2 });
+  assert.deepEqual(h.swapped(), [], 'not yet enough readings');
+  runFan(h, { id: 'a', rpm: 1400, seconds: 5, from: (31 + H.SWAP_READINGS) * 1000 });
+  assert.deepEqual(h.swapped(), ['a']);
+  h.forgetFan('a');
+  assert.deepEqual(h.swapped(), [], 'checked again: forgotten');
+  // A fan a fifth slow (wear) never reads as another fan, however long.
+  const worn = H.createHealth();
+  runFan(worn, { id: 'b', rpm: 800, seconds: 3600 });
+  assert.deepEqual(worn.swapped(), []);
+  // One reading in line in between starts the count again.
+  const mixed = H.createHealth();
+  runFan(mixed, { id: 'c', rpm: 600, seconds: 30 + H.SWAP_READINGS - 5 });
+  mixed.observeFan({ id: 'c', duty: 60, rpm: 1000, curve: CURVE, now: (31 + H.SWAP_READINGS) * 1000 });
+  runFan(mixed, { id: 'c', rpm: 600, seconds: H.SWAP_READINGS - 5, from: (32 + H.SWAP_READINGS) * 1000 });
+  assert.deepEqual(mixed.swapped(), []);
+});
+
+test('a new part: only its dust history starts again, and the day is told', () => {
+  const h = H.createHealth();
+  for (let i = 0; i < 20; i += 1) h.daily({ day: day(i), models: { cpu: model(20), gpu: model(30) } });
+  h.newPart('gpu', day(20));
+  h.newPart('fan', day(20));
+  h.newPart('cpu', 'today');
+  const r = h.report();
+  assert.deepEqual(r.parts, { cpu: null, gpu: day(20) });
+  const saved = h.save();
+  assert.ok(saved.history.every((d) => d.gpu === null), 'the old card says nothing about the new one');
+  assert.equal(saved.history.filter((d) => d.cpu === 20).length, 20, 'the processor keeps its history');
+  assert.ok(!('fan' in saved.parts));
 });

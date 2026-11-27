@@ -49,6 +49,14 @@ const RATE_SLACK = 150;
 // joins G0. G0 is never learned under G0_KEEP of its prior: fans that never stop cannot
 // tell it from theirs (a 105 W scan ran a case fan at full, an idle card's fans spun).
 const G0_KEEP = 0.5;
+// A CPU cooler's own fans (a radiator's, a tower's) are never learned under COOLER_KEEP of their
+// prior. They move with the case fans, so the windows cannot tell which of them cools, and the
+// air the radiator breathes is a guess (brain-air.js): a 360 AIO's three fans went down to 2 % of
+// their prior and a case fan took their share. The plan then chased the liquid with the loud case
+// fan at 80 % on a light load (25 Nov 2026). A quarter of the prior was too much: a single fan
+// on a small radiator, a little dusty, really is that weak, and was planned twice too cool. A
+// card's own fans run as a pair: only their sum is learned, and one of them may take all of it.
+const COOLER_KEEP = 0.15;
 const PRIORS = Object.freeze({
   cpu: { C: 1500, G0: 1.0, hidden: 12, R: 0.25, Rmin: 0.05, Rmax: 0.8, stepW: 15,
     shared: { radiator: 12, cpu: 10 }, each: { top: 1.2, rear: 1.2, front: 0.8, bottom: 0.4, side: 0.6, case: 0.8, gpu: 0.1 } },
@@ -85,7 +93,7 @@ function createNodeModel({ node, channels }) {
     variance: theta.map((v) => (0.6 * v) ** 2),
     noise: 900,
     drift: theta.map((v) => (0.002 * v) ** 2),
-    floor: theta.map((v, i) => (i === 0 ? v * 0.2 : i === 1 ? v * G0_KEEP : v * 0.02)),
+    floor: theta.map((v, i) => (i === 0 ? v * 0.2 : i === 1 ? v * G0_KEEP : v * (node === 'cpu' && p.shared[channels[i - 2].place] != null ? COOLER_KEEP : 0.02))),
   });
   let R = p.R;
   // The R that S carries: S follows a new R over S_SMOOTH_MS, so the die the planner

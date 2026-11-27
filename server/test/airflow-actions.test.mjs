@@ -29,6 +29,7 @@ function fakeLoop({ age = 0, startCheck = { ok: true }, cleaned = true } = {}) {
     startCheck: () => { calls.push('startCheck'); return startCheck; },
     cancelCheck: () => calls.push('cancelCheck'),
     cleaned: () => { calls.push('cleaned'); return cleaned; },
+    relearn: async () => { calls.push('relearn'); },
   };
 }
 
@@ -144,6 +145,14 @@ test('airflowSet: a broken patch is refused, the filters cleaned are told to the
   assert.deepEqual(loop.calls, ['cleaned']);
   const away = await rig(t, { loop: fakeLoop({ cleaned: false }) });
   assert.deepEqual(await away.set({ cleaned: true }), { ok: false, error: 'unavailable' });
+});
+
+test('airflowSet: learning again from scratch is told to the engine; the choices stay as they were', async (t) => {
+  const saved = Model.normalize({ drive: 'on', mode: 'quiet', fans: { 'lhm:board:control-1': { place: 'front', calib: CALIB } } });
+  const { set, loop, store } = await rig(t, { saved });
+  assert.deepEqual(await set({ relearn: true }), { ok: true });
+  assert.deepEqual(loop.calls, ['relearn']);
+  assert.deepEqual(store.peek(), saved);
 });
 
 test('airflowCheck: started, busy, unavailable, and stopped', async (t) => {
