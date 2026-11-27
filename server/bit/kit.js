@@ -15,7 +15,7 @@ const ENGINE = Object.freeze([
   'shared/src/bit-look.js', 'shared/src/bit-wardrobe.js', 'shared/src/bit.js', 'shared/src/bit-clips-life.js',
   'shared/src/bit-director.js', 'shared/src/bit-player.js',
 ]);
-// Then the signs over its head (no engine file needs them) and the API.
+// Then the signs it holds up (no engine file needs them) and the API.
 const FILES = Object.freeze([...ENGINE, 'shared/src/bit-signs.js', 'js/bit-companion/kit-api.js']);
 
 const HEAD = '// Bit kit for Xenon widgets: the Bit engine and XenonBit.mount(host).set(bitStreamData).\n'

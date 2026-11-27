@@ -1,8 +1,8 @@
 'use strict';
-// The small pixel sign over the person's own Bit while it has something to tell (signals.js), drawn from
-// the shared table (shared/src/bit-signs.js, loaded just before this file): the same on every own Bit of
-// the dashboard (an SVG of rects beside each data-own-bit host, never markup from text), on the desktop
-// (desk-frames.js stamps the cells over its head) and in a widget's Bit kit.
+// The small pixel sign the person's own Bit holds up while it has something to tell (signals.js), from the
+// shared table (shared/src/bit-signs.js, loaded just before this file): in the hand of every own Bit of
+// the dashboard (its player draws it with the body, so it moves with Bit), of the desktop Bit
+// (desk-frames.js) and of a widget's Bit kit. svg() draws one alone, for the pocket's line.
 (() => {
   const S = globalThis.Xenon?.bitSigns;
   const SIZE = S?.SIZE || 5;
@@ -11,11 +11,8 @@
   // The dashboard's Bits that carry one: the corner and the tile (the clock's chip has no room).
   const HOSTS = '[data-own-bit]:not(.bitc-chip)';
 
-  /** For desk-frames.js: the sign's cells on the desktop grid, its top-left at (x0, y0); null for none. */
-  function at(kind, x0, y0) {
-    const list = cells(kind);
-    return list.length ? new Map(list.map((c) => [`${x0 + c.x},${y0 + c.y}`, c.hex])) : null;
-  }
+  /** The sign in Bit's hand, in stage cells (bit.js renderFrame `held`); null for none. */
+  const held = (kind) => (S && kind ? S.held(kind) : null);
 
   function svgOf(kind) {
     const svg = document.createElementNS(NS, 'svg');
@@ -37,18 +34,11 @@
 
   const kindNow = () => window.BitSignals?.top()?.kind || '';
 
-  /** Every own Bit of the page shows the sign of the moment, or none. */
+  /** Every own Bit of the page holds the sign of the moment, or none. */
   function paint() {
     if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
-    const kind = kindNow();
-    for (const host of document.querySelectorAll(HOSTS)) {
-      const box = host.parentElement;
-      if (!box) continue;
-      const had = box.querySelector(':scope > .bit-sign');
-      if (had?.classList.contains('bit-sign-' + kind)) continue;
-      had?.remove();
-      if (kind) box.append(svgOf(kind));
-    }
+    const cellsNow = held(kindNow());
+    for (const host of document.querySelectorAll(HOSTS)) window.BitApp?.playerFor(host)?.sign(cellsNow);
   }
 
   let queued = 0;
@@ -56,5 +46,5 @@
   addEventListener('xenon-bit-signals', later);
   addEventListener('xenon-bit', later);   // a Bit placed again (companion.js, tile.js)
 
-  window.BitSigns = Object.freeze({ SIZE, KINDS: S?.KINDS || [], cells, at, svg: svgOf, paint: later, kind: kindNow });
+  window.BitSigns = Object.freeze({ SIZE, KINDS: S?.KINDS || [], cells, held, svg: svgOf, paint: later, kind: kindNow });
 })();

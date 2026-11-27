@@ -8,33 +8,24 @@
 //   bit.set(m.data, { light: theme.appearance === 'light' });
 //
 // Not hatched yet: the egg. A move played on the dashboard (data.played) plays here too, and the
-// sign over its head (data.signal) shows in the top-right corner; `signs: false` leaves it to you.
-// `XenonBit.signs(svg)` draws the same sign over a Bit drawn without mount (the Maker's Bit layer).
+// sign of the moment (data.signal) is in its hand; `signs: false` leaves it to you.
+// `XenonBit.signs(player)` puts the same sign in the hand of a Bit drawn without mount, from its own
+// player (the Maker's Bit layer).
 // Its home (a worn item of place 'home') shows while it sleeps; `home: true` keeps it behind Bit always.
 // `classic: true` draws the classic Bit with its own rhythm, as the app does where the person
 // chose the classic Bit (data.everywhere === false).
 (() => {
   const X = globalThis.Xenon;
   const BACKGROUND = { dark: '#15191c', light: '#f4f6f5' };
-  const NS = 'http://www.w3.org/2000/svg';
 
-  /** The sign over its head (shared/src/bit-signs.js), drawn over the frame in the stage's top-right corner. */
-  function signer(svg) {
+  /** The sign of the moment (shared/src/bit-signs.js) in the hand of `player`'s Bit (a bitPlayer). */
+  function signer(player) {
     const S = X.bitSigns;
-    const g = document.createElementNS(NS, 'g');
-    g.setAttribute('class', 'xbit-sign');
-    svg.append(g);
-    const { x, y, w } = X.bit.STAGE;
-    let shown = '';
+    let kept = '';
     return (kind) => {
       const next = S?.KINDS.includes(kind) ? kind : '';
-      if (next === shown) return;
-      shown = next;
-      g.replaceChildren(...(next ? S.cells(next) : []).map((c) => {
-        const r = document.createElementNS(NS, 'rect');
-        for (const [k, v] of [['x', x + w - S.SIZE + c.x], ['y', y + c.y], ['width', 1], ['height', 1], ['fill', '#' + c.hex]]) r.setAttribute(k, String(v));
-        return r;
-      }));
+      if (next !== kept) player.sign(next ? S.held(next) : null);
+      kept = next;
     };
   }
 
@@ -46,7 +37,7 @@
     const player = X.bitPlayer.mount(host, {
       label: opts.label, mood: 'egg', look: () => look, director: () => director, home: opts.home === true,
     });
-    const sign = opts.signs === false ? () => {} : signer(player.element);
+    const sign = opts.signs === false ? () => {} : signer(player);
 
     function set(data, { light = false, classic = false } = {}) {
       if (data?.ok !== true) return;

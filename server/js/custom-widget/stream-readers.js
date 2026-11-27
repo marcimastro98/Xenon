@@ -63,7 +63,7 @@
 
   // The person's own Bit (server/bit/, GET /api/bit): what a widget draws it from with the Bit
   // kit (docs/create/bit-kit.js), its genes without the seed, the last move it played on the
-  // dashboard and the sign over its head (bit-companion/signals.js): only its kind, from the shared table
+  // dashboard and the sign in its hand (bit-companion/signals.js): only its kind, from the shared table
   // (shared/src/bit-signs.js), never what it is about. Never what it learned about the person (traits,
   // days), or what it owns.
   const BIT_STAGES = ['egg', 'baby', 'young', 'adult', 'veteran', 'legend'];

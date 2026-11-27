@@ -6,6 +6,7 @@ pub const MA_NOACTIVATE: isize = 3;
 pub const WM_MOUSEMOVE: u32 = 0x0200;
 pub const WM_LBUTTONDOWN: u32 = 0x0201;
 pub const WM_LBUTTONUP: u32 = 0x0202;
+pub const WM_MOUSEWHEEL: u32 = 0x020A;
 pub const WM_CAPTURECHANGED: u32 = 0x0215;
 pub const IDC_HAND: usize = 32649;
 

@@ -5,7 +5,7 @@
 
 use super::super::ffi::*;
 use super::win32::{render, tick, WIN};
-use super::{tell, Area};
+use super::{tell, wheel_call, Area};
 
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
@@ -28,6 +28,13 @@ extern "system" fn wnd_proc(h: isize, m: u32, w: usize, l: isize) -> isize {
         }
         WM_LBUTTONUP | WM_CAPTURECHANGED => {
             release(m == WM_LBUTTONUP);
+            0
+        }
+        WM_MOUSEWHEEL => {
+            // The high word of w: the turn, positive away from the person.
+            if let Some(call) = wheel_call(f64::from((w >> 16) as u16 as i16)) {
+                tell(call);
+            }
             0
         }
         WM_TIMER => {

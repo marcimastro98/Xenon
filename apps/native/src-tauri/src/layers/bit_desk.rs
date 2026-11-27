@@ -262,6 +262,15 @@ pub fn supported() -> bool {
     cfg!(any(windows, target_os = "macos", target_os = "linux"))
 }
 
+/// The wheel over Bit: one size up (away from the person) or down, for the page to
+/// choose and keep (desk.js `resize`). Nothing for a still wheel.
+pub(super) fn wheel_call(up: f64) -> Option<String> {
+    if !up.is_finite() || up == 0.0 {
+        return None;
+    }
+    Some(format!("resize({})", if up > 0.0 { 1 } else { -1 }))
+}
+
 /// The page's `window.BitDesk`, told with numbers only.
 fn tell(call: String) {
     let Some(app) = super::APP.get() else { return };

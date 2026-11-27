@@ -11,9 +11,10 @@
   // Moves anyone may ask for: clips of the engine that read well on any Bit.
   // "surprise" picks one of the others.
   const MOVES = ['surprise', 'wave', 'dance', 'hop', 'spin', 'moonwalk', 'juggle', 'bow', 'wink', 'airGuitar', 'cheer'];
-  // Same lists as server/bit/model.js PLACES, DESKS and WARPS (a test keeps them equal).
+  // Same lists as server/bit/model.js PLACES, DESKS, DESK_SIZES and WARPS (a test keeps them equal).
   const PLACES = ['corner', 'topbar', 'both', 'off'];
   const DESKS = ['main', 'all', 'off'];
+  const DESK_SIZES = ['small', 'medium', 'large'];
   const WARPS = ['any', 'crumble', 'beam', 'packet', 'glitch'];
   const WEAR = ['toggle', 'on', 'off'];
   const keys = (list, prefix) => Object.fromEntries(list.map((v) => [v, prefix + v]));
@@ -46,13 +47,17 @@
     },
     {
       type: 'bitDesk', group: 'xenon', labelKey: 'deck_act_bitDesk',
-      params: [{ name: 'desk', kind: 'select', labelKey: 'mybit_desk', options: DESKS, optionKeys: keys(DESKS, 'mybit_desk_') }],
+      // Either may be left out: "make Bit bigger" keeps where it is, "Bit on every screen" keeps its size.
+      params: [
+        { name: 'desk', kind: 'select', optional: true, strict: true, labelKey: 'mybit_desk', options: DESKS, optionKeys: keys(DESKS, 'mybit_desk_') },
+        { name: 'size', kind: 'select', optional: true, strict: true, labelKey: 'mybit_desk_size', options: DESK_SIZES, optionKeys: keys(DESK_SIZES, 'mybit_desk_size_') },
+      ],
       capability: {
         domain: 'ai', risk: 'safe', requires: 'bit',
         ai: {
           name: 'place_bit_desktop',
-          description: 'Whether the user\'s own Bit also stands on the desktop, on the taskbar (only in the Xenon app; on Windows, and as a Beta on macOS, over the Dock, and on Linux): main (the main screen), all (one Bit that travels to every screen in turn, never the dashboard\'s own), or off. Use it for "put Bit on my desktop", "Bit on every screen", "take Bit off the taskbar". Error "locked": every screen is an extra its author keeps for supporters; it opens with a supporter pass from Bit\'s room, under Where it lives.',
-          params: { desk: 'main, all or off' },
+          description: 'Whether the user\'s own Bit also stands on the desktop, on the taskbar (only in the Xenon app; on Windows, and as a Beta on macOS, over the Dock, and on Linux): main (the main screen), all (one Bit that travels to every screen in turn, never the dashboard\'s own), or off. size: small, medium (the usual one) or large; the person can also turn the mouse wheel over it. Leave out what the user did not mention. Use it for "put Bit on my desktop", "Bit on every screen", "take Bit off the taskbar", "make Bit bigger on the desktop". Error "locked": every screen is an extra its author keeps for supporters; it opens with a supporter pass from Bit\'s room, under Where it lives.',
+          params: { desk: 'optional: main, all or off', size: 'optional: small, medium or large' },
         },
       },
     },
@@ -109,5 +114,5 @@
     },
   ];
 
-  return { CAPABILITIES, MOVES, PLACES, DESKS, WARPS };
+  return { CAPABILITIES, MOVES, PLACES, DESKS, DESK_SIZES, WARPS };
 });

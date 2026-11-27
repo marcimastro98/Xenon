@@ -14,7 +14,6 @@
 (() => {
   const KEEPALIVE_MS = 20000;
   const SEND_DELAY_MS = 50;
-  const CELL = 3; // logical px a cell: about 36 px of Bit at 100%
   const STROLL_EVERY_MS = [120000, 300000];
   const PAUSE_MS = [5000, 14000]; // it sits this long at the far end
   const REACH = [0.04, 0.12]; // how far it walks, in lengths of the bar
@@ -58,7 +57,7 @@
   const screens = () => window.BitDeskScreens;
   const spots = () => window.BitDeskSpot;
   const here = () => (prefs().desk === 'all' ? monitor : spots().own());
-  const spot = () => spots().place(here(), frames().COLS, CELL);
+  const spot = () => spots().place(here(), frames().COLS, spots().cell());
   const still = () => spot().y !== null; // left away from the bar: it stays put
   const wanted = () => supported() && !!state()?.hatched && prefs().desk !== 'off' && !!app()?.personal();
 
@@ -75,7 +74,7 @@
     const f = look && frames()?.picture({ look, loopId: loopId(), once: shown, gone, reduced: reduced(), sign: window.BitSigns?.kind() });
     if (!f) return { on: false };
     const at = spot();
-    const msg = { on: true, monitor: here(), cell: CELL, body: frames().BODY, pal: f.pal, loop: f.loop, home: at.x };
+    const msg = { on: true, monitor: here(), cell: spots().cell(), body: frames().BODY, pal: f.pal, loop: f.loop, home: at.x };
     if (at.y !== null) msg.rise = at.y;
     if (f.once) msg.once = { seq: shown.seq, frames: f.once };
     if (walk) msg.walk = { seq: walk.seq, to: walk.to, pxs: Math.round(SPEED_PX_S * (riding() ? RIDE_SPEED : 1)) };
@@ -233,6 +232,11 @@
     if (r?.where !== 'screen') window.BitCompanion?.tap(null);
   }
 
+  /** The wheel over it (bit_desk.rs wheel_call): one size up (1) or down (-1), kept in its prefs. */
+  function resize(step) {
+    if (out && spots().resize(Number(step))) schedule();
+  }
+
   const third = (n) => clamp01(Math.round(n * 1000) / 1000);
 
   /** Dropped: x along the bar, y how high (-1 on the bar), mx, my the corner of the screen it landed on.
@@ -257,7 +261,7 @@
 
   function start() {
     addEventListener('xenon-bit', schedule);
-    addEventListener('xenon-bit-signals', schedule); // a sign over its head comes or goes (signs.js)
+    addEventListener('xenon-bit-signals', schedule); // a sign in its hand comes or goes (signs.js)
     addEventListener('xenon-bit-desk-try', schedule); // something from the room put on, or its ten minutes over
     schedule();
     armFidget();
@@ -273,6 +277,7 @@
     // The shell's words (bit_desk/window_win32.rs tell()).
     tapped,
     dropped: drop,
+    resize,
     arrived,
     hop,
     screens: () => screens()?.list() || [],

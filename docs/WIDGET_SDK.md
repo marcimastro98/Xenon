@@ -494,7 +494,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `netPath` (v5.0.0) — `{ ok, link, linkMbps, signal, dbm, router, provider, internet, traffic }`: **how the way to the internet is doing, stretch by stretch**: delay, jitter and loss to the router, to the provider's first hop and to the internet, with the Wi-Fi signal and this PC's traffic. Numbers only, never an address. See *The way to the internet* below. A **pull** stream
 - `energy` (v5.0.0) — `{ ok, enabled, sampleMinutes, now, hours:[…], days:[…] }`: **how much energy this PC used**, in Wh per hour (72 h) and per day (90 days), from the sensor history, with the source of each figure. Numbers only. See *Energy, hour by hour and day by day* below. A **pull** stream
 - `airflow` (v5.3) — `{ ok, state, drive, mode, why, fans:[…], check, quieterDb }`: **how the PC's fans are** with Airflow, Xenon's fan control: each fan's speed and who drives it, and the reason behind what Xenon does. Read only. See *The fans* below. A **pull** stream
-- `bit` (v5.3) — `{ ok, hatched, stage, name, number, founder, genes:{…}, worn:[…], items:[…], played, signal }`: **the person's own Bit**, to draw it with the Bit kit (`bit-kit.js`, copied into the package), play the moves it makes on the dashboard and show the sign over its head. Never what it learned about the person. See *Your own Bit* below. A **pull** stream
+- `bit` (v5.3) — `{ ok, hatched, stage, name, number, founder, genes:{…}, worn:[…], items:[…], played, signal }`: **the person's own Bit**, to draw it with the Bit kit (`bit-kit.js`, copied into the package), play the moves it makes on the dashboard and show the sign it holds up. Never what it learned about the person. See *Your own Bit* below. A **pull** stream
 - `homeEvents` (v5.3) — `{ ok, events:[{ kind, place, at }] }`: **what happened at home** while Xenon was connected to Home Assistant or UniFi Protect: rings at the door, the people, vehicles, parcels and animals the cameras picked out, doors and windows opened. Newest first, never a picture, never who. See *What happened at home* below. A **pull** stream
 - `network` — `{ ok, downloadBps, uploadBps, ping, latency, loss, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: send a `refresh` message for it at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline. `position` is a whole number of seconds and can trail the real position by up to a second or two; when you need to time something to the song (lyrics, a beat-synced effect), read `positionMs` instead, the unrounded position in milliseconds as of the moment the event was sent (absent from an older Xenon Helper: fall back to `position * 1000`). Between events, add the time since you received the event to it while `playbackStatus` is `Playing`. `thumbnail` is the cover picture, or `null`/empty when there is none: a `data:image/...` URL you can put straight into an `<img>`, or an `https://` URL (some players give one, and Xenon looks the cover up online when the player gives none), which the sandbox cannot load directly: show it through `/sdk/tile/` (see "Map & radar tiles") with its host in `hosts`. The same track keeps the same cover, so redraw it only when `title` or `artist` change
@@ -1198,7 +1198,7 @@ it made on the dashboard, so a widget's Bit moves with the others.
   items: [],           // the items it wears that Xenon's hub made (a month's supporters' item, a newer
                        // shop item): their drawing, which the Bit kit takes in by itself
   played: { clip: 'wave', at: 1764000000000 },  // the last move on the dashboard, or null
-  signal: 'done',      // the sign over its head, or null: 'done' | 'ask' | 'soon' | 'bell' | 'disk'
+  signal: 'done',      // the sign in its hand, or null: 'done' | 'ask' | 'soon' | 'bell' | 'disk'
 }
 ```
 
@@ -1234,11 +1234,11 @@ bit.set(m.data, { light: theme.appearance === 'light' });
 - **`played`** makes the kit play a move the dashboard played (a Deck key, Bit
   in the chat, another widget). The first update only says where things stand:
   a move from before the widget opened is not replayed.
-- **`signal`** is the sign Bit holds up over its head on the dashboard while it
+- **`signal`** is the sign Bit holds up in its hand on the dashboard while it
   has something to tell: `done` (a job finished, like Claude Code or Codex),
   `ask` (a question waits for an answer), `soon` (an event is near), `bell`
   (a timer rang), `disk` (a disk is almost full). Only the kind, never what it
-  is about. The kit draws it in the top-right corner of Bit's stage; mount with
+  is about. The kit puts it in Bit's hand, moving with it; mount with
   `{ signs: false }` to draw your own from `signal`. It is `null` with nothing
   to tell, and on pages that are not the dashboard (a desktop layer, the pump's
   screen).

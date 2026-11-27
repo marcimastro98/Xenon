@@ -123,12 +123,21 @@
     }
     return cache.get(key);
   }
-  function wornFor(look, c) {
+  // A sign held up (bit-signs.js held()) takes the hand: what it held waits behind it.
+  function wornFor(look, c, holding) {
     const out = { behind: [], over: [], face: [], home: [], ride: [], prop: [], lift: 0 };
     const ride = look.worn.find((w) => w.slot === 'ride');
     if (ride && fits(c, ride, 0)) out.lift = ride.lift;
-    for (const w of look.worn) if (fits(c, w, out.lift)) for (const k of LAYERS) out[k].push(...w[k]);
+    for (const w of look.worn) if (!(holding && w.slot === 'hand') && fits(c, w, out.lift)) for (const k of LAYERS) out[k].push(...w[k]);
     return out;
+  }
+
+  // The sign in its hand, with the arm in the body's colour. Never set down like a worn item: it is what
+  // Bit has to tell, and the liveliest clips carry its edge at most about a cell past the stage.
+  const ARM = [[10, 6]];
+  function heldRects(held, fill) {
+    if (!Array.isArray(held) || !held.length) return [];
+    return [...rects(ARM, fill), ...held.map((h) => ({ x: h.x, y: h.y, w: 1, h: 1, fill: '#' + h.hex, o: 1 }))];
   }
   // On a ride, a step is a glide: no bob, no squash, no dust.
   const glide = (frame) => ({ ...frame, dy: 0, sx: 1, sy: 1, ex: (frame.ex || []).filter((e) => e[0] !== 'dust') });
@@ -137,17 +146,17 @@
    * Render one frame of a clip to layers of rectangles.
    * @param {object|string} clipOrId  a clip from bit-clips.js or its id
    * @param {number} index            frame index (wraps)
-   * @param {{tint?: string, home?: boolean, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
+   * @param {{tint?: string, home?: boolean, held?: Array<{x: number, y: number, hex: string}>|null, look?: { body: string, accent: string, outline?: string } & Record<string, any>}} [opts]  tint overrides the clip's color;
    *   look (bit-look.js) draws a personal Bit, whose mood then lights the antenna tip; its home shows
    *   behind it with `home` or in a clip that rests there (`home: true`, sleep), its prop beside it
-   *   unless it is on its way somewhere (`travel: true`)
+   *   unless it is on its way somewhere (`travel: true`); held is a sign in its hand (bit-signs.js held())
    * @returns {{ layers: Array<{ transform: object|null, clipFloor: boolean, rects: Array }> }}
    */
   function renderFrame(clipOrId, index = 0, opts = {}) {
     const c = typeof clipOrId === 'string' ? clip(clipOrId) : clipOrId;
     if (!c?.frames.length) throw new Error(`Unknown Bit clip: ${clipOrId}`);
     const look = opts.look || null;
-    const worn = look ? wornFor(look, c) : null;
+    const worn = look ? wornFor(look, c, !!opts.held?.length) : null;
     const at = c.frames[((index % c.frames.length) + c.frames.length) % c.frames.length];
     const frame = worn?.ride.length && c.travel ? glide(at) : at;
     const mood = `rgb(${rgb(frame.tint || opts.tint || c.tint)})`;
@@ -186,6 +195,8 @@
     if (worn?.ride.length) layers.push({ transform: transform({ dx: frame.dx, dy: frame.dy }), clipFloor: true, rects: worn.ride });
     const own = look ? personal(look, mood, worn.over) : [];
     layers.push({ transform: t, clipFloor: true, rects: [...rects(BODY, fill), ...own, ...attached, ...(worn ? worn.face : []), ...face(frame, look)] });
+    const held = heldRects(opts.held, fill);
+    if (held.length) layers.push({ transform: t, clipFloor: false, rects: held });
     if (front.length) layers.push({ transform: null, clipFloor: false, rects: front });
     return { layers };
   }

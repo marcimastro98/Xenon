@@ -78,14 +78,7 @@
     const motionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
     const state = {
       mood: bit.clip(opts.mood) ? opts.mood : 'idle',
-      current: null,
-      index: 0,
-      timer: 0,
-      idleTimer: 0,
-      recent: [],
-      pokes: 0,
-      tint: null,
-      running: false,
+      current: null, index: 0, timer: 0, idleTimer: 0, recent: [], pokes: 0, tint: null, running: false,
       pageVisible: typeof document === 'undefined' || !document.hidden,
       inView: true,
       held: false,
@@ -93,13 +86,14 @@
       resolveReact: null,
       shown: null,
       drawn: 0,
+      sign: null, // the sign in its hand (bit-signs.js held()), or null
     };
 
     const reduced = () => (opts.reducedMotion != null ? !!opts.reducedMotion : !!(motionQuery && motionQuery.matches));
     const rhythm = () => (typeof opts.director === 'function' ? opts.director() : opts.director) || director()?.CLASSIC || null;
 
     function draw(c, i) {
-      const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook, home: opts.home === true });
+      const { layers } = bit.renderFrame(c, i, { tint: state.tint, look: opts.look ? opts.look() : pageLook, home: opts.home === true, held: state.sign });
       state.shown = c;
       state.drawn = i;
       const groups = layers.map((l) => {
@@ -277,6 +271,11 @@
       get running() { return state.running; },
       get mood() { return state.mood; },
       get clip() { return state.current ? state.current.id : null; },
+      /** A sign in its hand (bit-signs.js held(kind)), or null for none; shown at once, kept on every frame. */
+      sign(cells) {
+        state.sign = Array.isArray(cells) && cells.length ? cells : null;
+        if (state.shown) draw(state.shown, state.drawn || 0);
+      },
       /** Draws the frame on screen again: after the look changed. */
       refresh() {
         if (state.shown) draw(state.shown, state.drawn || 0);

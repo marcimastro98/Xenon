@@ -10,19 +10,22 @@
   const BODY = BOX.y1 + 2;
   const MAX_FRAMES = 24;
   const NOTHING = { clip: { frames: [{ ms: 1000 }] }, maps: [new Map()] }; // the loop between going and coming
-  const cache = new WeakMap(); // look -> Map(clip id -> cells of each frame)
+  const cache = new WeakMap(); // look -> Map(clip id and sign -> cells of each frame)
 
   const engine = () => window.Xenon || {};
 
-  /** The cells of every frame of a clip in this look, or null for a clip the shell can't take. */
-  function cellsOf(id, look) {
+  /** The cells of every frame of a clip in this look, the sign `sign` in its hand (signs.js), or null
+   *  for a clip the shell can't take. */
+  function cellsOf(id, look, sign = '') {
     const { bit, bitCells } = engine();
     const clip = bit?.clip(id);
     if (!clip || !bitCells || clip.frames.length > MAX_FRAMES) return null;
     if (!cache.has(look)) cache.set(look, new Map());
     const byClip = cache.get(look);
-    if (!byClip.has(id)) byClip.set(id, clip.frames.map((_, i) => bitCells.cells(bit.renderFrame(clip, i, { look }).layers)));
-    return { clip, maps: byClip.get(id) };
+    const key = id + ':' + sign;
+    const held = (sign && window.BitSigns?.held(sign)) || null;
+    if (!byClip.has(key)) byClip.set(key, clip.frames.map((_, i) => bitCells.cells(bit.renderFrame(clip, i, { look, held }).layers)));
+    return { clip, maps: byClip.get(key) };
   }
 
   // A way of going or coming, made once (kept on the `once` desk.js holds) from the frame it stands in.
@@ -32,12 +35,6 @@
       w.cells = made ? { clip: { frames: made.maps.map(() => ({ ms: made.ms })) }, maps: made.maps } : null;
     }
     return w.cells;
-  }
-
-  // Its sign (signs.js) over its head on the right, on every frame of Bit itself: not on a way of going.
-  const SIGN_AT = { x: BOX.x1 - 4, y: BOX.y0 };
-  function signed(part, sign) {
-    return sign && part ? { clip: part.clip, maps: part.maps.map((m) => new Map([...m, ...sign])) } : part;
   }
 
   // Frames on the common grid: the loop, then the clip played once when one is on.
@@ -56,15 +53,18 @@
    * @param {{ look: object, loopId: string, once: object|null, gone: boolean, reduced: boolean, sign?: string }} now
    */
   function picture({ look, loopId, once, gone, reduced, sign }) {
-    const stand = cellsOf(loopId, look) || cellsOf('idle', look);
+    // A sign whose colours do not fit the grid's palette is left out, never the Bit.
+    return (!gone && sign && framesOf(look, loopId, once, gone, reduced, sign)) || framesOf(look, loopId, once, gone, reduced, '');
+  }
+
+  // Its sign is in its hand on every frame of Bit itself (and of a way of going, made from the frame it stands in).
+  function framesOf(look, loopId, once, gone, reduced, sign) {
+    const stand = cellsOf(loopId, look, sign) || cellsOf('idle', look, sign);
     if (!stand) return null;
-    const extra = once && (once.kind ? warpCells(once, stand) : cellsOf(once.id, look));
+    const extra = once && (once.kind ? warpCells(once, stand) : cellsOf(once.id, look, sign));
     // Gone: one empty frame, with its own frame after it (never played) so the grid keeps its colours.
     const loop = gone ? { clip: NOTHING.clip, maps: [...NOTHING.maps, stand.maps[0]] } : stand;
-    const mark = !gone && sign ? window.BitSigns?.at(sign, SIGN_AT.x, SIGN_AT.y) : null;
-    // A sign whose colours do not fit the grid's palette is left out, never the Bit.
-    const withSign = mark && framesOn(signed(loop, mark), once?.kind ? extra : signed(extra, mark), reduced);
-    return withSign || framesOn(loop, extra, reduced) || framesOn(stand, null, reduced);
+    return framesOn(loop, extra, reduced) || framesOn(stand, null, reduced);
   }
 
   window.BitDeskFrames = Object.freeze({ BODY, COLS: BOX.x1 - BOX.x0 + 1, cellsOf, picture });

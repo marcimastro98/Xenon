@@ -151,7 +151,7 @@ test('kit: draws the egg, then the Bit, the classic one on request, and plays on
 });
 
 // The kit draws the sign the stream names in the stage's top-right corner, over the frame, from the shared table.
-test('kit: the sign over its head comes, changes and goes with data.signal, and signs: false leaves it out', async () => {
+test('kit: the sign in its hand comes, changes and goes with data.signal, and signs: false leaves it out', async () => {
   const { ctx } = fakePage();
   const made = [];
   const node = (tag) => {
@@ -166,32 +166,36 @@ test('kit: the sign over its head comes, changes and goes with data.signal, and 
   new vm.Script(await bitKit()).runInContext(ctx);
   const out = reader()(reply(hatchedView()), null, 'ask');
   const b = ctx.XenonBit.mount(node('div'), { label: 'Bit' });
-  const g = made.find((n) => n.attrs.class === 'xbit-sign');
-  const drawn = () => g.kids.map((r) => [r.attrs.x, r.attrs.y, r.attrs.fill].join(' ')).sort();
-  const want = (kind) => bitSigns.cells(kind).map((c) => [String(10 + c.x), String(-5 + c.y), '#' + c.hex].join(' ')).sort();
+  // Drawn with the body by the player: what its stage shows now, as the fills of its paths.
+  const svgOf = () => made.find((n) => n.tag === 'svg' && n.attrs.class === 'xbit');
+  const fills = (n = svgOf()) => [...(n.attrs.fill ? [n.attrs.fill] : []), ...n.kids.flatMap((k) => fills(k))];
+  const holds = (kind) => bitSigns.cells(kind).every((c) => fills().includes('#' + c.hex));
+  const SIGN_INK = ['#3fd16b', '#ffd23f', '#f5b83d', '#ff5a4d', '#4a90e2'];
+  const none = () => !fills().some((x) => SIGN_INK.includes(x));
   b.set(out);
-  assert.deepEqual(drawn(), want('ask'));
+  assert.ok(holds('ask'), 'the board in its hand');
   b.set({ ...out, signal: 'disk' });
-  assert.deepEqual(drawn(), want('disk'));
+  assert.ok(holds('disk') && !fills().includes('#ffd23f'), 'changed');
   b.set({ ...out, signal: 'not-a-sign' });
-  assert.deepEqual(drawn(), []);
+  assert.ok(none(), 'an unknown sign is none');
   b.set({ ...out, signal: 'done' });
   b.set({ ok: true, hatched: false, stage: 'egg' });
-  assert.deepEqual(drawn(), [], 'an egg carries none');
+  assert.ok(none(), 'an egg carries none');
   b.destroy();
   made.length = 0;
   const quiet = ctx.XenonBit.mount(node('div'), { label: 'Bit', signs: false });
   quiet.set(out);
-  assert.ok(!made.some((n) => n.attrs.class === 'xbit-sign'), 'the widget draws it itself');
+  assert.ok(none(), 'the widget draws it itself');
   quiet.destroy();
-  // The same sign over a Bit drawn without mount (the Maker's Bit layer).
-  const svg = node('svg');
-  const own = ctx.XenonBit.signs(svg);
-  own('bell');
-  assert.equal(svg.kids[0].attrs.class, 'xbit-sign');
-  assert.equal(svg.kids[0].kids.length, bitSigns.cells('bell').length);
-  own(null);
-  assert.deepEqual(svg.kids[0].kids, []);
+  // A Bit drawn without mount, from its own player (the Maker's Bit layer): the sign in its hand too.
+  made.length = 0;
+  const player = ctx.Xenon.bitPlayer.mount(node('div'), { label: 'Bit' });
+  const inHand = ctx.XenonBit.signs(player);
+  inHand('done');
+  assert.ok(holds('done'));
+  inHand(null);
+  assert.ok(none());
+  player.destroy();
 });
 
 // A month's supporters' item is made on the hub (server/bit/items.js): a widget gets the drawing of

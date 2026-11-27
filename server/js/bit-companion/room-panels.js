@@ -14,6 +14,7 @@
   const ROAMS = ['mix', 'walk', 'stay'];
   const WARPS = ['any', 'crumble', 'beam', 'packet', 'glitch']; // bit-companion/warp.js
   const DESKS = ['main', 'all', 'off']; // bit-companion/desk.js
+  const DESK_SIZES = ['small', 'medium', 'large']; // bit-companion/desk-spot.js; the mouse wheel over it too
   const TAPS = ['pocket', 'chat', 'room']; // companion.js tap()
   const GROUNDS = ['plain', 'stage'];
   const NAME_MAX = 24;
@@ -135,7 +136,8 @@
     const windows = /Windows/.test(ua);
     if (deskShown()) {
       const beta = windows ? null : /Macintosh|Mac OS X/.test(ua) ? 'mybit_desk_beta_mac' : 'mybit_desk_beta_linux';
-      return [desk(p, h), line('mybit_guide_desk_line'), ...(beta ? [line(beta)] : [])];
+      const size = p.desk === 'off' ? [] : [choice(h.say('mybit_desk_size'), 'deskSize', DESK_SIZES, p.deskSize || 'medium', (v) => h.say(`mybit_desk_size_${v}`), h)];
+      return [desk(p, h), ...size, line('mybit_guide_desk_line'), ...(beta ? [line(beta)] : [])];
     }
     const caps = window.__XENON_NATIVE__ === true ? window.__XENON_NATIVE_CAPS__ || {} : null;
     return caps && windows && !('bitDesk' in caps) ? [line('mybit_desk_needs_app')] : [];

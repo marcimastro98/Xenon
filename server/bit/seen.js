@@ -1,7 +1,7 @@
 'use strict';
 // What the person saw of their Bit, as anonymous counts (engine/usage-stats.js, a no-op while
 // usageStats is off): its pocket opened, something from the room tried on the desktop, and the
-// sign over its head when the pocket opened. Only these ids reach the hub, never what a sign was
+// sign in its hand when the pocket opened. Only these ids reach the hub, never what a sign was
 // about; the hub's src/usage-features.js lists the same (server/test/usage-stats.test.mjs).
 
 const { KINDS } = require('../shared/src/bit-signs.js');

@@ -211,3 +211,19 @@ fn a_small_press_is_a_tap_and_a_long_one_a_drop_the_page_decides_on() {
     d.take(plan(""), 100);
     assert_eq!(d.at(), home);
 }
+
+#[test]
+fn the_wheel_asks_one_size_up_or_down() {
+    assert_eq!(wheel_call(120.0).as_deref(), Some("resize(1)"));
+    assert_eq!(wheel_call(-0.3).as_deref(), Some("resize(-1)"));
+    assert_eq!(wheel_call(0.0), None);
+    assert_eq!(wheel_call(f64::NAN), None);
+}
+
+#[test]
+fn every_size_the_page_sends_is_kept_and_none_past_the_range() {
+    for c in [2, 3, 4] {
+        assert_eq!(parse(&msg(&format!(r#","cell":{c}"#))).expect("valid").cell, c);
+    }
+    assert_eq!(parse(&msg(r#","cell":40"#)).expect("valid").cell, CELL.1);
+}

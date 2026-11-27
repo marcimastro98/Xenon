@@ -165,3 +165,29 @@ test('a still frame takes a safe clip id, never arbitrary markup', () => {
   assert.doesNotMatch(bad, /script/);
   assert.match(bad, /clipPath id="bitfloor"/);
 });
+
+test('a sign held up moves with the body, on every clip, and takes the hand from what Bit held', () => {
+  const signs = require('../src/bit-signs.js');
+  const look = require('../src/bit-look.js');
+  const genome = require('../src/bit-genome.js');
+  const wardrobe = require('../src/bit-wardrobe.js');
+  const held = signs.held('done');
+  const signLayer = (f) => f.layers.find((l) => l.rects.some((r) => r.fill === '#3fd16b'));
+  for (const c of bit.clips) {
+    c.frames.forEach((_, i) => {
+      const f = bit.renderFrame(c, i, { held });
+      const body = f.layers.filter((l) => l.clipFloor).at(-1); // the body's own layer is the last one cut at the floor
+      const sign = signLayer(f);
+      assert.ok(sign, `${c.id}[${i}]: the sign is drawn`);
+      assert.deepEqual(sign.transform, body.transform, `${c.id}[${i}]: with the body's own move`);
+      assert.ok(sign.rects.some((r) => r.x === 10 && r.y === 6 && r.fill === body.rects[0].fill), 'the arm in the body\'s colour');
+    });
+  }
+  assert.equal(signLayer(bit.renderFrame('idle', 0, {})), undefined, 'no sign, nothing held');
+  const g = genome.decode('0123456789abcdef');
+  const mug = look.lookOf(g, { worn: wardrobe.outfit(['mug']) });
+  const cells = (f) => JSON.stringify(f.layers.flatMap((l) => l.rects));
+  const plain = bit.renderFrame('idle', 0, { look: look.lookOf(g, { worn: [] }), held });
+  assert.equal(cells(bit.renderFrame('idle', 0, { look: mug, held })), cells(plain), 'the mug waits while the sign is up');
+  assert.notEqual(cells(bit.renderFrame('idle', 0, { look: mug })), cells(bit.renderFrame('idle', 0, { look: look.lookOf(g, { worn: [] }) })), 'and comes back after');
+});

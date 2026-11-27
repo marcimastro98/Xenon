@@ -29,7 +29,7 @@ use objc2_foundation::{NSPoint, NSRect, NSSize};
 
 use super::super::glow_macos::{image::image, main_height};
 use super::state::{now, Desk};
-use super::{tell, Area, Plan};
+use super::{tell, wheel_call, Area, Plan};
 
 #[derive(Default)]
 struct Mac {
@@ -89,6 +89,14 @@ define_class!(
                     render(m);
                 }
             });
+        }
+
+        // A wheel or a trackpad: scrollingDeltaY, positive away from the person.
+        #[unsafe(method(scrollWheel:))]
+        fn scroll_wheel(&self, event: &NSEvent) {
+            if let Some(call) = wheel_call(event.scrollingDeltaY()) {
+                tell(call);
+            }
         }
 
         #[unsafe(method(mouseUp:))]

@@ -15,7 +15,7 @@ use gtk::prelude::{GtkWindowExt, WidgetExt, WidgetExtManual};
 use super::super::{layer_shell, linux};
 use super::linux::{centre, render, with, Lin};
 use super::state::Desk;
-use super::{tell, Area, Frame};
+use super::{tell, wheel_call, Area, Frame};
 
 fn draw(cr: &Context, image: Option<&ImageSurface>) {
     cr.set_operator(Operator::Source);
@@ -59,7 +59,19 @@ pub(super) fn create(image: Rc<RefCell<Option<ImageSurface>>>) -> Option<gtk::Wi
 
 /// The left button on Bit: a press, a drag (X11 only, see linux.rs) and the release.
 fn mouse(window: &gtk::Window) {
-    window.add_events(EventMask::BUTTON_PRESS_MASK | EventMask::BUTTON_RELEASE_MASK | EventMask::POINTER_MOTION_MASK);
+    window.add_events(EventMask::BUTTON_PRESS_MASK | EventMask::BUTTON_RELEASE_MASK | EventMask::POINTER_MOTION_MASK | EventMask::SCROLL_MASK);
+    // The wheel over Bit: one size up or down (GDK's Up is away from the person).
+    window.connect_scroll_event(|_, e| {
+        let up = match e.direction() {
+            gtk::gdk::ScrollDirection::Up => 1.0,
+            gtk::gdk::ScrollDirection::Down => -1.0,
+            _ => 0.0,
+        };
+        if let Some(call) = wheel_call(up) {
+            tell(call);
+        }
+        Propagation::Stop
+    });
     window.connect_button_press_event(|_, e| {
         if e.button() == 1 {
             with(|l| {

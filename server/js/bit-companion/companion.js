@@ -214,7 +214,7 @@
   }
   loadDesk();
 
-  // The signs over its head (signals.js, signs.js on the shared table bit-signs.js) from the start, with their styles and the pocket's,
+  // The signs it holds up (signals.js, signs.js on the shared table bit-signs.js) from the start, with their styles and the pocket's,
   // and its extras (perks.js); the pocket itself (pocket.js) the first time it is asked for.
   let pocketReady = null;
   function loadSigns() {

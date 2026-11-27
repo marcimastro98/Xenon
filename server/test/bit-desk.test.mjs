@@ -400,20 +400,29 @@ test('tapped with no window to show it: the dashboard opens what was chosen', as
   assert.deepEqual(r.taps, [null]);
 });
 
-test('a sign over its head on every frame of Bit, in colours the shell takes; none while it is gone', () => {
+test('a sign in its hand on every frame of Bit, in colours the shell takes; none while it is gone', () => {
   const r = rig({ pace: 'game', sign: 'done' });
   r.advance(100);
   const msg = r.last();
   assertShellTakes(msg, JSON.stringify(msg));
   const ink = (hex) => String.fromCharCode(65 + msg.pal.indexOf(hex));
   assert.ok(msg.pal.includes('3fd16b') && msg.pal.includes('d9dde3'));
-  for (const f of msg.loop) assert.equal(f.rows[0].slice(15, 19), ink('d9dde3') + ink('3fd16b').repeat(3), 'the flag, top right');
+  const flag = ink('d9dde3') + ink('3fd16b').repeat(3);
+  for (const f of msg.loop) {
+    const top = f.rows.findIndex((row) => row.includes(flag));
+    assert.ok(top > 0, 'the flag is on the frame');
+    const col = f.rows[top].indexOf(flag);
+    assert.ok(col < f.rows[top].length - 5, 'beside Bit, not in the far corner');
+    // Its stick runs down to the arm, a cell in the body's colour: Bit holds it.
+    for (let y = top; y <= top + 5; y++) assert.equal(f.rows[y][col], ink('d9dde3'), 'the stick, row ' + y);
+    assert.notEqual(f.rows[top + 6][col], '.', 'the arm under the stick');
+  }
   const plain = rig({ pace: 'game' });
   plain.advance(100);
   assert.ok(!plain.last().pal.includes('3fd16b'), 'no sign, no flag');
 });
 
-test('every sign is five by five and fits the palette beside any Bit', () => {
+test('every sign is five by five, fits the palette beside any Bit and is held in its hand', () => {
   const r = rig();
   const S = r.ctx.BitSigns;
   assert.deepEqual([...S.KINDS].sort(), ['ask', 'bell', 'disk', 'done', 'soon']);
@@ -422,7 +431,13 @@ test('every sign is five by five and fits the palette beside any Bit', () => {
     assert.ok(cells.length > 0 && cells.every((c) => c.x >= 0 && c.x < 5 && c.y >= 0 && c.y < 5 && /^[0-9a-f]{6}$/.test(c.hex)), kind);
     assert.ok(new Set(cells.map((c) => c.hex)).size <= 4, kind + ': few colours, so the Bit keeps its own');
   }
-  assert.equal(S.at('nope', 0, 0), null);
+  for (const kind of S.KINDS) {
+    const held = S.held(kind);
+    assert.ok(held.every((c) => c.x >= 10 && c.x <= 14 && c.y >= 0 && c.y <= 5), kind + ': in its hand, on the stage');
+    assert.ok(held.some((c) => c.x === 10 && c.y === 5), kind + ': with its stick down to the arm');
+  }
+  assert.equal(S.held('nope'), null);
+  assert.equal(S.held(''), null);
   assert.equal(S.cells('nope').length, 0);
 });
 
@@ -475,4 +490,37 @@ test('the room starts from what the desktop wore, and its support link says it c
   assert.ok(W.includes('if (!tried.length) tried = window.BitDeskTry?.take() || [];'));
   assert.ok(K.includes("joinLink(ctx, window.BitDeskTry?.tried(it.id) ? 'bit-tryon' : SOURCE)"));
   assert.ok(K.includes('window.BitDeskTry?.button(items, ctx)'));
+});
+
+test('its size: medium as today, small and large from its prefs, the wheel one step a turn, kept', async () => {
+  const r = rig();
+  r.advance(100);
+  assert.equal(r.last().cell, 3, 'medium, the size it always had');
+  r.desk.resize(1);
+  r.advance(100);
+  assert.equal(r.last().cell, 4);
+  r.desk.resize(1);
+  r.advance(100);
+  assert.equal(r.last().cell, 4, 'a fast wheel is one size, not two');
+  await Promise.resolve();
+  r.advance(500);
+  r.desk.resize(1);
+  r.advance(100);
+  assert.equal(r.last().cell, 4, 'nothing past large');
+  r.advance(500);
+  r.desk.resize(-1);
+  r.advance(500);
+  r.desk.resize(-1);
+  r.advance(100);
+  assert.equal(r.last().cell, 2);
+  assert.deepEqual(r.posts.map((p) => p.body), [{ deskSize: 'large' }, { deskSize: 'medium' }, { deskSize: 'small' }]);
+  for (const [deskSize, cell] of [['small', 2], ['large', 4], ['giant', 3]]) {
+    const s = rig({ bit: born({ deskSize }) });
+    s.advance(100);
+    assert.equal(s.last().cell, cell, deskSize);
+    assertShellTakes(s.last(), JSON.stringify(s.last()));
+  }
+  const off = rig({ bit: born({ desk: 'off' }) });
+  off.desk.resize(1);
+  assert.equal(off.posts.length, 0, 'not out: the wheel does nothing');
 });

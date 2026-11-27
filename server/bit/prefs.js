@@ -16,7 +16,7 @@ const PLACES = Object.freeze(['corner', 'topbar', 'both', 'off']);
 const REACTIONS = Object.freeze({ normal: 6, few: 2, off: 0 });
 const DEFAULT_PREFS = Object.freeze({
   place: 'corner', reactions: 'normal', sounds: false, classic: false, pose: '', card: 'plain', roam: 'mix', warp: 'any', spot: null,
-  desk: 'main', deskX: null, deskY: null, deskScreen: '', tap: 'pocket', keys: [], setup: false,
+  desk: 'main', deskX: null, deskY: null, deskScreen: '', deskSize: 'medium', tap: 'pocket', keys: [], setup: false,
 });
 // In the corner it strolls along the bottom now and then, sometimes teleporting (mix), only on foot, or
 // stays where it stands; warp: how it teleports (js/bit-companion/warp.js), 'any' a different way each
@@ -29,6 +29,9 @@ const WARPS = Object.freeze(['any', 'crumble', 'beam', 'packet', 'glitch']);
 // (0 left, 1 right; null its usual place), deskY how high when dropped away from the bar (0 top, 1 bottom of
 // the desktop; null on the bar), deskScreen the screen (the shell's display id; '' the main one).
 const DESKS = Object.freeze(['main', 'all', 'off']);
+// How big it stands there (js/bit-companion/desk-spot.js: 2, 3 or 4 logical px a cell); the mouse wheel over it
+// changes it too.
+const DESK_SIZES = Object.freeze(['small', 'medium', 'large']);
 // A tap on it opens its pocket (js/bit-companion/pocket.js), the chat or its room. keys: the pocket's
 // quick keys (pocket.js here), [] for the usual ones.
 const TAPS = Object.freeze(['pocket', 'chat', 'room']);
@@ -67,6 +70,7 @@ function normalizePrefs(raw) {
     deskX: normalizeFraction(p.deskX),
     deskY: normalizeFraction(p.deskY),
     deskScreen: typeof p.deskScreen === 'string' && SCREEN_ID.test(p.deskScreen) ? p.deskScreen : '',
+    deskSize: DESK_SIZES.includes(p.deskSize) ? p.deskSize : DEFAULT_PREFS.deskSize,
     tap: TAPS.includes(p.tap) ? p.tap : DEFAULT_PREFS.tap,
     keys: Pocket.normalizeKeys(p.keys),
     setup: p.setup === true,
@@ -85,4 +89,4 @@ function merge(prev, patch) {
   return { prefs: next };
 }
 
-module.exports = { PLACES, REACTIONS, ROAMS, WARPS, DESKS, TAPS, CARDS, POSES, DEFAULT_PREFS, normalizePrefs, merge };
+module.exports = { PLACES, REACTIONS, ROAMS, WARPS, DESKS, DESK_SIZES, TAPS, CARDS, POSES, DEFAULT_PREFS, normalizePrefs, merge };

@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const Catalog = require('../js/capabilities/catalog-bit.js');
+const Prefs = require('../bit/prefs.js');
 const { CAPABILITIES } = require('../js/capabilities/capability-catalog.js');
 const { createCapabilities, aiFunctions } = require('../capabilities/index.js');
 const { FREE, remoteMayRun } = require('../paired/remote-actions.js');
@@ -44,6 +45,7 @@ test('the catalog is appended, its places are the model\'s and every move is a c
   for (const type of TYPES) assert.ok(CAPABILITIES.some((c) => c.type === type), type);
   assert.deepEqual(Catalog.PLACES, [...Model.PLACES]);
   assert.deepEqual(Catalog.DESKS, [...Model.DESKS]);
+  assert.deepEqual(Catalog.DESK_SIZES, [...Prefs.DESK_SIZES]);
   assert.deepEqual(Catalog.WARPS, [...Model.WARPS]);
   for (const m of Catalog.MOVES.filter((x) => x !== 'surprise')) assert.ok(bit.clip(m), m);
   for (const c of Catalog.CAPABILITIES) assert.equal(c.capability.risk, 'safe', c.type);
@@ -126,9 +128,13 @@ test('the desktop and the way it teleports go through the model\'s rules, and th
     const warp = await t.actions.run({ type: 'bitWarp', warp: 'beam' });
     assert.deepEqual([warp.ok, warp.bit.warp], [true, 'beam']);
     assert.deepEqual(await t.actions.run({ type: 'bitDesk', desk: 'ceiling' }), { ok: false, error: 'bad_value' });
+    const big = await t.actions.run({ type: 'bitDesk', size: 'large' });
+    assert.deepEqual([big.ok, big.bit.desk, big.bit.deskSize], [true, 'all', 'large'], 'a size alone keeps where it lives');
+    assert.deepEqual(await t.actions.run({ type: 'bitDesk', size: 'huge' }), { ok: false, error: 'bad_value' });
+    assert.deepEqual(await t.actions.run({ type: 'bitDesk' }), { ok: false, error: 'bad_request' });
     assert.deepEqual(await t.actions.run({ type: 'bitWarp', warp: 'explode' }), { ok: false, error: 'bad_value' });
     assert.deepEqual(await t.actions.run({ type: 'bitWarp' }), { ok: false, error: 'bad_value' }, 'nothing chosen: a plain no');
-    assert.equal(t.sent.filter((s) => s.event === 'bit').length, 2, 'every surface hears each change, once');
+    assert.equal(t.sent.filter((s) => s.event === 'bit').length, 3, 'every surface hears each change, once');
   } finally { t.done(); }
 });
 
