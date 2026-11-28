@@ -2,6 +2,30 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "tgk-golden-sunset",
+      "kind": "theme",
+      "name": "TGK Golden Sunset",
+      "author": "The.GothamKnight",
+      "description": "A warm and immersive Liquid Glass theme based on an original sunset photograph.\n\nGentle water ripples, a softly glowing sun and synchronized reflections bring the photograph to life. Golden amber accents, copper borders and translucent warm-toned panels complement the natural colors of the sunset.\n\nOptimized for the Xeneon Edge (2560 × 720, 32:9), with a lightweight 12 FPS animation and native Xenon power management.\n\nOriginal photography by The.GothamKnight.",
+      "category": "style",
+      "tags": [
+        "sunset",
+        "nature",
+        "photography",
+        "animated",
+        "xeneon-edge"
+      ],
+      "version": "1.0.0",
+      "preview": {
+        "accent": "#ffb347",
+        "bg": "#1c1712",
+        "text": "#fff1d6"
+      },
+      "shots": 2,
+      "addedAt": "2026-11-28",
+      "codeFile": true
+    },
+    {
       "id": "pump-bit",
       "kind": "widget",
       "name": "Bit",
